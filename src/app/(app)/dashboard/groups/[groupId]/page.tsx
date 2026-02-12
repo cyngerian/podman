@@ -50,10 +50,10 @@ export default async function GroupDetailPage({
     .in("status", ["open", "confirmed"])
     .order("created_at", { ascending: false });
 
-  // Fetch active/recent drafts
+  // Fetch active/recent drafts with player count
   const { data: drafts } = await supabase
     .from("drafts")
-    .select("id, format, set_code, set_name, status, created_at")
+    .select("id, format, set_code, set_name, status, created_at, draft_players(count)")
     .eq("group_id", groupId)
     .in("status", ["lobby", "active", "deck_building"])
     .order("created_at", { ascending: false });
@@ -114,26 +114,33 @@ export default async function GroupDetailPage({
             Active Drafts
           </h2>
           <div className="space-y-2">
-            {drafts.map((draft) => (
-              <Link
-                key={draft.id}
-                href={`/draft/${draft.id}`}
-                className="block rounded-lg border border-border bg-surface p-3 hover:border-border-light transition-colors"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">
-                    {draft.format === "standard"
-                      ? draft.set_name ?? draft.set_code ?? "Standard"
-                      : draft.format === "winston"
-                        ? "Winston Draft"
-                        : "Cube Draft"}
-                  </span>
-                  <span className="text-xs text-foreground/40 uppercase">
-                    {draft.status.replace("_", " ")}
-                  </span>
-                </div>
-              </Link>
-            ))}
+            {drafts.map((draft) => {
+              const playerCount = draft.draft_players?.[0]?.count ?? 0;
+              return (
+                <Link
+                  key={draft.id}
+                  href={`/draft/${draft.id}`}
+                  className="block rounded-lg border border-border bg-surface p-3 hover:border-border-light transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">
+                      {draft.format === "standard"
+                        ? draft.set_name ?? draft.set_code ?? "Standard"
+                        : draft.format === "winston"
+                          ? "Winston Draft"
+                          : "Cube Draft"}
+                    </span>
+                    <span className="text-xs text-foreground/40 uppercase">
+                      {draft.status.replace("_", " ")}
+                    </span>
+                  </div>
+                  <p className="text-xs text-foreground/40 mt-1">
+                    {playerCount} player{playerCount !== 1 ? "s" : ""} &middot;{" "}
+                    {new Date(draft.created_at).toLocaleDateString()}
+                  </p>
+                </Link>
+              );
+            })}
           </div>
         </section>
       )}

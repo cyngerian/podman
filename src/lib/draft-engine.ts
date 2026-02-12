@@ -203,59 +203,17 @@ export function startDraft(draft: Draft, packs: CardReference[][]): Draft {
     };
   }
 
-  // Standard / Cube: packs array should have playerCount * packsPerPlayer packs
-  const totalPacks = draft.seats.length * draft.packsPerPlayer;
-  if (packs.length < totalPacks) {
+  // Standard / Cube: packs array should have at least one pack per player (first round).
+  // Remaining rounds are stored externally and passed via advanceToNextPack.
+  const seatCount = draft.seats.length;
+  if (packs.length < seatCount) {
     throw new Error(
-      `Expected at least ${totalPacks} packs, got ${packs.length}`
+      `Expected at least ${seatCount} packs (one per player), got ${packs.length}`
     );
   }
 
-  // Assign packs to seats. First pack goes to currentPack, rest are unopened.
-  // Pack distribution: seat 0 gets packs [0, N, 2N, ...], seat 1 gets [1, N+1, 2N+1, ...], etc.
-  const seatCount = draft.seats.length;
-  const newSeats = draft.seats.map((seat, seatIdx) => {
-    const seatPacks: PackState[] = [];
-    for (let p = 0; p < draft.packsPerPlayer; p++) {
-      const packIndex = p * seatCount + seatIdx;
-      seatPacks.push({
-        id: `pack-${seatIdx}-${p}`,
-        originSeat: seatIdx,
-        cards: [...packs[packIndex]],
-        pickNumber: 1,
-      });
-    }
-
-    return {
-      ...seat,
-      currentPack: seatPacks[0],
-      // Store remaining packs in a way we can retrieve them later.
-      // We use a convention: remaining packs are stored on the draft level.
-    };
-  });
-
-  // Store unopened packs for later rounds. We flatten them into an array
-  // keyed by seat, stored on each seat's pool temporarily — actually, we need
-  // a better approach. We'll distribute only the first pack and track the rest
-  // via the draft structure.
-  //
-  // Since Draft doesn't have an "unopenedPacks" field, we use a pattern where
-  // seats only hold currentPack and we track round transitions in advanceToNextPack.
-  // We'll store all packs in a closure-free way by re-deriving from the original
-  // pack assignments. Instead, let's embed future packs as null currentPack seats
-  // and store extra packs data alongside.
-  //
-  // Simplest approach: store all packs flat on the draft as a temporary holding
-  // pattern — but Draft type doesn't have that field either.
-  //
-  // The cleanest approach given the Draft type: we store future packs by having
-  // advanceToNextPack accept the packs array again. But for a self-contained engine,
-  // let's encode unopened packs into the seats' pool-adjacent data.
-  //
-  // Actually, looking at the Draft type again, we can only use the fields available.
-  // The standard pattern is: the caller retains the packs array and passes relevant
-  // packs when calling advanceToNextPack. For startDraft, we only distribute pack 1.
-
+  // Distribute only the first round of packs. The caller retains remaining packs
+  // and passes them via advanceToNextPack for subsequent rounds.
   const seatsWithFirstPack = draft.seats.map((seat, seatIdx) => {
     const packIndex = seatIdx; // First round: pack 0..N-1
     const firstPack: PackState = {
