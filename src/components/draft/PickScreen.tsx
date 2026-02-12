@@ -98,15 +98,22 @@ export default function PickScreen({
         <div className="flex flex-col items-center">
           <span className="text-sm font-semibold text-foreground">
             Pack {packNumber} Pick {pickInPack}
+            <span className="text-foreground/40 font-normal ml-1.5">
+              {packCards.length}/{totalCardsInPack}
+            </span>
           </span>
           <span className="text-xs text-foreground/50">
             {directionArrow} Pass {passDirection}
           </span>
         </div>
 
-        <span className="text-sm font-mono text-foreground/60">
-          {packCards.length}/{totalCardsInPack}
-        </span>
+        <button
+          type="button"
+          onClick={() => setShowPickedDrawer(true)}
+          className="px-2.5 py-1.5 rounded-lg bg-surface text-xs font-medium text-foreground hover:bg-surface-hover transition-colors border border-border"
+        >
+          Picks ({picks.length})
+        </button>
       </header>
 
       {/* Card grid — scrollable area */}
@@ -141,15 +148,7 @@ export default function PickScreen({
       </div>
 
       {/* Bottom bar */}
-      <div className="flex items-center justify-between px-3 py-2 border-t border-border bg-surface shrink-0">
-        <button
-          type="button"
-          onClick={() => setShowPickedDrawer(true)}
-          className="px-3 py-2 rounded-lg bg-background text-sm font-medium text-foreground hover:bg-surface-hover transition-colors"
-        >
-          My Picks ({picks.length})
-        </button>
-
+      <div className="flex items-center justify-end px-3 py-2 border-t border-border bg-surface shrink-0">
         <div className="relative">
           <button
             type="button"
