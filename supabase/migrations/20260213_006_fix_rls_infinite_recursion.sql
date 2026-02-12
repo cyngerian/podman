@@ -62,7 +62,8 @@ CREATE POLICY "group_members_delete" ON public.group_members
 DROP POLICY IF EXISTS "groups_select" ON public.groups;
 CREATE POLICY "groups_select" ON public.groups
   FOR SELECT TO authenticated USING (
-    id IN (SELECT public.user_group_ids(auth.uid()))
+    created_by = auth.uid()
+    OR id IN (SELECT public.user_group_ids(auth.uid()))
   );
 
 DROP POLICY IF EXISTS "groups_update" ON public.groups;
