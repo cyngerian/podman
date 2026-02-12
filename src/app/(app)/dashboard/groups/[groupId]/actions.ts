@@ -91,7 +91,10 @@ export async function voteOnProposal(formData: FormData) {
       .eq("vote", "in");
 
     if (count && count >= proposal.player_count) {
-      await supabase
+      // Use admin client — the voter may not be the proposer/admin,
+      // but auto-confirm should still work when threshold is met
+      const admin = createAdminClient();
+      await admin
         .from("draft_proposals")
         .update({ status: "confirmed" })
         .eq("id", proposalId);
