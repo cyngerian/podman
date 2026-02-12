@@ -1,7 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { voteOnProposal, cancelProposal, convertProposalToDraft } from "../../actions";
 import ProposalVotesLive from "./ProposalVotesLive";
+import ProposalActions from "./ProposalActions";
 
 const FORMAT_LABELS: Record<string, string> = {
   standard: "Standard Booster",
@@ -135,60 +135,15 @@ export default async function ProposalDetailPage({
         </ProposalVotesLive>
       </section>
 
-      {/* Vote Buttons */}
-      {proposal.status === "open" && (
-        <section className="flex gap-2">
-          {(["in", "maybe", "out"] as const).map((voteValue) => (
-            <form key={voteValue} action={voteOnProposal} className="flex-1">
-              <input type="hidden" name="proposal_id" value={proposalId} />
-              <input type="hidden" name="group_id" value={groupId} />
-              <input type="hidden" name="vote" value={voteValue} />
-              <button
-                type="submit"
-                className={`w-full rounded-lg py-2.5 text-sm font-semibold transition-colors ${
-                  userVote === voteValue
-                    ? voteValue === "in"
-                      ? "bg-success text-white"
-                      : voteValue === "out"
-                        ? "bg-danger text-white"
-                        : "bg-warning text-white"
-                    : "border border-border bg-surface hover:bg-surface-hover text-foreground/70"
-                }`}
-              >
-                {voteValue === "in" ? "I'm In" : voteValue === "out" ? "Out" : "Maybe"}
-              </button>
-            </form>
-          ))}
-        </section>
-      )}
-
-      {/* Convert to Draft */}
-      {canConvert && (
-        <form action={convertProposalToDraft}>
-          <input type="hidden" name="proposal_id" value={proposalId} />
-          <input type="hidden" name="group_id" value={groupId} />
-          <button
-            type="submit"
-            className="w-full rounded-xl bg-accent py-3.5 text-base font-semibold text-white hover:bg-accent-hover transition-colors"
-          >
-            Convert to Draft
-          </button>
-        </form>
-      )}
-
-      {/* Cancel */}
-      {isProposer && proposal.status === "open" && (
-        <form action={cancelProposal}>
-          <input type="hidden" name="proposal_id" value={proposalId} />
-          <input type="hidden" name="group_id" value={groupId} />
-          <button
-            type="submit"
-            className="text-sm text-danger hover:underline"
-          >
-            Cancel proposal
-          </button>
-        </form>
-      )}
+      {/* Interactive Actions (vote, convert, cancel) */}
+      <ProposalActions
+        proposalId={proposalId}
+        groupId={groupId}
+        status={proposal.status}
+        userVote={userVote}
+        isProposer={isProposer}
+        canConvert={canConvert}
+      />
     </div>
   );
 }

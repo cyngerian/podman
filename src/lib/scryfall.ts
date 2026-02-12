@@ -164,7 +164,8 @@ function mapRarity(rarity: string): Rarity {
 
 const VALID_COLORS: Set<string> = new Set(["W", "U", "B", "R", "G"]);
 
-function mapColors(colors: string[]): ManaColor[] {
+function mapColors(colors: string[] | undefined | null): ManaColor[] {
+  if (!colors) return [];
   return colors.filter((c) => VALID_COLORS.has(c)) as ManaColor[];
 }
 
@@ -238,7 +239,7 @@ export function scryfallCardToReference(
     smallImageUri: images.small,
     rarity: mapRarity(card.rarity),
     colors: mapColors(card.colors),
-    cmc: card.cmc,
+    cmc: card.cmc ?? 0,
     isFoil,
   };
 }
@@ -322,6 +323,28 @@ export function groupCardsByRarity(
   }
 
   return grouped;
+}
+
+// --- Set Info ---
+
+/**
+ * Fetch metadata for a single set by code.
+ */
+export async function fetchSetInfo(setCode: string): Promise<ScryfallSet> {
+  const code = encodeURIComponent(setCode.toLowerCase());
+  const response = await scryfallFetch(`${SCRYFALL_API_BASE}/sets/${code}`);
+  return response.json();
+}
+
+/**
+ * Determine pack era based on set release date.
+ * Sets released on or after March of the Machine (2023-04-21) use play_booster.
+ * Older sets use draft_booster.
+ */
+const PLAY_BOOSTER_CUTOFF = "2023-04-21";
+
+export function getPackEra(releasedAt: string): "play_booster" | "draft_booster" {
+  return releasedAt >= PLAY_BOOSTER_CUTOFF ? "play_booster" : "draft_booster";
 }
 
 // --- Set List ---

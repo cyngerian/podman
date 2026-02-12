@@ -28,6 +28,8 @@ import {
 } from "@/lib/draft-engine";
 import {
   fetchBoosterCards,
+  fetchSetInfo,
+  getPackEra,
   scryfallCardToReference,
   groupCardsByRarity,
 } from "@/lib/scryfall";
@@ -223,8 +225,10 @@ export async function startDraftAction(draftId: string) {
     const setCode = draft.set_code;
     if (!setCode) throw new Error("No set code configured");
 
-    const scryfallCards = await fetchBoosterCards(setCode);
-    const cardRefs = scryfallCards.map((c) => scryfallCardToReference(c));
+    const [scryfallCards, setInfo] = await Promise.all([
+      fetchBoosterCards(setCode),
+      fetchSetInfo(setCode),
+    ]);
     const grouped = groupCardsByRarity(scryfallCards);
 
     const cardPool = {
@@ -234,7 +238,8 @@ export async function startDraftAction(draftId: string) {
       mythic: grouped.mythic.map((c) => scryfallCardToReference(c)),
     };
 
-    const template = getTemplateForSet(setCode, "play_booster");
+    const era = getPackEra(setInfo.released_at);
+    const template = getTemplateForSet(setCode, era);
     allPacks = generateAllPacks(
       cardPool,
       template,
@@ -273,8 +278,8 @@ export async function startDraftAction(draftId: string) {
     const scryfallCards = await fetchBoosterCards(setCode);
     const cardRefs = scryfallCards.map((c) => scryfallCardToReference(c));
 
-    // For Winston, we need ~90 cards (6 packs * 15 cards)
-    const poolSize = 6 * 15;
+    // For Winston, we need ~90 cards
+    const poolSize = 90;
     const shuffled = [...cardRefs].sort(() => Math.random() - 0.5);
     const pool = shuffled.slice(0, poolSize);
 
