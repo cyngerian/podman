@@ -1,28 +1,16 @@
 "use client";
 
-import { useRef } from "react";
+import { useTransition } from "react";
 import CreateDraftForm from "@/components/draft/CreateDraftForm";
 import { createProposal } from "../actions";
 
 export default function ProposalFormWrapper({ groupId }: { groupId: string }) {
-  const formRef = useRef<HTMLFormElement>(null);
+  const [isPending, startTransition] = useTransition();
 
   return (
-    <form ref={formRef} action={createProposal}>
-      <input type="hidden" name="group_id" value={groupId} />
-      <input type="hidden" name="title" id="proposal-title" />
-      <input type="hidden" name="format" id="proposal-format" />
-      <input type="hidden" name="set_code" id="proposal-set-code" />
-      <input type="hidden" name="set_name" id="proposal-set-name" />
-      <input type="hidden" name="player_count" id="proposal-player-count" />
-      <input type="hidden" name="config" id="proposal-config" />
-
+    <div className={isPending ? "opacity-60 pointer-events-none" : ""}>
       <CreateDraftForm
         onSubmit={(config) => {
-          const form = formRef.current;
-          if (!form) return;
-
-          // Build title
           let title = "";
           if (config.format === "standard" && config.setName) {
             title = `${config.setName} Draft`;
@@ -34,13 +22,14 @@ export default function ProposalFormWrapper({ groupId }: { groupId: string }) {
             title = `${config.format} Draft`;
           }
 
-          // Populate hidden fields
-          (form.querySelector("#proposal-title") as HTMLInputElement).value = title;
-          (form.querySelector("#proposal-format") as HTMLInputElement).value = config.format;
-          (form.querySelector("#proposal-set-code") as HTMLInputElement).value = config.setCode ?? "";
-          (form.querySelector("#proposal-set-name") as HTMLInputElement).value = config.setName ?? "";
-          (form.querySelector("#proposal-player-count") as HTMLInputElement).value = String(config.playerCount);
-          (form.querySelector("#proposal-config") as HTMLInputElement).value = JSON.stringify({
+          const formData = new FormData();
+          formData.set("group_id", groupId);
+          formData.set("title", title);
+          formData.set("format", config.format);
+          formData.set("set_code", config.setCode ?? "");
+          formData.set("set_name", config.setName ?? "");
+          formData.set("player_count", String(config.playerCount));
+          formData.set("config", JSON.stringify({
             pacingMode: config.pacingMode,
             timerPreset: config.timerPreset,
             reviewPeriodSeconds: config.reviewPeriodSeconds,
@@ -49,11 +38,13 @@ export default function ProposalFormWrapper({ groupId }: { groupId: string }) {
             pickHistoryPublic: config.pickHistoryPublic,
             cubeList: config.cubeList,
             cubeSource: config.cubeSource,
-          });
+          }));
 
-          form.requestSubmit();
+          startTransition(async () => {
+            await createProposal(formData);
+          });
         }}
       />
-    </form>
+    </div>
   );
 }
