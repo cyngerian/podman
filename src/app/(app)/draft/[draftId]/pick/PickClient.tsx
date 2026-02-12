@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useTransition } from "react";
+import { useState, useEffect, useCallback, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type {
   CardReference,
@@ -11,7 +11,6 @@ import type {
 } from "@/lib/types";
 import { getPickTimer, getPassDirection } from "@/lib/types";
 import PickScreen from "@/components/draft/PickScreen";
-import BetweenPackScreen from "@/components/draft/BetweenPackScreen";
 import { useRealtimeChannel } from "@/hooks/useRealtimeChannel";
 import { makePickAction, autoPickAction } from "../actions";
 
@@ -25,11 +24,9 @@ interface PickClientProps {
   timerPreset: TimerPreset;
   pacingMode: PacingMode;
   packsPerPlayer: number;
-  reviewPeriodSeconds: number;
   deckBuildingEnabled: boolean;
-  isRoundComplete: boolean;
-  currentPack: number;
-  seats: Array<{ displayName: string; hasPicked: boolean }>;
+  packReceivedAt: number | null;
+  packQueueLength: number;
 }
 
 export default function PickClient({
@@ -42,11 +39,9 @@ export default function PickClient({
   timerPreset,
   pacingMode,
   packsPerPlayer,
-  reviewPeriodSeconds,
   deckBuildingEnabled,
-  isRoundComplete: initialRoundComplete,
-  currentPack: initialCurrentPack,
-  seats: initialSeats,
+  packReceivedAt,
+  packQueueLength,
 }: PickClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -56,23 +51,37 @@ export default function PickClient({
   const [picks, setPicks] = useState(initialPicks);
   const [filterMode, setFilterMode] = useState<PackFilterMode>("all");
   const [sortMode, setSortMode] = useState<PickedCardSortMode>("draft_order");
-  const [showBetweenPack, setShowBetweenPack] = useState(initialRoundComplete);
-  const [reviewTimer, setReviewTimer] = useState(reviewPeriodSeconds);
 
-  // Timer
+  // Timer based on packReceivedAt
   const timerDuration =
     pacingMode === "realtime" && timerPreset !== "none"
       ? getPickTimer(packCards.length, timerPreset)
       : Infinity;
-  const [timerSeconds, setTimerSeconds] = useState(timerDuration);
 
-  // Reset timer when pack changes
-  useEffect(() => {
-    if (pacingMode === "realtime" && timerPreset !== "none") {
-      const duration = getPickTimer(packCards.length, timerPreset);
-      setTimerSeconds(duration);
+  const computeRemaining = useCallback(() => {
+    if (pacingMode !== "realtime" || timerPreset === "none" || !packReceivedAt) {
+      return Infinity;
     }
-  }, [packCards.length, pacingMode, timerPreset]);
+    const elapsed = (Date.now() - packReceivedAt) / 1000;
+    const duration = getPickTimer(packCards.length, timerPreset);
+    return Math.max(0, Math.ceil(duration - elapsed));
+  }, [pacingMode, timerPreset, packReceivedAt, packCards.length]);
+
+  const [timerSeconds, setTimerSeconds] = useState(computeRemaining);
+
+  // Recalculate timer when packReceivedAt changes (new pack received)
+  const prevPackReceivedAt = useRef(packReceivedAt);
+  useEffect(() => {
+    if (packReceivedAt !== prevPackReceivedAt.current) {
+      prevPackReceivedAt.current = packReceivedAt;
+      setTimerSeconds(computeRemaining());
+    }
+  }, [packReceivedAt, computeRemaining]);
+
+  // Reset timer when pack card count changes (e.g. after server refresh)
+  useEffect(() => {
+    setTimerSeconds(computeRemaining());
+  }, [packCards.length, computeRemaining]);
 
   // Countdown timer
   useEffect(() => {
@@ -105,23 +114,6 @@ export default function PickClient({
 
     return () => clearInterval(interval);
   }, [pacingMode, timerPreset, timerSeconds, packCards.length, draftId, router]);
-
-  // Between-pack review timer
-  useEffect(() => {
-    if (!showBetweenPack) return;
-
-    const interval = setInterval(() => {
-      setReviewTimer((prev) => {
-        if (prev <= 1) {
-          setShowBetweenPack(false);
-          return reviewPeriodSeconds;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [showBetweenPack, reviewPeriodSeconds]);
 
   // Subscribe to draft state changes
   useRealtimeChannel(
@@ -180,29 +172,13 @@ export default function PickClient({
 
   const passDirection = getPassDirection(initialPackNumber);
 
-  // Between-pack screen
-  if (showBetweenPack && packCards.length === 0) {
-    return (
-      <BetweenPackScreen
-        completedPackNumber={initialCurrentPack}
-        nextPackNumber={initialCurrentPack + 1}
-        reviewSecondsRemaining={reviewTimer}
-        picks={picks}
-        players={initialSeats.map((s) => ({
-          name: s.displayName,
-          ready: s.hasPicked,
-        }))}
-      />
-    );
-  }
-
-  // Waiting for pack (all picked, waiting for others)
+  // Waiting for pack
   if (packCards.length === 0) {
     return (
       <div className="flex min-h-dvh items-center justify-center">
         <div className="text-center space-y-2">
           <p className="text-foreground/60 text-sm">
-            Waiting for other players to pick...
+            Waiting for next pack...
           </p>
         </div>
       </div>
@@ -225,6 +201,7 @@ export default function PickClient({
       onFilterChange={setFilterMode}
       sortMode={sortMode}
       onSortChange={setSortMode}
+      packQueueLength={packQueueLength}
     />
   );
 }

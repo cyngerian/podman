@@ -114,6 +114,7 @@ export interface PackState {
   originSeat: number; // which seat opened this pack
   cards: CardReference[];
   pickNumber: number; // which pick this pack is on (1-14)
+  round: number; // 1-indexed, matches draft.currentPack
 }
 
 // --- Draft Seat ---
@@ -138,6 +139,8 @@ export interface DraftSeat {
   queuedCardId: string | null; // card to auto-pick if timer expires
   basicLands: BasicLandCounts;
   hasSubmittedDeck: boolean;
+  packQueue: PackState[]; // packs waiting behind currentPack
+  packReceivedAt: number | null; // when currentPack was received (for timer)
 }
 
 // --- Winston State ---

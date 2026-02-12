@@ -23,6 +23,7 @@ interface PickScreenProps {
   onFilterChange: (mode: PackFilterMode) => void;
   sortMode: PickedCardSortMode;
   onSortChange: (mode: PickedCardSortMode) => void;
+  packQueueLength?: number;
 }
 
 const FILTER_OPTIONS: { value: PackFilterMode; label: string; colorVar?: string }[] = [
@@ -58,6 +59,7 @@ export default function PickScreen({
   onFilterChange,
   sortMode,
   onSortChange,
+  packQueueLength,
 }: PickScreenProps) {
   const [selectedCard, setSelectedCard] = useState<CardReference | null>(null);
   const [showPickedDrawer, setShowPickedDrawer] = useState(false);
@@ -101,6 +103,11 @@ export default function PickScreen({
             <span className="text-foreground/40 font-normal ml-1.5">
               {packCards.length}/{totalCardsInPack}
             </span>
+            {!!packQueueLength && packQueueLength > 0 && (
+              <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-accent text-white text-xs font-medium">
+                +{packQueueLength} queued
+              </span>
+            )}
           </span>
           <span className="text-xs text-foreground/50">
             {directionArrow} Pass {passDirection}

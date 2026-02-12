@@ -73,6 +73,8 @@ function emptySeat(position: number, userId: string, displayName: string): Draft
     queuedCardId: null,
     basicLands: emptyBasicLands(),
     hasSubmittedDeck: false,
+    packQueue: [],
+    packReceivedAt: null,
   };
 }
 
@@ -214,6 +216,7 @@ export function startDraft(draft: Draft, packs: CardReference[][]): Draft {
 
   // Distribute only the first round of packs. The caller retains remaining packs
   // and passes them via advanceToNextPack for subsequent rounds.
+  const now = Date.now();
   const seatsWithFirstPack = draft.seats.map((seat, seatIdx) => {
     const packIndex = seatIdx; // First round: pack 0..N-1
     const firstPack: PackState = {
@@ -221,18 +224,21 @@ export function startDraft(draft: Draft, packs: CardReference[][]): Draft {
       originSeat: seatIdx,
       cards: [...packs[packIndex]],
       pickNumber: 1,
+      round: 1,
     };
 
     return {
       ...seat,
       currentPack: firstPack,
+      packReceivedAt: now,
+      packQueue: [],
     };
   });
 
   return {
     ...draft,
     status: "active",
-    startedAt: Date.now(),
+    startedAt: now,
     currentPack: 1,
     seats: seatsWithFirstPack,
   };
@@ -444,18 +450,18 @@ export function advanceToNextPack(
     );
   }
 
-  const newSeats = draft.seats.map((seat, seatIdx) => {
+  const now = Date.now();
+  let newSeats = [...draft.seats];
+  for (let seatIdx = 0; seatIdx < newSeats.length; seatIdx++) {
     const newPack: PackState = {
       id: `pack-${seatIdx}-${nextPackNumber - 1}`,
       originSeat: seatIdx,
       cards: [...nextPacks[seatIdx]],
       pickNumber: 1,
+      round: nextPackNumber,
     };
-    return {
-      ...seat,
-      currentPack: newPack,
-    };
-  });
+    newSeats[seatIdx] = deliverPack(newSeats[seatIdx], newPack, now);
+  }
 
   return {
     ...draft,
@@ -533,6 +539,145 @@ export function clearQueuedPick(
   );
 
   return { ...draft, seats: newSeats };
+}
+
+// ============================================================================
+// 4b. Individual Pack Passing
+// ============================================================================
+
+/** Deliver a pack to a seat: set as currentPack if empty, else enqueue */
+export function deliverPack(seat: DraftSeat, pack: PackState, now: number): DraftSeat {
+  if (seat.currentPack === null) {
+    return {
+      ...seat,
+      currentPack: pack,
+      packReceivedAt: now,
+    };
+  }
+  return {
+    ...seat,
+    packQueue: [...(seat.packQueue ?? []), pack],
+  };
+}
+
+/** Promote the first queued pack to currentPack if seat has no current pack */
+export function promoteFromQueue(seat: DraftSeat, now: number): DraftSeat {
+  const queue = seat.packQueue ?? [];
+  if (seat.currentPack !== null || queue.length === 0) return seat;
+  const [next, ...rest] = queue;
+  return {
+    ...seat,
+    currentPack: next,
+    packReceivedAt: now,
+    packQueue: rest,
+    queuedCardId: null,
+  };
+}
+
+/** Pick a card and immediately pass the pack to the next seat */
+export function makePickAndPass(
+  draft: Draft,
+  seatPosition: number,
+  cardId: string
+): Draft {
+  if (draft.status !== "active") {
+    throw new Error("Draft is not active");
+  }
+
+  const seat = draft.seats[seatPosition];
+  if (!seat) throw new Error(`Invalid seat position: ${seatPosition}`);
+  if (!seat.currentPack) throw new Error(`Seat ${seatPosition} has no current pack`);
+
+  const cardIndex = seat.currentPack.cards.findIndex(
+    (c) => c.scryfallId === cardId
+  );
+  if (cardIndex === -1) {
+    throw new Error(`Card ${cardId} not found in current pack`);
+  }
+
+  const pickedCard = seat.currentPack.cards[cardIndex];
+  const remainingCards = seat.currentPack.cards.filter((_, i) => i !== cardIndex);
+
+  const packNumber = seat.currentPack.round ?? draft.currentPack;
+  const pickInPack = seat.currentPack.pickNumber;
+  const overallPickNumber = seat.picks.length + 1;
+
+  const pick: DraftPick = {
+    pickNumber: overallPickNumber,
+    packNumber,
+    pickInPack,
+    cardId: pickedCard.scryfallId,
+    cardName: pickedCard.name,
+    timestamp: Date.now(),
+  };
+
+  const now = Date.now();
+  const direction = getPassDirection(packNumber);
+  const totalSeats = draft.seats.length;
+
+  // Build updated seats
+  let newSeats = draft.seats.map((s) => {
+    if (s.position !== seatPosition) return s;
+    return {
+      ...s,
+      currentPack: null,
+      picks: [...s.picks, pick],
+      pool: [...s.pool, pickedCard],
+      queuedCardId: null,
+    };
+  });
+
+  // Pass remaining cards to next seat if any remain
+  if (remainingCards.length > 0) {
+    const updatedPack: PackState = {
+      ...seat.currentPack,
+      cards: remainingCards,
+      pickNumber: seat.currentPack.pickNumber + 1,
+    };
+    const destPosition = getNextSeat(seatPosition, direction, totalSeats);
+    newSeats = newSeats.map((s) => {
+      if (s.position !== destPosition) return s;
+      return deliverPack(s, updatedPack, now);
+    });
+  }
+
+  // Promote from queue for the picker
+  newSeats = newSeats.map((s) => {
+    if (s.position !== seatPosition) return s;
+    return promoteFromQueue(s, now);
+  });
+
+  return {
+    ...draft,
+    seats: newSeats,
+  };
+}
+
+/** Check if all packs for the current round have been fully consumed */
+export function isIndividualRoundComplete(draft: Draft): boolean {
+  const currentRound = draft.currentPack;
+  for (const seat of draft.seats) {
+    // Check currentPack
+    if (seat.currentPack && (seat.currentPack.round ?? currentRound) === currentRound) {
+      return false;
+    }
+    // Check packQueue
+    for (const pack of (seat.packQueue ?? [])) {
+      if ((pack.round ?? currentRound) === currentRound) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+/** Hydrate a seat with missing fields for backwards compatibility */
+export function hydrateSeat(seat: DraftSeat): DraftSeat {
+  return {
+    ...seat,
+    packQueue: seat.packQueue ?? [],
+    packReceivedAt: seat.packReceivedAt ?? null,
+  };
 }
 
 // ============================================================================

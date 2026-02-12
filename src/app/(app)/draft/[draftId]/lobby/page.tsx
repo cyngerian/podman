@@ -78,6 +78,8 @@ export default async function LobbyPage({
       queuedCardId: null,
       basicLands: { W: 0, U: 0, B: 0, R: 0, G: 0 },
       hasSubmittedDeck: false,
+      packQueue: [],
+      packReceivedAt: null,
     })),
     winstonState: null,
     createdAt: new Date(dbDraft.created_at).getTime(),

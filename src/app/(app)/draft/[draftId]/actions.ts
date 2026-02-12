@@ -11,10 +11,8 @@ import {
   confirmDraft,
   startDraft as engineStartDraft,
   initializeWinston,
-  makePick,
-  passCurrentPacks,
-  allPlayersHavePicked,
-  isRoundComplete,
+  makePickAndPass,
+  isIndividualRoundComplete,
   advanceToNextPack,
   autoPickCard,
   transitionToDeckBuilding,
@@ -25,6 +23,7 @@ import {
   winstonLookAtPile as engineWinstonLook,
   isWinstonComplete,
   suggestLandCounts,
+  hydrateSeat,
 } from "@/lib/draft-engine";
 import {
   fetchBoosterCards,
@@ -398,39 +397,33 @@ export async function makePickAction(draftId: string, cardId: string) {
   const result = await applyDraftMutation(
     draftId,
     (draft, allPacks) => {
-      const seat = draft.seats.find((s) => s.userId === user.id);
+      // Hydrate seats for backwards compat
+      const hydrated = { ...draft, seats: draft.seats.map(hydrateSeat) };
+
+      const seat = hydrated.seats.find((s) => s.userId === user.id);
       if (!seat) throw new Error("You are not in this draft");
 
-      let updated = makePick(draft, seat.position, cardId);
+      let updated = makePickAndPass(hydrated, seat.position, cardId);
 
-      // Check if all players have picked
-      if (allPlayersHavePicked(updated)) {
-        // Pass packs
-        updated = passCurrentPacks(updated);
-
-        // Check if round is complete
-        if (isRoundComplete(updated)) {
-          if (updated.currentPack < updated.packsPerPlayer && allPacks) {
-            // Advance to next pack
-            const nextPackStart = updated.currentPack * updated.seats.length;
-            const nextPacks = allPacks.slice(
-              nextPackStart,
-              nextPackStart + updated.seats.length
-            );
-            if (nextPacks.length >= updated.seats.length) {
-              updated = advanceToNextPack(updated, nextPacks);
-            } else {
-              // No more packs — transition
-              updated = draft.deckBuildingEnabled
-                ? transitionToDeckBuilding(updated)
-                : completeDraft(updated);
-            }
+      // Check if all packs for this round are consumed
+      if (isIndividualRoundComplete(updated)) {
+        if (updated.currentPack < updated.packsPerPlayer && allPacks) {
+          const nextPackStart = updated.currentPack * updated.seats.length;
+          const nextPacks = allPacks.slice(
+            nextPackStart,
+            nextPackStart + updated.seats.length
+          );
+          if (nextPacks.length >= updated.seats.length) {
+            updated = advanceToNextPack(updated, nextPacks);
           } else {
-            // Last round done
-            updated = draft.deckBuildingEnabled
+            updated = updated.deckBuildingEnabled
               ? transitionToDeckBuilding(updated)
               : completeDraft(updated);
           }
+        } else {
+          updated = updated.deckBuildingEnabled
+            ? transitionToDeckBuilding(updated)
+            : completeDraft(updated);
         }
       }
 
@@ -450,37 +443,36 @@ export async function autoPickAction(draftId: string) {
   const result = await applyDraftMutation(
     draftId,
     (draft, allPacks) => {
-      const seat = draft.seats.find((s) => s.userId === user.id);
+      // Hydrate seats for backwards compat
+      const hydrated = { ...draft, seats: draft.seats.map(hydrateSeat) };
+
+      const seat = hydrated.seats.find((s) => s.userId === user.id);
       if (!seat) throw new Error("You are not in this draft");
       if (!seat.currentPack || seat.currentPack.cards.length === 0) {
         throw new Error("No pack to pick from");
       }
 
       const card = autoPickCard(seat.currentPack.cards, seat.queuedCardId);
-      let updated = makePick(draft, seat.position, card.scryfallId);
+      let updated = makePickAndPass(hydrated, seat.position, card.scryfallId);
 
-      if (allPlayersHavePicked(updated)) {
-        updated = passCurrentPacks(updated);
-
-        if (isRoundComplete(updated)) {
-          if (updated.currentPack < updated.packsPerPlayer && allPacks) {
-            const nextPackStart = updated.currentPack * updated.seats.length;
-            const nextPacks = allPacks.slice(
-              nextPackStart,
-              nextPackStart + updated.seats.length
-            );
-            if (nextPacks.length >= updated.seats.length) {
-              updated = advanceToNextPack(updated, nextPacks);
-            } else {
-              updated = draft.deckBuildingEnabled
-                ? transitionToDeckBuilding(updated)
-                : completeDraft(updated);
-            }
+      if (isIndividualRoundComplete(updated)) {
+        if (updated.currentPack < updated.packsPerPlayer && allPacks) {
+          const nextPackStart = updated.currentPack * updated.seats.length;
+          const nextPacks = allPacks.slice(
+            nextPackStart,
+            nextPackStart + updated.seats.length
+          );
+          if (nextPacks.length >= updated.seats.length) {
+            updated = advanceToNextPack(updated, nextPacks);
           } else {
-            updated = draft.deckBuildingEnabled
+            updated = updated.deckBuildingEnabled
               ? transitionToDeckBuilding(updated)
               : completeDraft(updated);
           }
+        } else {
+          updated = updated.deckBuildingEnabled
+            ? transitionToDeckBuilding(updated)
+            : completeDraft(updated);
         }
       }
 
@@ -507,15 +499,17 @@ export async function getDraftViewForUser(draftId: string) {
   if (!data?.state) return null;
 
   const draft = data.state as unknown as Draft;
-  const seat = draft.seats.find((s) => s.userId === user.id);
+  const hydratedSeat = draft.seats.find((s) => s.userId === user.id);
 
-  if (!seat) return null;
+  if (!hydratedSeat) return null;
+
+  const seat = hydrateSeat(hydratedSeat);
 
   return {
     status: draft.status,
     currentPack: draft.currentPack,
     packCards: seat.currentPack?.cards ?? [],
-    packNumber: draft.currentPack,
+    packNumber: seat.currentPack?.round ?? draft.currentPack,
     pickInPack: seat.currentPack?.pickNumber ?? 0,
     totalCardsInPack: draft.cardsPerPack,
     picks: seat.pool,
@@ -532,10 +526,10 @@ export async function getDraftViewForUser(draftId: string) {
         : true),
       hasSubmittedDeck: s.hasSubmittedDeck,
     })),
-    isRoundComplete: isRoundComplete(draft),
     packsPerPlayer: draft.packsPerPlayer,
-    reviewPeriodSeconds: draft.reviewPeriodSeconds,
     deckBuildingEnabled: draft.deckBuildingEnabled,
+    packReceivedAt: seat.packReceivedAt ?? null,
+    packQueueLength: seat.packQueue.length,
   };
 }
 
