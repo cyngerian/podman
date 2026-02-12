@@ -213,6 +213,20 @@ export interface ScryfallCard {
   booster: boolean;
 }
 
+export interface ScryfallSet {
+  code: string;
+  name: string;
+  set_type: string;
+  released_at: string;
+  icon_svg_uri: string;
+  digital: boolean;
+}
+
+export interface ScryfallSetsResponse {
+  object: "list";
+  data: ScryfallSet[];
+}
+
 export interface ScryfallSearchResponse {
   object: "list";
   total_cards: number;

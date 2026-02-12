@@ -7,6 +7,7 @@ import type {
   TimerPreset,
   CubeSource,
 } from "@/lib/types";
+import SetPicker from "./SetPicker";
 
 interface CreateDraftFormProps {
   onSubmit: (config: {
@@ -58,9 +59,8 @@ export default function CreateDraftForm({ onSubmit }: CreateDraftFormProps) {
   // Format
   const [format, setFormat] = useState<DraftFormat>("standard");
 
-  // Set info (standard format)
-  const [setCode, setSetCode] = useState("");
-  const [setName, setSetName] = useState("");
+  // Set info (standard + winston)
+  const [selectedSet, setSelectedSet] = useState<{ code: string; name: string } | null>(null);
 
   // Cube info
   const [cubeTab, setCubeTab] = useState<"paste" | "cubecobra">("paste");
@@ -122,8 +122,8 @@ export default function CreateDraftForm({ onSubmit }: CreateDraftFormProps) {
     onSubmit({
       format,
       pacingMode,
-      setCode: format === "standard" ? setCode : "",
-      setName: format === "standard" ? setName : "",
+      setCode: format !== "cube" ? (selectedSet?.code ?? "") : "",
+      setName: format !== "cube" ? (selectedSet?.name ?? "") : "",
       playerCount: effectivePlayerCount,
       timerPreset: pacingMode === "realtime" ? timerPreset : "none",
       reviewPeriodSeconds: pacingMode === "realtime" ? reviewPeriodSeconds : 0,
@@ -136,8 +136,8 @@ export default function CreateDraftForm({ onSubmit }: CreateDraftFormProps) {
   }
 
   const isValid =
-    (format === "standard" && setCode.trim().length > 0) ||
-    format === "winston" ||
+    (format === "standard" && selectedSet !== null) ||
+    (format === "winston" && selectedSet !== null) ||
     (format === "cube" && cubeList !== null && cubeList.length > 0);
 
   return (
@@ -171,47 +171,13 @@ export default function CreateDraftForm({ onSubmit }: CreateDraftFormProps) {
         </div>
       </fieldset>
 
-      {/* ── Set Selection (Standard) ── */}
-      {format === "standard" && (
+      {/* ── Set Selection (Standard + Winston) ── */}
+      {format !== "cube" && (
         <fieldset>
           <legend className="text-sm font-medium text-foreground/70 uppercase tracking-wide mb-3">
             Set
           </legend>
-          <div className="flex gap-3">
-            <div className="w-24">
-              <label
-                htmlFor="setCode"
-                className="block text-xs text-foreground/50 mb-1"
-              >
-                Set Code
-              </label>
-              <input
-                id="setCode"
-                type="text"
-                value={setCode}
-                onChange={(e) => setSetCode(e.target.value.toUpperCase())}
-                placeholder="MKM"
-                maxLength={5}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm uppercase placeholder:text-foreground/30 focus:border-accent focus:outline-none"
-              />
-            </div>
-            <div className="flex-1">
-              <label
-                htmlFor="setName"
-                className="block text-xs text-foreground/50 mb-1"
-              >
-                Set Name
-              </label>
-              <input
-                id="setName"
-                type="text"
-                value={setName}
-                onChange={(e) => setSetName(e.target.value)}
-                placeholder="Murders at Karlov Manor"
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm placeholder:text-foreground/30 focus:border-accent focus:outline-none"
-              />
-            </div>
-          </div>
+          <SetPicker value={selectedSet} onChange={setSelectedSet} />
         </fieldset>
       )}
 

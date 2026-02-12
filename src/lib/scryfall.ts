@@ -4,6 +4,8 @@
 
 import type {
   ScryfallCard,
+  ScryfallSet,
+  ScryfallSetsResponse,
   ScryfallSearchResponse,
   CardReference,
   Rarity,
@@ -320,6 +322,36 @@ export function groupCardsByRarity(
   }
 
   return grouped;
+}
+
+// --- Set List ---
+
+const DRAFTABLE_SET_TYPES = new Set([
+  "core",
+  "expansion",
+  "draft_innovation",
+  "masters",
+]);
+
+/**
+ * Fetch all draftable sets from Scryfall.
+ * Filters to sets that have physical boosters and are a draftable type.
+ * Returns newest sets first.
+ */
+export async function fetchDraftableSets(): Promise<ScryfallSet[]> {
+  const response = await scryfallFetch(`${SCRYFALL_API_BASE}/sets`);
+  const data: ScryfallSetsResponse = await response.json();
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  return data.data
+    .filter(
+      (s) =>
+        DRAFTABLE_SET_TYPES.has(s.set_type) &&
+        !s.digital &&
+        s.released_at <= today
+    )
+    .sort((a, b) => b.released_at.localeCompare(a.released_at));
 }
 
 // --- CubeCobra Integration ---
