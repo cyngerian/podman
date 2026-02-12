@@ -12,9 +12,10 @@ interface MTGSet {
 interface SetPickerProps {
   value: { code: string; name: string } | null;
   onChange: (set: { code: string; name: string } | null) => void;
+  id?: string;
 }
 
-export default function SetPicker({ value, onChange }: SetPickerProps) {
+export default function SetPicker({ value, onChange, id = "set-picker" }: SetPickerProps) {
   const [sets, setSets] = useState<MTGSet[]>([]);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState(value?.name ?? "");
@@ -112,14 +113,14 @@ export default function SetPicker({ value, onChange }: SetPickerProps) {
   return (
     <div className="relative">
       <label
-        htmlFor="set-picker"
+        htmlFor={id}
         className="block text-xs text-foreground/50 mb-1"
       >
         Set
       </label>
       <input
         ref={inputRef}
-        id="set-picker"
+        id={id}
         type="text"
         value={query}
         onChange={(e) => {

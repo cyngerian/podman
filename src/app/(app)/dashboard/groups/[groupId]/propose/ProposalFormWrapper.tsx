@@ -12,8 +12,16 @@ export default function ProposalFormWrapper({ groupId }: { groupId: string }) {
       <CreateDraftForm
         onSubmit={(config) => {
           let title = "";
-          if (config.format === "standard" && config.setName) {
-            title = `${config.setName} Draft`;
+          if (config.format === "standard") {
+            if (config.mixedPacks && config.packSets && config.packSets.length > 0) {
+              // Deduplicate set names for title
+              const uniqueNames = [...new Set(config.packSets.map((s) => s.name))];
+              title = `${uniqueNames.join(" / ")} Draft`;
+            } else if (config.setName) {
+              title = `${config.setName} Draft`;
+            } else {
+              title = "Standard Draft";
+            }
           } else if (config.format === "winston") {
             title = "Winston Draft";
           } else if (config.format === "cube") {
@@ -38,6 +46,8 @@ export default function ProposalFormWrapper({ groupId }: { groupId: string }) {
             pickHistoryPublic: config.pickHistoryPublic,
             cubeList: config.cubeList,
             cubeSource: config.cubeSource,
+            packsPerPlayer: config.packsPerPlayer,
+            packSets: config.packSets,
           }));
 
           startTransition(async () => {

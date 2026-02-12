@@ -56,6 +56,8 @@ export default async function ProposalDetailPage({
     timerPreset: rawConfig.timerPreset as string | undefined,
     deckBuildingEnabled: rawConfig.deckBuildingEnabled as boolean | undefined,
     pickHistoryPublic: rawConfig.pickHistoryPublic as boolean | undefined,
+    packsPerPlayer: rawConfig.packsPerPlayer as number | undefined,
+    packSets: rawConfig.packSets as { code: string; name: string }[] | undefined,
   };
 
   return (
@@ -83,7 +85,18 @@ export default async function ProposalDetailPage({
       <section className="grid grid-cols-2 gap-2">
         <ConfigItem label="Format" value={FORMAT_LABELS[proposal.format] ?? proposal.format} />
         <ConfigItem label="Players" value={String(proposal.player_count)} />
-        {proposal.set_name && <ConfigItem label="Set" value={proposal.set_name} />}
+        {config.packsPerPlayer && config.packsPerPlayer !== 3 && (
+          <ConfigItem label="Packs" value={`${config.packsPerPlayer} per player`} />
+        )}
+        {proposal.set_name && !config.packSets && (
+          <ConfigItem label="Set" value={proposal.set_name} />
+        )}
+        {config.packSets && config.packSets.length > 0 && (
+          <ConfigItem
+            label="Sets"
+            value={config.packSets.map((s) => s.name).join(", ")}
+          />
+        )}
         {config.pacingMode && (
           <ConfigItem
             label="Pacing"

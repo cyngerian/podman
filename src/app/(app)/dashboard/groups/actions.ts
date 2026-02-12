@@ -12,12 +12,12 @@ function generateInviteCode(): string {
   return code;
 }
 
-export async function createGroup(formData: FormData) {
+export async function createGroup(formData: FormData): Promise<{ error: string } | void> {
   const name = (formData.get("name") as string)?.trim();
   const description = (formData.get("description") as string)?.trim() || null;
 
   if (!name) {
-    redirect("/dashboard/groups/new?error=Group+name+is+required");
+    return { error: "Group name is required" };
   }
 
   const supabase = await createServerSupabaseClient();
@@ -41,7 +41,7 @@ export async function createGroup(formData: FormData) {
     .single();
 
   if (groupError || !group) {
-    redirect(`/dashboard/groups/new?error=${encodeURIComponent(groupError?.message ?? "Failed to create group")}`);
+    return { error: groupError?.message ?? "Failed to create group" };
   }
 
   // Add creator as admin member
@@ -54,11 +54,11 @@ export async function createGroup(formData: FormData) {
   redirect(`/dashboard/groups/${group.id}`);
 }
 
-export async function joinGroupByInviteCode(formData: FormData) {
+export async function joinGroupByInviteCode(formData: FormData): Promise<{ error: string } | void> {
   const inviteCode = (formData.get("invite_code") as string)?.trim().toUpperCase();
 
   if (!inviteCode) {
-    redirect("/dashboard/groups/join?error=Invite+code+is+required");
+    return { error: "Invite code is required" };
   }
 
   const supabase = await createServerSupabaseClient();
@@ -74,7 +74,7 @@ export async function joinGroupByInviteCode(formData: FormData) {
   );
 
   if (error) {
-    redirect(`/dashboard/groups/join?error=${encodeURIComponent(error.message)}`);
+    return { error: error.message };
   }
 
   redirect(`/dashboard/groups/${groupId}`);

@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 
-export async function login(formData: FormData) {
+export async function login(formData: FormData): Promise<{ error: string } | void> {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
@@ -15,13 +15,13 @@ export async function login(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/auth/login?error=${encodeURIComponent(error.message)}`);
+    return { error: error.message };
   }
 
   redirect("/");
 }
 
-export async function signup(formData: FormData) {
+export async function signup(formData: FormData): Promise<{ error: string } | void> {
   const inviteCode = (formData.get("invite_code") as string).trim();
   const displayName = (formData.get("display_name") as string).trim();
   const email = formData.get("email") as string;
@@ -37,21 +37,15 @@ export async function signup(formData: FormData) {
     .maybeSingle();
 
   if (!invite) {
-    redirect(
-      `/auth/signup?error=${encodeURIComponent("Invalid invite code.")}&code=${encodeURIComponent(inviteCode)}`
-    );
+    return { error: "Invalid invite code." };
   }
 
   if (invite.claimed_by) {
-    redirect(
-      `/auth/signup?error=${encodeURIComponent("This invite code has already been used.")}&code=${encodeURIComponent(inviteCode)}`
-    );
+    return { error: "This invite code has already been used." };
   }
 
   if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
-    redirect(
-      `/auth/signup?error=${encodeURIComponent("This invite code has expired.")}&code=${encodeURIComponent(inviteCode)}`
-    );
+    return { error: "This invite code has expired." };
   }
 
   // Create user account
@@ -66,9 +60,7 @@ export async function signup(formData: FormData) {
   });
 
   if (signUpError) {
-    redirect(
-      `/auth/signup?error=${encodeURIComponent(signUpError.message)}&code=${encodeURIComponent(inviteCode)}`
-    );
+    return { error: signUpError.message };
   }
 
   // Mark invite as claimed

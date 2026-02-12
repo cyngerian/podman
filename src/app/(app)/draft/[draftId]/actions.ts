@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
-import type { Draft, CardReference } from "@/lib/types";
+import type { Draft, CardReference, Rarity } from "@/lib/types";
 import type { Json } from "@/lib/database.types";
 import {
   createDraft,
@@ -186,6 +186,8 @@ export async function startDraftAction(draftId: string) {
 
   const config = (draft.config ?? {}) as Record<string, unknown>;
 
+  const packsPerPlayer = (config.packsPerPlayer as number) ?? 3;
+
   // Build Draft object via engine
   let draftObj = createDraft({
     id: draftId,
@@ -198,6 +200,7 @@ export async function startDraftAction(draftId: string) {
     cubeList: (config.cubeList as string[] | undefined) ?? undefined,
     cubeSource: (config.cubeSource as "text" | "cubecobra" | undefined) ?? undefined,
     playerCount: players.length,
+    packsPerPlayer,
     timerPreset: (config.timerPreset as "relaxed" | "competitive" | "speed" | "none") ?? "competitive",
     reviewPeriodSeconds: (config.reviewPeriodSeconds as number) ?? 60,
     deckBuildingEnabled: (config.deckBuildingEnabled as boolean) ?? true,
@@ -221,31 +224,71 @@ export async function startDraftAction(draftId: string) {
   let allPacks: CardReference[][] = [];
 
   if (draft.format === "standard") {
-    // Fetch cards from Scryfall
-    const setCode = draft.set_code;
-    if (!setCode) throw new Error("No set code configured");
+    const packSets = config.packSets as { code: string; name: string }[] | undefined;
 
-    const [scryfallCards, setInfo] = await Promise.all([
-      fetchBoosterCards(setCode),
-      fetchSetInfo(setCode),
-    ]);
-    const grouped = groupCardsByRarity(scryfallCards);
+    if (packSets && packSets.length === packsPerPlayer) {
+      // Mixed packs: different set per round
+      // Deduplicate set codes to fetch each once
+      const uniqueCodes = [...new Set(packSets.map((s) => s.code))];
+      const fetchResults = await Promise.all(
+        uniqueCodes.map(async (code) => {
+          const [cards, info] = await Promise.all([
+            fetchBoosterCards(code),
+            fetchSetInfo(code),
+          ]);
+          return { code, cards, info };
+        })
+      );
 
-    const cardPool = {
-      common: grouped.common.map((c) => scryfallCardToReference(c)),
-      uncommon: grouped.uncommon.map((c) => scryfallCardToReference(c)),
-      rare: grouped.rare.map((c) => scryfallCardToReference(c)),
-      mythic: grouped.mythic.map((c) => scryfallCardToReference(c)),
-    };
+      const dataBySet = new Map(
+        fetchResults.map((r) => {
+          const grouped = groupCardsByRarity(r.cards);
+          const cardPool: Record<Rarity, CardReference[]> = {
+            common: grouped.common.map((c) => scryfallCardToReference(c)),
+            uncommon: grouped.uncommon.map((c) => scryfallCardToReference(c)),
+            rare: grouped.rare.map((c) => scryfallCardToReference(c)),
+            mythic: grouped.mythic.map((c) => scryfallCardToReference(c)),
+          };
+          const era = getPackEra(r.info.released_at);
+          const template = getTemplateForSet(r.code, era);
+          return [r.code, { cardPool, template }] as const;
+        })
+      );
 
-    const era = getPackEra(setInfo.released_at);
-    const template = getTemplateForSet(setCode, era);
-    allPacks = generateAllPacks(
-      cardPool,
-      template,
-      players.length,
-      draftObj.packsPerPlayer
-    );
+      // Generate packs round by round
+      for (let round = 0; round < packsPerPlayer; round++) {
+        const setCode = packSets[round].code;
+        const { cardPool, template } = dataBySet.get(setCode)!;
+        const roundPacks = generateAllPacks(cardPool, template, players.length, 1);
+        allPacks.push(...roundPacks);
+      }
+    } else {
+      // Single set for all packs
+      const setCode = draft.set_code;
+      if (!setCode) throw new Error("No set code configured");
+
+      const [scryfallCards, setInfo] = await Promise.all([
+        fetchBoosterCards(setCode),
+        fetchSetInfo(setCode),
+      ]);
+      const grouped = groupCardsByRarity(scryfallCards);
+
+      const cardPool: Record<Rarity, CardReference[]> = {
+        common: grouped.common.map((c) => scryfallCardToReference(c)),
+        uncommon: grouped.uncommon.map((c) => scryfallCardToReference(c)),
+        rare: grouped.rare.map((c) => scryfallCardToReference(c)),
+        mythic: grouped.mythic.map((c) => scryfallCardToReference(c)),
+      };
+
+      const era = getPackEra(setInfo.released_at);
+      const template = getTemplateForSet(setCode, era);
+      allPacks = generateAllPacks(
+        cardPool,
+        template,
+        players.length,
+        draftObj.packsPerPlayer
+      );
+    }
   } else if (draft.format === "cube") {
     const cubeList = config.cubeList as string[] | undefined;
     if (!cubeList || cubeList.length === 0) throw new Error("No cube list configured");

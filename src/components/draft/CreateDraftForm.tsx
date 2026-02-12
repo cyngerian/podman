@@ -9,21 +9,26 @@ import type {
 } from "@/lib/types";
 import SetPicker from "./SetPicker";
 
+export interface DraftFormConfig {
+  format: DraftFormat;
+  pacingMode: PacingMode;
+  setCode: string;
+  setName: string;
+  playerCount: number;
+  packsPerPlayer: number;
+  mixedPacks: boolean;
+  packSets: { code: string; name: string }[] | null;
+  timerPreset: TimerPreset;
+  reviewPeriodSeconds: number;
+  asyncDeadlineMinutes: number | null;
+  deckBuildingEnabled: boolean;
+  pickHistoryPublic: boolean;
+  cubeList: string[] | null;
+  cubeSource: CubeSource | null;
+}
+
 interface CreateDraftFormProps {
-  onSubmit: (config: {
-    format: DraftFormat;
-    pacingMode: PacingMode;
-    setCode: string;
-    setName: string;
-    playerCount: number;
-    timerPreset: TimerPreset;
-    reviewPeriodSeconds: number;
-    asyncDeadlineMinutes: number | null;
-    deckBuildingEnabled: boolean;
-    pickHistoryPublic: boolean;
-    cubeList: string[] | null;
-    cubeSource: CubeSource | null;
-  }) => void;
+  onSubmit: (config: DraftFormConfig) => void;
 }
 
 const FORMAT_OPTIONS: {
@@ -34,7 +39,7 @@ const FORMAT_OPTIONS: {
   {
     value: "standard",
     label: "Standard Booster",
-    description: "Classic booster draft with 3 packs per player",
+    description: "Classic booster draft with configurable packs",
   },
   {
     value: "winston",
@@ -61,6 +66,11 @@ export default function CreateDraftForm({ onSubmit }: CreateDraftFormProps) {
 
   // Set info (standard + winston)
   const [selectedSet, setSelectedSet] = useState<{ code: string; name: string } | null>(null);
+
+  // Pack count & mixed packs (standard only)
+  const [packsPerPlayer, setPacksPerPlayer] = useState(3);
+  const [mixedPacks, setMixedPacks] = useState(false);
+  const [packSets, setPackSets] = useState<({ code: string; name: string } | null)[]>([null, null, null]);
 
   // Cube info
   const [cubeTab, setCubeTab] = useState<"paste" | "cubecobra">("paste");
@@ -119,12 +129,21 @@ export default function CreateDraftForm({ onSubmit }: CreateDraftFormProps) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const effectivePacksPerPlayer = format === "standard" ? packsPerPlayer : 3;
+    const effectiveMixedPacks = format === "standard" && mixedPacks;
+    const effectivePackSets = effectiveMixedPacks
+      ? packSets.filter((s): s is { code: string; name: string } => s !== null)
+      : null;
+
     onSubmit({
       format,
       pacingMode,
       setCode: format !== "cube" ? (selectedSet?.code ?? "") : "",
       setName: format !== "cube" ? (selectedSet?.name ?? "") : "",
       playerCount: effectivePlayerCount,
+      packsPerPlayer: effectivePacksPerPlayer,
+      mixedPacks: effectiveMixedPacks,
+      packSets: effectivePackSets,
       timerPreset: pacingMode === "realtime" ? timerPreset : "none",
       reviewPeriodSeconds: pacingMode === "realtime" ? reviewPeriodSeconds : 0,
       asyncDeadlineMinutes: pacingMode === "async" ? asyncDeadlineMinutes : null,
@@ -135,8 +154,9 @@ export default function CreateDraftForm({ onSubmit }: CreateDraftFormProps) {
     });
   }
 
+  const mixedPacksValid = !mixedPacks || packSets.slice(0, packsPerPlayer).every((s) => s !== null);
   const isValid =
-    (format === "standard" && selectedSet !== null) ||
+    (format === "standard" && (mixedPacks ? mixedPacksValid : selectedSet !== null)) ||
     (format === "winston" && selectedSet !== null) ||
     (format === "cube" && cubeList !== null && cubeList.length > 0);
 
@@ -171,13 +191,107 @@ export default function CreateDraftForm({ onSubmit }: CreateDraftFormProps) {
         </div>
       </fieldset>
 
-      {/* ── Set Selection (Standard + Winston) ── */}
-      {format !== "cube" && (
+      {/* ── Set Selection (Standard + Winston — hidden when mixed packs on) ── */}
+      {format !== "cube" && !mixedPacks && (
         <fieldset>
           <legend className="text-sm font-medium text-foreground/70 uppercase tracking-wide mb-3">
             Set
           </legend>
           <SetPicker value={selectedSet} onChange={setSelectedSet} />
+        </fieldset>
+      )}
+
+      {/* ── Packs Per Player (Standard only) ── */}
+      {format === "standard" && (
+        <fieldset>
+          <legend className="text-sm font-medium text-foreground/70 uppercase tracking-wide mb-3">
+            Packs Per Player
+          </legend>
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => {
+                const next = Math.max(1, packsPerPlayer - 1);
+                setPacksPerPlayer(next);
+                setPackSets((prev) => {
+                  const arr = [...prev];
+                  while (arr.length < next) arr.push(null);
+                  return arr.slice(0, next);
+                });
+              }}
+              className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-surface text-lg font-bold hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              disabled={packsPerPlayer <= 1}
+            >
+              &minus;
+            </button>
+            <span className="text-2xl font-semibold tabular-nums w-8 text-center">
+              {packsPerPlayer}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                const next = Math.min(6, packsPerPlayer + 1);
+                setPacksPerPlayer(next);
+                setPackSets((prev) => {
+                  const arr = [...prev];
+                  while (arr.length < next) arr.push(null);
+                  return arr.slice(0, next);
+                });
+              }}
+              className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-surface text-lg font-bold hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              disabled={packsPerPlayer >= 6}
+            >
+              +
+            </button>
+          </div>
+        </fieldset>
+      )}
+
+      {/* ── Mixed Packs (Standard only) ── */}
+      {format === "standard" && (
+        <fieldset>
+          <legend className="text-sm font-medium text-foreground/70 uppercase tracking-wide mb-3">
+            Mixed Packs
+          </legend>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={mixedPacks}
+              onChange={(e) => {
+                const on = e.target.checked;
+                setMixedPacks(on);
+                if (!on && selectedSet) {
+                  // Reset all pack sets to the single selected set
+                  setPackSets(Array(packsPerPlayer).fill(null));
+                }
+              }}
+              className="h-5 w-5 rounded border-border bg-surface accent-accent"
+            />
+            <span className="text-sm">Use a different set for each pack round</span>
+          </label>
+
+          {mixedPacks && (
+            <div className="mt-4 space-y-3">
+              {Array.from({ length: packsPerPlayer }, (_, i) => (
+                <div key={i}>
+                  <span className="block text-xs font-medium text-foreground/50 mb-1">
+                    Pack {i + 1}
+                  </span>
+                  <SetPicker
+                    id={`set-picker-pack-${i}`}
+                    value={packSets[i] ?? null}
+                    onChange={(set) =>
+                      setPackSets((prev) => {
+                        const arr = [...prev];
+                        arr[i] = set;
+                        return arr;
+                      })
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </fieldset>
       )}
 
