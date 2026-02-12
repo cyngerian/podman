@@ -44,7 +44,7 @@ export default function CardThumbnail({
         src={imageSrc}
         alt={card.name}
         fill
-        sizes={size === "small" ? "100px" : "(max-width: 768px) 30vw, 250px"}
+        sizes={size === "small" ? "(max-width: 768px) 25vw, 200px" : "(max-width: 768px) 30vw, 350px"}
         className="object-cover"
       />
 

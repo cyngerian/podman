@@ -195,11 +195,13 @@ export function getCardImageUrl(
  * and double-faced cards (DFCs).
  */
 function extractImageUris(card: ScryfallCard): {
+  large: string;
   normal: string;
   small: string;
 } {
   if (card.image_uris) {
     return {
+      large: card.image_uris.large,
       normal: card.image_uris.normal,
       small: card.image_uris.small,
     };
@@ -210,6 +212,7 @@ function extractImageUris(card: ScryfallCard): {
     const frontFace = card.card_faces[0];
     if (frontFace.image_uris) {
       return {
+        large: frontFace.image_uris.large ?? frontFace.image_uris.normal,
         normal: frontFace.image_uris.normal,
         small: frontFace.image_uris.small,
       };
@@ -218,6 +221,7 @@ function extractImageUris(card: ScryfallCard): {
 
   // Fallback — should not happen for booster cards
   return {
+    large: "",
     normal: "",
     small: "",
   };
@@ -235,8 +239,8 @@ export function scryfallCardToReference(
   return {
     scryfallId: card.id,
     name: card.name,
-    imageUri: images.normal,
-    smallImageUri: images.small,
+    imageUri: images.large,
+    smallImageUri: images.normal,
     rarity: mapRarity(card.rarity),
     colors: mapColors(card.colors),
     cmc: card.cmc ?? 0,

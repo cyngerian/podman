@@ -42,7 +42,7 @@ export default function CardPreview({
           src={card.imageUri}
           alt={card.name}
           fill
-          sizes="300px"
+          sizes="(max-width: 768px) 300px, 500px"
           className="object-cover"
           priority
         />
