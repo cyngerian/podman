@@ -7,7 +7,7 @@ primary_reference: true
 
 # AI Agent Collaboration Workflow
 
-This document defines how AI agents should interact with the Draftime codebase and collaborate with the user. Following these patterns ensures consistent, traceable, and productive sessions.
+This document defines how AI agents should interact with the podman codebase and collaborate with the user. Following these patterns ensures consistent, traceable, and productive sessions.
 
 ---
 

@@ -1,5 +1,5 @@
 ---
-title: Draftime - Developer Guide
+title: podman - Developer Guide
 status: draft
 last_verified: 2026-02-10
 primary_entry_point: true
@@ -7,12 +7,12 @@ primary_entry_point: true
 
 <!--
 AI-AGENT-CONTEXT:
-- This is the PRIMARY entry point for understanding the Draftime codebase.
+- This is the PRIMARY entry point for understanding the podman codebase.
 - Status is DRAFT — sections will be filled in as the project is built.
 - Refer to ai_agent_bootstrap.md for collaboration workflow.
 -->
 
-# Draftime - Developer Guide
+# podman - Developer Guide
 
 **Last Updated**: February 10, 2026
 **Status**: Pre-development
@@ -21,7 +21,7 @@ AI-AGENT-CONTEXT:
 
 ## 1. Executive Summary
 
-**Draftime** is a web app for organizing and running Magic: The Gathering drafts within friend groups. It enables:
+**podman** is a web app for organizing and running Magic: The Gathering drafts within friend groups. It enables:
 - Creating and managing user groups for recurring draft sessions
 - Proposing, voting on, and scheduling drafts within groups
 - Running live drafts with accurate pack generation per MTG set

@@ -1,0 +1,372 @@
+// ============================================================================
+// Scryfall API Client for podman
+// ============================================================================
+
+import type {
+  ScryfallCard,
+  ScryfallSearchResponse,
+  CardReference,
+  Rarity,
+  ManaColor,
+} from "./types";
+
+// --- Constants ---
+
+const SCRYFALL_API_BASE = "https://api.scryfall.com";
+const CUBECOBRA_API_BASE = "https://cubecobra.com/cube/api";
+const USER_AGENT = "podman/1.0 (contact@podman.app)";
+const MIN_REQUEST_INTERVAL_MS = 75;
+const MAX_REQUESTS_PER_SECOND = 10;
+
+// --- Rate Limiter ---
+
+/**
+ * Simple rate limiter that enforces:
+ * - Minimum 75ms between consecutive requests
+ * - Maximum 10 requests per second
+ */
+class RateLimiter {
+  private lastRequestTime = 0;
+  private requestTimestamps: number[] = [];
+  private queue: Array<{
+    resolve: (value: void) => void;
+    reject: (reason: unknown) => void;
+  }> = [];
+  private processing = false;
+
+  async acquire(): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      this.queue.push({ resolve, reject });
+      this.processQueue();
+    });
+  }
+
+  private async processQueue(): Promise<void> {
+    if (this.processing) return;
+    this.processing = true;
+
+    while (this.queue.length > 0) {
+      const now = Date.now();
+
+      // Enforce minimum interval between requests
+      const timeSinceLast = now - this.lastRequestTime;
+      if (timeSinceLast < MIN_REQUEST_INTERVAL_MS) {
+        await sleep(MIN_REQUEST_INTERVAL_MS - timeSinceLast);
+      }
+
+      // Enforce max requests per second
+      const oneSecondAgo = Date.now() - 1000;
+      this.requestTimestamps = this.requestTimestamps.filter(
+        (t) => t > oneSecondAgo
+      );
+
+      if (this.requestTimestamps.length >= MAX_REQUESTS_PER_SECOND) {
+        const oldestInWindow = this.requestTimestamps[0];
+        const waitTime = oldestInWindow + 1000 - Date.now();
+        if (waitTime > 0) {
+          await sleep(waitTime);
+        }
+        // Re-filter after waiting
+        this.requestTimestamps = this.requestTimestamps.filter(
+          (t) => t > Date.now() - 1000
+        );
+      }
+
+      const entry = this.queue.shift();
+      if (entry) {
+        const currentTime = Date.now();
+        this.lastRequestTime = currentTime;
+        this.requestTimestamps.push(currentTime);
+        entry.resolve();
+      }
+    }
+
+    this.processing = false;
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const rateLimiter = new RateLimiter();
+
+// --- HTTP Helpers ---
+
+/**
+ * Make a rate-limited fetch request to Scryfall with the required User-Agent.
+ */
+async function scryfallFetch(url: string): Promise<Response> {
+  await rateLimiter.acquire();
+
+  const response = await fetch(url, {
+    headers: {
+      "User-Agent": USER_AGENT,
+      Accept: "application/json",
+    },
+  });
+
+  if (response.status === 429) {
+    throw new ScryfallError(
+      "Rate limit exceeded. Scryfall returned 429 Too Many Requests.",
+      429
+    );
+  }
+
+  if (response.status === 404) {
+    throw new ScryfallError(
+      `Resource not found: ${url}`,
+      404
+    );
+  }
+
+  if (!response.ok) {
+    throw new ScryfallError(
+      `Scryfall API error: ${response.status} ${response.statusText} for ${url}`,
+      response.status
+    );
+  }
+
+  return response;
+}
+
+// --- Error Class ---
+
+export class ScryfallError extends Error {
+  public readonly statusCode: number;
+
+  constructor(message: string, statusCode: number) {
+    super(message);
+    this.name = "ScryfallError";
+    this.statusCode = statusCode;
+  }
+}
+
+// --- Rarity & Color Mapping ---
+
+const VALID_RARITIES: Set<string> = new Set([
+  "common",
+  "uncommon",
+  "rare",
+  "mythic",
+]);
+
+function mapRarity(rarity: string): Rarity {
+  const normalized = rarity.toLowerCase();
+  if (VALID_RARITIES.has(normalized)) {
+    return normalized as Rarity;
+  }
+  // Scryfall uses "special" for some cards; default to rare
+  return "rare";
+}
+
+const VALID_COLORS: Set<string> = new Set(["W", "U", "B", "R", "G"]);
+
+function mapColors(colors: string[]): ManaColor[] {
+  return colors.filter((c) => VALID_COLORS.has(c)) as ManaColor[];
+}
+
+// --- Image URL Helpers ---
+
+/**
+ * Get the appropriate image URL from a CardReference.
+ *
+ * Images are served from cards.scryfall.io CDN (no rate limit).
+ * - Small: 146x204
+ * - Normal: 488x680
+ */
+export function getCardImageUrl(
+  card: CardReference,
+  size: "small" | "normal"
+): string {
+  if (size === "small") {
+    return card.smallImageUri;
+  }
+  return card.imageUri;
+}
+
+// --- Card Conversion ---
+
+/**
+ * Extract image URIs from a ScryfallCard, handling both single-faced
+ * and double-faced cards (DFCs).
+ */
+function extractImageUris(card: ScryfallCard): {
+  normal: string;
+  small: string;
+} {
+  if (card.image_uris) {
+    return {
+      normal: card.image_uris.normal,
+      small: card.image_uris.small,
+    };
+  }
+
+  // Double-faced cards store images on card_faces
+  if (card.card_faces && card.card_faces.length > 0) {
+    const frontFace = card.card_faces[0];
+    if (frontFace.image_uris) {
+      return {
+        normal: frontFace.image_uris.normal,
+        small: frontFace.image_uris.small,
+      };
+    }
+  }
+
+  // Fallback — should not happen for booster cards
+  return {
+    normal: "",
+    small: "",
+  };
+}
+
+/**
+ * Convert a ScryfallCard to a CardReference for use in the draft system.
+ */
+export function scryfallCardToReference(
+  card: ScryfallCard,
+  isFoil: boolean = false
+): CardReference {
+  const images = extractImageUris(card);
+
+  return {
+    scryfallId: card.id,
+    name: card.name,
+    imageUri: images.normal,
+    smallImageUri: images.small,
+    rarity: mapRarity(card.rarity),
+    colors: mapColors(card.colors),
+    cmc: card.cmc,
+    isFoil,
+  };
+}
+
+// --- Core API Functions ---
+
+/**
+ * Fetch all booster-legal cards for a given set code.
+ * Handles Scryfall pagination automatically.
+ */
+export async function fetchBoosterCards(
+  setCode: string
+): Promise<ScryfallCard[]> {
+  const code = encodeURIComponent(setCode.toLowerCase());
+  let url: string | null =
+    `${SCRYFALL_API_BASE}/cards/search?q=set:${code}+is:booster`;
+
+  const allCards: ScryfallCard[] = [];
+
+  while (url) {
+    let response: Response;
+    try {
+      response = await scryfallFetch(url);
+    } catch (error) {
+      if (error instanceof ScryfallError && error.statusCode === 404) {
+        throw new ScryfallError(
+          `No booster cards found for set "${setCode}". Verify the set code is correct.`,
+          404
+        );
+      }
+      throw error;
+    }
+
+    const data: ScryfallSearchResponse = await response.json();
+    allCards.push(...data.data);
+
+    url = data.has_more && data.next_page ? data.next_page : null;
+  }
+
+  return allCards;
+}
+
+/**
+ * Search for a single card by exact name.
+ * Returns null if no card is found (404).
+ */
+export async function searchCardByName(
+  name: string
+): Promise<ScryfallCard | null> {
+  const encodedName = encodeURIComponent(name);
+  const url = `${SCRYFALL_API_BASE}/cards/named?exact=${encodedName}`;
+
+  try {
+    const response = await scryfallFetch(url);
+    const card: ScryfallCard = await response.json();
+    return card;
+  } catch (error) {
+    if (error instanceof ScryfallError && error.statusCode === 404) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Group an array of ScryfallCards by their rarity.
+ */
+export function groupCardsByRarity(
+  cards: ScryfallCard[]
+): Record<Rarity, ScryfallCard[]> {
+  const grouped: Record<Rarity, ScryfallCard[]> = {
+    common: [],
+    uncommon: [],
+    rare: [],
+    mythic: [],
+  };
+
+  for (const card of cards) {
+    const rarity = mapRarity(card.rarity);
+    grouped[rarity].push(card);
+  }
+
+  return grouped;
+}
+
+// --- CubeCobra Integration ---
+
+/**
+ * Fetch a cube list from CubeCobra.
+ * The API returns a plain text list of card names, one per line.
+ */
+export async function fetchCubeCobraList(
+  cubeId: string
+): Promise<string[]> {
+  const encodedId = encodeURIComponent(cubeId);
+  const url = `${CUBECOBRA_API_BASE}/cubelist/${encodedId}`;
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: {
+        "User-Agent": USER_AGENT,
+      },
+    });
+  } catch (error) {
+    throw new ScryfallError(
+      `Network error fetching CubeCobra list "${cubeId}": ${error instanceof Error ? error.message : String(error)}`,
+      0
+    );
+  }
+
+  if (response.status === 404) {
+    throw new ScryfallError(
+      `Cube not found on CubeCobra: "${cubeId}". Verify the cube ID is correct.`,
+      404
+    );
+  }
+
+  if (!response.ok) {
+    throw new ScryfallError(
+      `CubeCobra API error: ${response.status} ${response.statusText} for cube "${cubeId}"`,
+      response.status
+    );
+  }
+
+  const text = await response.text();
+  const cardNames = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  return cardNames;
+}

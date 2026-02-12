@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0f0f0f;
+  --foreground: #ededed;
+  --surface: #1a1a1a;
+  --surface-hover: #242424;
+  --border: #2a2a2a;
+  --border-light: #3a3a3a;
+  --accent: #6366f1;
+  --accent-hover: #818cf8;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --success: #22c55e;
+
+  /* MTG mana colors */
+  --mana-white: #f9faf4;
+  --mana-blue: #0e68ab;
+  --mana-black: #150b00;
+  --mana-red: #d3202a;
+  --mana-green: #00733e;
+  --mana-gold: #c9a14e;
+  --mana-colorless: #9ca3af;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-border: var(--border);
+  --color-border-light: var(--border-light);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
+  --color-mana-white: var(--mana-white);
+  --color-mana-blue: var(--mana-blue);
+  --color-mana-black: var(--mana-black);
+  --color-mana-red: var(--mana-red);
+  --color-mana-green: var(--mana-green);
+  --color-mana-gold: var(--mana-gold);
+  --color-mana-colorless: var(--mana-colorless);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Card aspect ratio */
+.card-aspect {
+  aspect-ratio: 488 / 680;
+}
+
+/* Smooth drawer animations */
+.drawer-enter {
+  transform: translateY(100%);
+  transition: transform 0.3s ease-out;
+}
+
+.drawer-enter-active {
+  transform: translateY(0);
+}
+
+/* Timer color transitions */
+.timer-green { color: var(--success); }
+.timer-yellow { color: var(--warning); }
+.timer-red { color: var(--danger); animation: pulse-timer 1s ease-in-out infinite; }
+
+@keyframes pulse-timer {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Mana curve bars */
+.curve-bar {
+  transition: height 0.3s ease-out;
+}
+
+/* Card color borders */
+.card-border-W { border-color: var(--mana-white); }
+.card-border-U { border-color: var(--mana-blue); }
+.card-border-B { border-color: var(--mana-black); }
+.card-border-R { border-color: var(--mana-red); }
+.card-border-G { border-color: var(--mana-green); }
+.card-border-M { border-color: var(--mana-gold); }
+.card-border-C { border-color: var(--mana-colorless); }
