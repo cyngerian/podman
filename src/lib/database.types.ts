@@ -129,6 +129,7 @@ export type Database = {
           started_at: string | null
           state: Json | null
           status: string
+          version: number
         }
         Insert: {
           completed_at?: string | null
@@ -145,6 +146,7 @@ export type Database = {
           started_at?: string | null
           state?: Json | null
           status?: string
+          version?: number
         }
         Update: {
           completed_at?: string | null
@@ -161,6 +163,7 @@ export type Database = {
           started_at?: string | null
           state?: Json | null
           status?: string
+          version?: number
         }
         Relationships: [
           {
@@ -370,7 +373,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      join_group_by_invite_code: {
+        Args: { p_invite_code: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
