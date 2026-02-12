@@ -305,21 +305,36 @@ export async function searchCardByName(
 }
 
 /**
+ * Check if a card is a basic land (Plains, Island, Swamp, Mountain, Forest,
+ * Wastes, or Snow-Covered variants).
+ */
+function isBasicLand(card: ScryfallCard): boolean {
+  return card.type_line?.startsWith("Basic Land") ?? false;
+}
+
+/**
  * Group an array of ScryfallCards by their rarity.
+ * Basic lands are separated into a dedicated "land" array so they
+ * don't pollute the common pool and only appear in land slots.
  */
 export function groupCardsByRarity(
   cards: ScryfallCard[]
-): Record<Rarity, ScryfallCard[]> {
-  const grouped: Record<Rarity, ScryfallCard[]> = {
+): Record<Rarity, ScryfallCard[]> & { land: ScryfallCard[] } {
+  const grouped: Record<Rarity, ScryfallCard[]> & { land: ScryfallCard[] } = {
     common: [],
     uncommon: [],
     rare: [],
     mythic: [],
+    land: [],
   };
 
   for (const card of cards) {
-    const rarity = mapRarity(card.rarity);
-    grouped[rarity].push(card);
+    if (isBasicLand(card)) {
+      grouped.land.push(card);
+    } else {
+      const rarity = mapRarity(card.rarity);
+      grouped[rarity].push(card);
+    }
   }
 
   return grouped;

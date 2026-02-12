@@ -197,6 +197,7 @@ export interface ScryfallCard {
   rarity: string;
   colors: string[];
   cmc: number;
+  type_line?: string;
   image_uris?: {
     small: string;
     normal: string;

@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
-import type { Draft, CardReference, Rarity } from "@/lib/types";
+import type { Draft, CardReference } from "@/lib/types";
 import type { Json } from "@/lib/database.types";
 import {
   createDraft,
@@ -243,11 +243,12 @@ export async function startDraftAction(draftId: string) {
       const dataBySet = new Map(
         fetchResults.map((r) => {
           const grouped = groupCardsByRarity(r.cards);
-          const cardPool: Record<Rarity, CardReference[]> = {
+          const cardPool: Record<string, CardReference[]> = {
             common: grouped.common.map((c) => scryfallCardToReference(c)),
             uncommon: grouped.uncommon.map((c) => scryfallCardToReference(c)),
             rare: grouped.rare.map((c) => scryfallCardToReference(c)),
             mythic: grouped.mythic.map((c) => scryfallCardToReference(c)),
+            land: grouped.land.map((c) => scryfallCardToReference(c)),
           };
           const era = getPackEra(r.info.released_at);
           const template = getTemplateForSet(r.code, era);
@@ -273,11 +274,12 @@ export async function startDraftAction(draftId: string) {
       ]);
       const grouped = groupCardsByRarity(scryfallCards);
 
-      const cardPool: Record<Rarity, CardReference[]> = {
+      const cardPool: Record<string, CardReference[]> = {
         common: grouped.common.map((c) => scryfallCardToReference(c)),
         uncommon: grouped.uncommon.map((c) => scryfallCardToReference(c)),
         rare: grouped.rare.map((c) => scryfallCardToReference(c)),
         mythic: grouped.mythic.map((c) => scryfallCardToReference(c)),
+        land: grouped.land.map((c) => scryfallCardToReference(c)),
       };
 
       const era = getPackEra(setInfo.released_at);

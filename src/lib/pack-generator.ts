@@ -187,7 +187,7 @@ function pickRarityForSlot(slot: PackSlot): Rarity {
  * @returns Array of CardReferences representing one pack.
  */
 export function generatePack(
-  cardPool: Record<Rarity, CardReference[]>,
+  cardPool: Record<string, CardReference[]>,
   template: PackTemplate,
   existingPacks?: CardReference[][]
 ): CardReference[] {
@@ -195,6 +195,17 @@ export function generatePack(
   const usedIds = new Set<string>();
 
   for (const slot of template.slots) {
+    // If slot has a specialPool (e.g. "land"), use that pool directly
+    if (slot.specialPool && cardPool[slot.specialPool] && cardPool[slot.specialPool].length > 0) {
+      const card = pickCardFromPool(cardPool[slot.specialPool], usedIds, slot.allowDuplicates);
+      if (card) {
+        const finalCard = slot.isFoil ? { ...card, isFoil: true } : card;
+        pack.push(finalCard);
+        if (!slot.allowDuplicates) usedIds.add(card.scryfallId);
+      }
+      continue;
+    }
+
     const rarity = pickRarityForSlot(slot);
     const pool = cardPool[rarity];
 
@@ -280,7 +291,7 @@ function pickCardFromPool(
  * @returns Array of packs (each pack is an array of CardReferences).
  */
 export function generateAllPacks(
-  cardPool: Record<Rarity, CardReference[]>,
+  cardPool: Record<string, CardReference[]>,
   template: PackTemplate,
   playerCount: number,
   packsPerPlayer: number

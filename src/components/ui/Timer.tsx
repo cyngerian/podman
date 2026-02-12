@@ -21,6 +21,16 @@ function getTimerClass(seconds: number, maxSeconds: number): string {
 }
 
 export default function Timer({ seconds, maxSeconds, paused = false }: TimerProps) {
+  // No timer in async / "none" mode
+  if (maxSeconds <= 0 || !isFinite(seconds)) {
+    return (
+      <div className="flex items-center gap-1.5 text-foreground/40 font-mono text-lg font-semibold">
+        <ClockIcon />
+        <span>Async</span>
+      </div>
+    );
+  }
+
   const timerClass = getTimerClass(seconds, maxSeconds);
 
   if (paused) {

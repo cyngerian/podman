@@ -80,7 +80,7 @@ export default function PickedCardsDrawer({
       />
 
       {/* Drawer panel */}
-      <div className="relative mt-12 flex-1 flex flex-col bg-surface rounded-t-2xl overflow-hidden drawer-enter drawer-enter-active">
+      <div className="relative mt-2 flex-1 flex flex-col bg-surface rounded-t-2xl overflow-hidden drawer-enter drawer-enter-active">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
           <h2 className="text-lg font-bold text-foreground">
@@ -118,12 +118,12 @@ export default function PickedCardsDrawer({
               No picks yet
             </p>
           ) : (
-            <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5">
+            <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-5">
               {sortedPicks.map((card, idx) => (
                 <CardThumbnail
                   key={`${card.scryfallId}-${idx}`}
                   card={card}
-                  size="small"
+                  size="medium"
                   onClick={() => setPreviewCard(card)}
                 />
               ))}
