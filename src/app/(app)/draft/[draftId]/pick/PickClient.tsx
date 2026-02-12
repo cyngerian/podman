@@ -147,10 +147,12 @@ export default function PickClient({
 
   const handlePick = useCallback(
     (cardId: string) => {
-      // Optimistic: remove card from local state
+      // Optimistic: pack passes to next player after picking
       const pickedCard = packCards.find((c) => c.scryfallId === cardId);
+      const previousPackCards = packCards;
+      const previousPicks = picks;
       if (pickedCard) {
-        setPackCards((prev) => prev.filter((c) => c.scryfallId !== cardId));
+        setPackCards([]); // Pack leaves — show "Waiting for next pack..."
         setPicks((prev) => [...prev, pickedCard]);
       }
 
@@ -161,8 +163,8 @@ export default function PickClient({
         } catch {
           // Revert optimistic update on failure
           if (pickedCard) {
-            setPackCards((prev) => [...prev, pickedCard]);
-            setPicks((prev) => prev.filter((c) => c.scryfallId !== pickedCard.scryfallId));
+            setPackCards(previousPackCards);
+            setPicks(previousPicks);
           }
         }
       });
