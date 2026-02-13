@@ -469,7 +469,7 @@ export default function PickScreen({
       <header className="flex flex-col shrink-0 sm:hidden">
         {/* Row 1: podman left, set symbol + name centered, date right */}
         <div className="flex items-center px-4 pt-3 pb-1 border-b border-border bg-background/95 backdrop-blur-sm">
-          <Link href="/dashboard" className="text-lg font-bold tracking-tight text-foreground shrink-0 w-16">
+          <Link href="/dashboard" className="text-xl font-bold tracking-tight text-foreground shrink-0 w-16">
             podman
           </Link>
           <div className="flex-1 flex items-center justify-center gap-1.5 min-w-0">
@@ -521,9 +521,9 @@ export default function PickScreen({
       {/* ===== DESKTOP HEADER (two rows) ===== */}
       <div className="hidden sm:flex flex-col shrink-0">
         {/* Row 1: info bar — podman, set name, timer */}
-        <div className="flex items-center px-4 py-2 border-b border-border bg-background/95 backdrop-blur-sm">
+        <div className="flex items-center px-4 py-3 border-b border-border bg-background/95 backdrop-blur-sm">
           <div className="max-w-6xl mx-auto w-full flex items-center">
-            <Link href="/dashboard" className="text-lg font-bold tracking-tight text-foreground shrink-0 w-20">
+            <Link href="/dashboard" className="text-xl font-bold tracking-tight text-foreground shrink-0">
               podman
             </Link>
             <div className="flex-1 flex items-center justify-center gap-1.5 min-w-0">
@@ -537,7 +537,7 @@ export default function PickScreen({
                 <span className="text-xs text-foreground/40 ml-1">{draftDateStr}</span>
               )}
             </div>
-            <div className="shrink-0 w-20 flex justify-end">
+            <div className="shrink-0 flex justify-end">
               <Timer
                 seconds={timerSeconds}
                 maxSeconds={timerMaxSeconds}
@@ -816,7 +816,7 @@ export default function PickScreen({
       <div className="hidden sm:flex flex-1 flex-col min-h-0">
         {/* Card grid — scrollable area */}
         <div className="flex-1 overflow-y-auto min-h-0">
-          <div className="max-w-6xl mx-auto grid grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-1.5 p-2">
+          <div className="max-w-6xl mx-auto grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-2 p-3">
             {filteredCards.map((card) => (
               <CardThumbnail
                 key={card.scryfallId}
