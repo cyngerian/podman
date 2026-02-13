@@ -73,41 +73,45 @@ export default function PickScreen({
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const spotlightRef = useRef<HTMLDivElement>(null);
 
   const filteredCards = packCards.filter((card) => matchesFilter(card, filterMode));
 
   // Card dimensions for carousel
   const CARD_WIDTH_VW = 50; // base card width in vw
   const CARD_OVERLAP_PX = -24; // negative margin for overlap
-  const SCROLL_ACTIVE_SCALE = 1.22; // while swiping
-  const SCROLL_INACTIVE_SCALE = 0.75;
-  const RESTED_SCALE = 1.7; // after snap, focused card grows to this
+  const SCROLL_ACTIVE_SCALE = 1.15; // while swiping
+  const SCROLL_INACTIVE_SCALE = 0.78;
 
   // Track active card + apply scale transforms based on scroll position.
-  // Two phases: "scrolling" (compact) and "rested" (active card enlarges).
+  // Two phases: "scrolling" (compact cards in scroll container) and
+  // "rested" (spotlight overlay shows active card large, outside scroll clip).
   const activeIndexRef = useRef(0);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout>>(0 as never);
-  const isScrollingRef = useRef(false);
+
+  // Show/hide the spotlight overlay (direct DOM, no re-render)
+  const showSpotlight = () => {
+    if (spotlightRef.current) {
+      spotlightRef.current.style.opacity = "1";
+      spotlightRef.current.style.transform = "scale(1)";
+      spotlightRef.current.style.pointerEvents = "none";
+    }
+  };
+  const hideSpotlight = () => {
+    if (spotlightRef.current) {
+      spotlightRef.current.style.opacity = "0";
+      spotlightRef.current.style.transform = "scale(0.85)";
+    }
+  };
 
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     let rafId = 0;
 
-    // Apply rested state: active card scales up with CSS transition
+    // Apply rested state: show spotlight overlay
     const applyRested = () => {
-      isScrollingRef.current = false;
-      const idx = activeIndexRef.current;
-      cardRefs.current.forEach((cardEl, i) => {
-        if (!cardEl) return;
-        cardEl.style.transition = "transform 0.25s ease-out";
-        if (i === idx) {
-          cardEl.style.transform = `scale(${RESTED_SCALE})`;
-          cardEl.style.zIndex = "100";
-        } else {
-          cardEl.style.transform = `scale(${SCROLL_INACTIVE_SCALE})`;
-        }
-      });
+      showSpotlight();
     };
 
     // Apply scroll-time scales (no CSS transition, direct per-frame)
@@ -118,9 +122,6 @@ export default function PickScreen({
 
       cardRefs.current.forEach((cardEl, i) => {
         if (!cardEl) return;
-        // Remove transition during scroll for instant updates
-        cardEl.style.transition = "none";
-
         const cardCenter = cardEl.offsetLeft + cardEl.offsetWidth / 2;
         const dist = Math.abs(containerCenter - cardCenter);
         const maxDist = el.offsetWidth * 0.45;
@@ -144,17 +145,17 @@ export default function PickScreen({
     };
 
     const onScroll = () => {
-      isScrollingRef.current = true;
+      hideSpotlight();
       clearTimeout(scrollTimeoutRef.current);
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(updateCards);
-      // After scrolling stops, transition to rested state
-      scrollTimeoutRef.current = setTimeout(applyRested, 120);
+      // After scrolling stops, show spotlight
+      scrollTimeoutRef.current = setTimeout(applyRested, 150);
     };
 
-    // Initial: start in rested state
+    // Initial state
     updateCards();
-    applyRested();
+    showSpotlight();
 
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => {
@@ -244,11 +245,12 @@ export default function PickScreen({
         ) : (
           <>
             {/* Carousel */}
-            <div className="flex-1 flex items-center min-h-0">
+            <div className="flex-1 flex items-center min-h-0 relative">
+              {/* Scroll container (cards at compact size, clipped is fine) */}
               <div
                 ref={scrollRef}
                 className="flex overflow-x-auto snap-x snap-mandatory w-full no-scrollbar items-center"
-                style={{ paddingLeft: `${(100 - CARD_WIDTH_VW) / 2}vw`, paddingRight: `${(100 - CARD_WIDTH_VW) / 2}vw`, touchAction: "pan-x", overflowY: "clip" }}
+                style={{ paddingLeft: `${(100 - CARD_WIDTH_VW) / 2}vw`, paddingRight: `${(100 - CARD_WIDTH_VW) / 2}vw`, touchAction: "pan-x" }}
               >
                 {filteredCards.map((card, i) => (
                   <div
@@ -281,6 +283,35 @@ export default function PickScreen({
                   </div>
                 ))}
               </div>
+
+              {/* Spotlight overlay — active card at full size, outside scroll clip */}
+              {filteredCards[activeIndex] && (
+                <div
+                  ref={spotlightRef}
+                  className="absolute inset-0 flex items-center justify-center z-50 will-change-transform"
+                  style={{ opacity: 1, transform: "scale(1)", transition: "opacity 0.2s ease-out, transform 0.2s ease-out", pointerEvents: "none" }}
+                >
+                  {/* Height-constrained wrapper: card fills available height with padding */}
+                  <div
+                    className={`relative rounded-xl overflow-hidden border-2 shadow-2xl ${getBorderClass(filteredCards[activeIndex].colors)}`}
+                    style={{ height: "92%", aspectRatio: "488 / 680", maxWidth: "90vw" }}
+                  >
+                    <Image
+                      src={filteredCards[activeIndex].imageUri}
+                      alt={filteredCards[activeIndex].name}
+                      fill
+                      sizes="78vw"
+                      className="object-cover"
+                      priority
+                    />
+                    {filteredCards[activeIndex].isFoil && (
+                      <span className="absolute top-1.5 right-1.5 text-base drop-shadow-md">
+                        ✦
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Card counter + Pick button */}
