@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type {
   CardReference,
-  PackFilterMode,
+  PackFilterValue,
   PickedCardSortMode,
   TimerPreset,
   PacingMode,
@@ -49,7 +49,7 @@ export default function PickClient({
   // Local state
   const [packCards, setPackCards] = useState(initialPackCards);
   const [picks, setPicks] = useState(initialPicks);
-  const [filterMode, setFilterMode] = useState<PackFilterMode>("all");
+  const [filterSet, setFilterSet] = useState<Set<PackFilterValue>>(new Set());
   const [sortMode, setSortMode] = useState<PickedCardSortMode>("draft_order");
 
   // Timer based on packReceivedAt
@@ -183,6 +183,22 @@ export default function PickClient({
     [draftId, packCards, router]
   );
 
+  const handleFilterToggle = useCallback((value: PackFilterValue | "all") => {
+    if (value === "all") {
+      setFilterSet(new Set());
+    } else {
+      setFilterSet((prev) => {
+        const next = new Set(prev);
+        if (next.has(value)) {
+          next.delete(value);
+        } else {
+          next.add(value);
+        }
+        return next;
+      });
+    }
+  }, []);
+
   const passDirection = getPassDirection(initialPackNumber);
 
   // Waiting for pack
@@ -210,8 +226,8 @@ export default function PickClient({
       timerPaused={isPending}
       picks={picks}
       onPick={handlePick}
-      filterMode={filterMode}
-      onFilterChange={setFilterMode}
+      filterSet={filterSet}
+      onFilterToggle={handleFilterToggle}
       sortMode={sortMode}
       onSortChange={setSortMode}
       packQueueLength={packQueueLength}

@@ -243,3 +243,4 @@ export interface ScryfallSearchResponse {
 
 export type PickedCardSortMode = "draft_order" | "color" | "cmc" | "rarity";
 export type PackFilterMode = "all" | ManaColor | "colorless" | "multicolor";
+export type PackFilterValue = ManaColor | "colorless" | "multicolor";

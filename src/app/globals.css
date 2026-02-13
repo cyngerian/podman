@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "mana-font/css/mana.css";
 
 :root {
   --background: #0f0f0f;

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import type { CardReference, PackFilterMode, PickedCardSortMode, ManaColor } from "@/lib/types";
-import { MANA_COLORS } from "@/lib/types";
+import Link from "next/link";
+import type { CardReference, PickedCardSortMode, ManaColor, PackFilterValue } from "@/lib/types";
 import CardThumbnail from "@/components/ui/CardThumbnail";
 import Timer from "@/components/ui/Timer";
 import PickedCardsDrawer from "./PickedCardsDrawer";
@@ -19,29 +19,32 @@ interface PickScreenProps {
   timerPaused?: boolean;
   picks: CardReference[];
   onPick: (cardId: string) => void;
-  filterMode: PackFilterMode;
-  onFilterChange: (mode: PackFilterMode) => void;
+  filterSet: Set<PackFilterValue>;
+  onFilterToggle: (value: PackFilterValue | "all") => void;
   sortMode: PickedCardSortMode;
   onSortChange: (mode: PickedCardSortMode) => void;
   packQueueLength?: number;
 }
 
-const FILTER_OPTIONS: { value: PackFilterMode; label: string; colorVar?: string }[] = [
+const FILTER_OPTIONS: { value: PackFilterValue | "all"; manaClass?: string; label: string }[] = [
   { value: "all", label: "All" },
-  { value: "W", label: "W", colorVar: "var(--mana-white)" },
-  { value: "U", label: "U", colorVar: "var(--mana-blue)" },
-  { value: "B", label: "B", colorVar: "var(--mana-black)" },
-  { value: "R", label: "R", colorVar: "var(--mana-red)" },
-  { value: "G", label: "G", colorVar: "var(--mana-green)" },
-  { value: "multicolor", label: "Multi", colorVar: "var(--mana-gold)" },
-  { value: "colorless", label: "C", colorVar: "var(--mana-colorless)" },
+  { value: "W", manaClass: "ms ms-w ms-cost", label: "W" },
+  { value: "U", manaClass: "ms ms-u ms-cost", label: "U" },
+  { value: "B", manaClass: "ms ms-b ms-cost", label: "B" },
+  { value: "R", manaClass: "ms ms-r ms-cost", label: "R" },
+  { value: "G", manaClass: "ms ms-g ms-cost", label: "G" },
+  { value: "multicolor", label: "Multi" },
+  { value: "colorless", manaClass: "ms ms-c ms-cost", label: "C" },
 ];
 
-function matchesFilter(card: CardReference, filter: PackFilterMode): boolean {
-  if (filter === "all") return true;
-  if (filter === "colorless") return card.colors.length === 0;
-  if (filter === "multicolor") return card.colors.length >= 2;
-  return card.colors.includes(filter as ManaColor);
+function matchesFilterSet(card: CardReference, filterSet: Set<PackFilterValue>): boolean {
+  if (filterSet.size === 0) return true;
+  for (const f of filterSet) {
+    if (f === "colorless" && card.colors.length === 0) return true;
+    if (f === "multicolor" && card.colors.length >= 2) return true;
+    if (card.colors.includes(f as ManaColor)) return true;
+  }
+  return false;
 }
 
 function getBorderClass(colors: string[]): string {
@@ -61,8 +64,8 @@ export default function PickScreen({
   timerPaused,
   picks,
   onPick,
-  filterMode,
-  onFilterChange,
+  filterSet,
+  onFilterToggle,
   sortMode,
   onSortChange,
   packQueueLength,
@@ -80,7 +83,8 @@ export default function PickScreen({
   const scrubBarRef = useRef<HTMLDivElement>(null);
   const snapToCardRef = useRef<(index: number) => void>(() => {});
 
-  const filteredCards = packCards.filter((card) => matchesFilter(card, filterMode));
+  const filteredCards = packCards.filter((card) => matchesFilterSet(card, filterSet));
+  const filterKey = [...filterSet].sort().join(",");
 
   // Card dimensions for carousel
   const CARD_WIDTH_VW = 72; // base card width
@@ -303,12 +307,12 @@ export default function PickScreen({
       container.removeEventListener("touchmove", onTouchMove);
       container.removeEventListener("touchend", onTouchEnd);
     };
-  }, [filteredCards.length, filterMode]);
+  }, [filteredCards.length, filterKey]);
 
-  // Reset active index when filter changes (main useEffect re-runs and re-initializes offset)
+  // Reset active index when filter changes
   useEffect(() => {
     activeIndexRef.current = 0;
-  }, [filterMode]);
+  }, [filterKey]);
 
   const handleCardClick = useCallback((card: CardReference) => {
     setSelectedCard(card);
@@ -337,10 +341,58 @@ export default function PickScreen({
 
   const directionArrow = passDirection === "left" ? "\u2190" : "\u2192";
 
+  const isFilterActive = (value: PackFilterValue | "all") =>
+    value === "all" ? filterSet.size === 0 : filterSet.has(value);
+
+  const desktopFilterLabel = filterSet.size === 0
+    ? "Filter"
+    : `Filter (${filterSet.size})`;
+
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background overflow-hidden">
-      {/* Header bar */}
-      <header className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
+      {/* ===== MOBILE HEADER (two rows) ===== */}
+      <header className="flex flex-col border-b border-border shrink-0 sm:hidden">
+        {/* Row 1: podman link | timer + picks */}
+        <div className="flex items-center justify-between px-3 py-1.5">
+          <Link href="/" className="text-sm font-bold text-foreground hover:text-accent transition-colors">
+            podman
+          </Link>
+          <div className="flex items-center gap-2">
+            <Timer
+              seconds={timerSeconds}
+              maxSeconds={timerMaxSeconds}
+              paused={timerPaused}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPickedDrawer(true)}
+              className="px-2.5 py-1.5 rounded-lg bg-surface text-xs font-medium text-foreground hover:bg-surface-hover transition-colors border border-border"
+            >
+              Picks ({picks.length})
+            </button>
+          </div>
+        </div>
+        {/* Row 2: pack/pick info | pass direction */}
+        <div className="flex items-center justify-between px-3 pb-1.5">
+          <span className="text-sm font-semibold text-foreground">
+            Pack {packNumber} Pick {pickInPack}
+            <span className="text-foreground/40 font-normal ml-1.5">
+              {packCards.length}/{totalCardsInPack}
+            </span>
+            {!!packQueueLength && packQueueLength > 0 && (
+              <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-accent text-white text-xs font-medium">
+                +{packQueueLength} queued
+              </span>
+            )}
+          </span>
+          <span className="text-xs text-foreground/50">
+            {directionArrow} Pass {passDirection}
+          </span>
+        </div>
+      </header>
+
+      {/* ===== DESKTOP HEADER (single row, unchanged layout) ===== */}
+      <header className="hidden sm:flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
         <Timer
           seconds={timerSeconds}
           maxSeconds={timerMaxSeconds}
@@ -375,29 +427,31 @@ export default function PickScreen({
 
       {/* ==================== MOBILE: Carousel ==================== */}
       <div className="flex-1 flex flex-col min-h-0 sm:hidden">
-        {/* Inline filter pills */}
-        <div className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 overflow-x-auto no-scrollbar">
+        {/* Inline filter pills — mana symbols, multi-select, no wrap */}
+        <div className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 flex-nowrap overflow-x-auto no-scrollbar">
           {FILTER_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               type="button"
-              onClick={() => onFilterChange(opt.value)}
+              onClick={() => onFilterToggle(opt.value)}
               className={`
-                flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0
+                flex items-center justify-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0
                 transition-colors
-                ${filterMode === opt.value
+                ${isFilterActive(opt.value)
                   ? "bg-accent text-white"
                   : "bg-surface text-foreground/70"
                 }
               `}
             >
-              {opt.colorVar && (
+              {opt.manaClass ? (
+                <i className={opt.manaClass} style={{ fontSize: "14px" }} />
+              ) : opt.value === "multicolor" ? (
                 <span
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: opt.colorVar }}
+                  className="w-3.5 h-3.5 rounded-full inline-block"
+                  style={{ backgroundColor: "var(--mana-gold)" }}
                 />
-              )}
-              {opt.label}
+              ) : null}
+              {opt.value === "all" ? "All" : null}
             </button>
           ))}
         </div>
@@ -460,10 +514,10 @@ export default function PickScreen({
 
             </div>
 
-            {/* Scrub bar — supports tap and drag */}
+            {/* Scrub bar — thicker, closer to carousel */}
             <div
               ref={scrubBarRef}
-              className="shrink-0 px-8 -mt-3 mb-1"
+              className="shrink-0 px-8 -mt-6"
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 const progress = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
@@ -486,8 +540,8 @@ export default function PickScreen({
                 snapToCardRef.current(Math.round(progress * (filteredCards.length - 1)));
               }}
             >
-              <div className="w-full h-8 flex items-center cursor-pointer">
-                <div className="w-full h-1.5 rounded-full bg-foreground/10 relative">
+              <div className="w-full h-10 flex items-center cursor-pointer">
+                <div className="w-full h-2.5 rounded-full bg-foreground/10 relative">
                   <div
                     ref={scrubThumbRef}
                     className="absolute top-0 h-full rounded-full bg-foreground/30 transition-[left] duration-75"
@@ -508,10 +562,10 @@ export default function PickScreen({
                 <button
                   type="button"
                   onClick={() => setShowGridView(true)}
-                  className="p-1 rounded text-foreground/40 hover:text-foreground/70 transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface text-foreground/60 hover:text-foreground/80 transition-colors border border-border"
                   aria-label="View all cards"
                 >
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                     <rect x="0" y="0" width="4.5" height="4.5" rx="1" />
                     <rect x="5.75" y="0" width="4.5" height="4.5" rx="1" />
                     <rect x="11.5" y="0" width="4.5" height="4.5" rx="1" />
@@ -522,6 +576,7 @@ export default function PickScreen({
                     <rect x="5.75" y="11.5" width="4.5" height="4.5" rx="1" />
                     <rect x="11.5" y="11.5" width="4.5" height="4.5" rx="1" />
                   </svg>
+                  <span className="text-xs font-medium">Grid</span>
                 </button>
               </div>
 
@@ -619,13 +674,13 @@ export default function PickScreen({
               onClick={() => setShowFilterMenu((prev) => !prev)}
               className={`
                 px-3 py-2 rounded-lg text-sm font-medium transition-colors
-                ${filterMode !== "all"
+                ${filterSet.size > 0
                   ? "bg-accent text-white"
                   : "bg-background text-foreground hover:bg-surface-hover"
                 }
               `}
             >
-              Filter{filterMode !== "all" ? ` (${filterMode})` : ""}
+              {desktopFilterLabel}
             </button>
 
             {showFilterMenu && (
@@ -641,24 +696,26 @@ export default function PickScreen({
                         key={opt.value}
                         type="button"
                         onClick={() => {
-                          onFilterChange(opt.value);
-                          setShowFilterMenu(false);
+                          onFilterToggle(opt.value);
+                          if (opt.value === "all") setShowFilterMenu(false);
                         }}
                         className={`
                           flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-xs font-semibold
                           transition-colors
-                          ${filterMode === opt.value
+                          ${isFilterActive(opt.value)
                             ? "bg-accent text-white"
                             : "bg-background text-foreground/70 hover:bg-surface-hover"
                           }
                         `}
                       >
-                        {opt.colorVar && (
+                        {opt.manaClass ? (
+                          <i className={opt.manaClass} style={{ fontSize: "14px" }} />
+                        ) : opt.value === "multicolor" ? (
                           <span
-                            className="w-2.5 h-2.5 rounded-full shrink-0"
-                            style={{ backgroundColor: opt.colorVar }}
+                            className="w-3 h-3 rounded-full inline-block shrink-0"
+                            style={{ backgroundColor: "var(--mana-gold)" }}
                           />
-                        )}
+                        ) : null}
                         {opt.label}
                       </button>
                     ))}
