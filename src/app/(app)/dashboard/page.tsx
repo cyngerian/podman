@@ -14,7 +14,7 @@ export default async function DashboardPage() {
   const [{ data: profile }, { data: memberships }, { data: simDrafts }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("display_name, avatar_url")
+      .select("display_name, avatar_url, is_site_admin")
       .eq("id", user.id)
       .single(),
     supabase
@@ -55,6 +55,14 @@ export default async function DashboardPage() {
         >
           Edit Profile
         </Link>
+        {profile?.is_site_admin && (
+          <Link
+            href="/dashboard/admin"
+            className="text-xs text-foreground/40 hover:text-foreground/60 transition-colors"
+          >
+            Admin
+          </Link>
+        )}
       </div>
 
       {/* Solo Practice */}
