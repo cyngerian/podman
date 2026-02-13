@@ -73,48 +73,24 @@ export default function PickScreen({
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const spotlightRef = useRef<HTMLDivElement>(null);
 
   const filteredCards = packCards.filter((card) => matchesFilter(card, filterMode));
 
   // Card dimensions for carousel
-  const CARD_WIDTH_VW = 50; // base card width in vw
-  const CARD_OVERLAP_PX = -24; // negative margin for overlap
-  const SCROLL_ACTIVE_SCALE = 1.15; // while swiping
-  const SCROLL_INACTIVE_SCALE = 0.78;
+  const CARD_WIDTH_VW = 72; // base card width — big by default
+  const CARD_OVERLAP_PX = -30; // negative margin for overlap
+  const SCROLL_ACTIVE_SCALE = 1.0; // center card: full size, never exceeds container
+  const SCROLL_INACTIVE_SCALE = 0.7; // off-center cards shrink down
 
   // Track active card + apply scale transforms based on scroll position.
-  // Two phases: "scrolling" (compact cards in scroll container) and
-  // "rested" (spotlight overlay shows active card large, outside scroll clip).
+  // Cards are big by default (scale 1.0) and shrink when off-center.
   const activeIndexRef = useRef(0);
-  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout>>(0 as never);
-
-  // Show/hide the spotlight overlay (direct DOM, no re-render)
-  const showSpotlight = () => {
-    if (spotlightRef.current) {
-      spotlightRef.current.style.opacity = "1";
-      spotlightRef.current.style.transform = "scale(1)";
-      spotlightRef.current.style.pointerEvents = "none";
-    }
-  };
-  const hideSpotlight = () => {
-    if (spotlightRef.current) {
-      spotlightRef.current.style.opacity = "0";
-      spotlightRef.current.style.transform = "scale(0.85)";
-    }
-  };
 
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     let rafId = 0;
 
-    // Apply rested state: show spotlight overlay
-    const applyRested = () => {
-      showSpotlight();
-    };
-
-    // Apply scroll-time scales (no CSS transition, direct per-frame)
     const updateCards = () => {
       const containerCenter = el.scrollLeft + el.offsetWidth / 2;
       let closestIdx = 0;
@@ -145,23 +121,17 @@ export default function PickScreen({
     };
 
     const onScroll = () => {
-      hideSpotlight();
-      clearTimeout(scrollTimeoutRef.current);
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(updateCards);
-      // After scrolling stops, show spotlight
-      scrollTimeoutRef.current = setTimeout(applyRested, 150);
     };
 
     // Initial state
     updateCards();
-    showSpotlight();
 
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => {
       el.removeEventListener("scroll", onScroll);
       cancelAnimationFrame(rafId);
-      clearTimeout(scrollTimeoutRef.current);
     };
   }, [filteredCards.length]);
 
@@ -246,7 +216,7 @@ export default function PickScreen({
           <>
             {/* Carousel */}
             <div className="flex-1 flex items-center min-h-0 relative">
-              {/* Scroll container (cards at compact size, clipped is fine) */}
+              {/* Scroll container — cards are big by default, inactive ones shrink */}
               <div
                 ref={scrollRef}
                 className="flex overflow-x-auto snap-x snap-mandatory w-full no-scrollbar items-center"
@@ -259,7 +229,7 @@ export default function PickScreen({
                     className="snap-center shrink-0 will-change-transform"
                     style={{
                       width: `${CARD_WIDTH_VW}vw`,
-                      maxWidth: "280px",
+                      maxWidth: "400px",
                       marginLeft: i === 0 ? 0 : `${CARD_OVERLAP_PX}px`,
                     }}
                   >
@@ -270,7 +240,7 @@ export default function PickScreen({
                         src={card.imageUri}
                         alt={card.name}
                         fill
-                        sizes="50vw"
+                        sizes="72vw"
                         className="object-cover"
                         priority
                       />
@@ -284,34 +254,6 @@ export default function PickScreen({
                 ))}
               </div>
 
-              {/* Spotlight overlay — active card at full size, outside scroll clip */}
-              {filteredCards[activeIndex] && (
-                <div
-                  ref={spotlightRef}
-                  className="absolute inset-0 flex items-center justify-center z-50 will-change-transform"
-                  style={{ opacity: 1, transform: "scale(1)", transition: "opacity 0.2s ease-out, transform 0.2s ease-out", pointerEvents: "none" }}
-                >
-                  {/* Height-constrained wrapper: card fills available height with padding */}
-                  <div
-                    className={`relative rounded-xl overflow-hidden border-2 shadow-2xl ${getBorderClass(filteredCards[activeIndex].colors)}`}
-                    style={{ height: "92%", aspectRatio: "488 / 680", maxWidth: "90vw" }}
-                  >
-                    <Image
-                      src={filteredCards[activeIndex].imageUri}
-                      alt={filteredCards[activeIndex].name}
-                      fill
-                      sizes="78vw"
-                      className="object-cover"
-                      priority
-                    />
-                    {filteredCards[activeIndex].isFoil && (
-                      <span className="absolute top-1.5 right-1.5 text-base drop-shadow-md">
-                        ✦
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Card counter + Pick button */}
