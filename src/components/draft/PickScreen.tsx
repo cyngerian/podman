@@ -521,8 +521,8 @@ export default function PickScreen({
       {/* ===== DESKTOP HEADER (two rows) ===== */}
       <div className="hidden sm:flex flex-col shrink-0">
         {/* Row 1: info bar — podman, set name, timer */}
-        <div className="flex items-center px-4 py-3 border-b border-border bg-background/95 backdrop-blur-sm">
-          <div className="max-w-6xl mx-auto w-full flex items-center">
+        <div className="border-b border-border bg-background/95 backdrop-blur-sm">
+          <div className="max-w-5xl mx-auto w-full flex items-center px-4 py-3">
             <Link href="/dashboard" className="text-xl font-bold tracking-tight text-foreground shrink-0">
               podman
             </Link>
@@ -547,8 +547,8 @@ export default function PickScreen({
           </div>
         </div>
         {/* Row 2: controls — pack info, filters, picks */}
-        <div className="flex items-center px-4 py-1.5 border-b border-border">
-          <div className="max-w-6xl mx-auto w-full flex items-center justify-between">
+        <div className="border-b border-border">
+          <div className="max-w-5xl mx-auto w-full flex items-center justify-between px-4 py-1.5">
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-foreground">
                 Pack {packNumber} Pick {pickInPack}
@@ -816,7 +816,7 @@ export default function PickScreen({
       <div className="hidden sm:flex flex-1 flex-col min-h-0">
         {/* Card grid — scrollable area */}
         <div className="flex-1 overflow-y-auto min-h-0">
-          <div className="max-w-6xl mx-auto grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-2 p-3">
+          <div className="max-w-5xl mx-auto grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-2 p-3">
             {filteredCards.map((card) => (
               <CardThumbnail
                 key={card.scryfallId}
@@ -837,7 +837,7 @@ export default function PickScreen({
 
         {/* Preview panel */}
         <div className="shrink-0 border-t border-border bg-surface">
-          <div className="max-w-6xl mx-auto flex items-center gap-4 px-4 py-3">
+          <div className="max-w-5xl mx-auto flex items-center gap-4 px-4 py-3">
             {selectedCard ? (
               <>
                 <div className="relative w-20 card-aspect rounded-lg overflow-hidden shrink-0">
