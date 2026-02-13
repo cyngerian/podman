@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "mana-font/css/mana.css";
+@import "keyrune/css/keyrune.css";
 
 :root {
   --background: #0f0f0f;

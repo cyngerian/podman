@@ -371,34 +371,28 @@ export default function PickScreen({
     ? new Date(startedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })
     : null;
 
-  const setIconUrl = setCode ? `https://svgs.scryfall.io/sets/${setCode}.svg` : null;
-
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background overflow-hidden">
       {/* ===== MOBILE HEADER (two rows) ===== */}
       <header className="flex flex-col shrink-0 sm:hidden">
-        {/* Row 1: podman left, set icon + name + date centered — matches app layout */}
+        {/* Row 1: podman left, set symbol + name centered, date right */}
         <div className="flex items-center px-4 py-3 border-b border-border bg-background/95 backdrop-blur-sm">
-          <Link href="/" className="text-lg font-bold tracking-tight text-foreground shrink-0">
+          <Link href="/" className="text-lg font-bold tracking-tight text-foreground shrink-0 w-16">
             podman
           </Link>
-          <div className="flex-1 flex items-center justify-center gap-1.5">
-            {setIconUrl && (
-              <img
-                src={setIconUrl}
-                alt={setCode ?? ""}
-                className="w-4 h-4 shrink-0 invert brightness-75"
-              />
+          <div className="flex-1 flex items-center justify-center gap-1.5 min-w-0">
+            {setCode && (
+              <i className={`ss ss-${setCode.toLowerCase()} text-foreground`} style={{ fontSize: "16px" }} />
             )}
             {setName && (
               <span className="text-sm font-bold text-foreground truncate">{setName}</span>
             )}
-            {draftDateStr && (
-              <span className="text-sm text-foreground/40 shrink-0">&middot; {draftDateStr}</span>
-            )}
           </div>
-          {/* Invisible spacer to balance podman link for centering */}
-          <div className="w-[62px] shrink-0" />
+          {draftDateStr ? (
+            <span className="text-xs text-foreground/40 shrink-0 w-16 text-right">{draftDateStr}</span>
+          ) : (
+            <div className="w-16 shrink-0" />
+          )}
         </div>
         {/* Row 2: timer | Pack N: Pick N | picks button */}
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
@@ -513,7 +507,7 @@ export default function PickScreen({
               >
                 <div
                   ref={wrapperRef}
-                  className="flex items-center py-4 will-change-transform"
+                  className="flex items-center py-8 will-change-transform"
                   style={{ transform: "translate3d(0,0,0)" }}
                 >
                   {filteredCards.map((card, i) => (
@@ -558,7 +552,7 @@ export default function PickScreen({
             {/* Scrub bar — thicker, tight under carousel. Hidden for single card. */}
             <div
               ref={scrubBarRef}
-              className={`shrink-0 px-8 -mt-4 ${filteredCards.length <= 1 ? "invisible" : ""}`}
+              className={`shrink-0 px-8 -mt-8 ${filteredCards.length <= 1 ? "invisible" : ""}`}
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 const progress = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
