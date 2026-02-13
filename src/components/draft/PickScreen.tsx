@@ -621,7 +621,7 @@ export default function PickScreen({
         ) : (
           <>
             {/* Carousel */}
-            <div className="flex-1 flex items-center min-h-0 relative" style={{ marginTop: "-35px" }}>
+            <div className="flex-1 flex items-center min-h-0 relative" style={{ marginTop: "-20px" }}>
               {/* Transform container — no native scroll, all movement via JS transforms */}
               <div
                 ref={scrollRef}
@@ -675,7 +675,7 @@ export default function PickScreen({
             {/* Scrub bar — thicker, tight under carousel. Hidden for single card. */}
             <div
               ref={scrubBarRef}
-              className={`shrink-0 px-6 -mt-10 ${filteredCards.length <= 1 ? "invisible" : ""}`}
+              className={`shrink-0 px-6 -mt-6 -mb-4 ${filteredCards.length <= 1 ? "invisible" : ""}`}
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 const progress = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
