@@ -476,7 +476,7 @@ export default function PickScreen({
       {/* ===== MOBILE HEADER (two rows) ===== */}
       <header className="flex flex-col shrink-0 sm:hidden">
         {/* Row 1: podman left, set symbol + name centered, date right */}
-        <div className="flex items-center px-4 py-1.5 border-b border-border bg-background/95 backdrop-blur-sm">
+        <div className="flex items-center px-4 pt-3 pb-1 border-b border-border bg-background/95 backdrop-blur-sm">
           <Link href="/" className="text-lg font-bold tracking-tight text-foreground shrink-0 w-16">
             podman
           </Link>
@@ -495,7 +495,7 @@ export default function PickScreen({
           )}
         </div>
         {/* Row 2: timer | Pack N: Pick N | picks button */}
-        <div className="flex items-center justify-between px-4 py-1.5 border-b border-border">
+        <div className="flex items-center justify-between px-4 pt-1 pb-1.5 border-b border-border">
           <Timer
             seconds={timerSeconds}
             maxSeconds={timerMaxSeconds}
