@@ -9,6 +9,8 @@ import PickedCardsDrawer from "./PickedCardsDrawer";
 import Image from "next/image";
 
 interface PickScreenProps {
+  setName: string | null;
+  startedAt: number | null;
   packCards: CardReference[];
   packNumber: number;
   pickInPack: number;
@@ -54,6 +56,8 @@ function getBorderClass(colors: string[]): string {
 }
 
 export default function PickScreen({
+  setName,
+  startedAt,
   packCards,
   packNumber,
   pickInPack,
@@ -103,6 +107,9 @@ export default function PickScreen({
     const wrapper = wrapperRef.current;
     if (!container || !wrapper || filteredCards.length === 0) return;
 
+    // Trim stale refs from previous renders with more cards
+    cardRefs.current.length = filteredCards.length;
+
     let running = true;
     let rafId = 0;
 
@@ -118,9 +125,11 @@ export default function PickScreen({
       cardCenters.push(cardEl.offsetLeft + cardEl.offsetWidth / 2);
     });
 
+    const numCards = cardCenters.length;
     const minOffset = cardCenters[0] ?? 0;
-    const maxOffset = cardCenters[cardCenters.length - 1] ?? 0;
+    const maxOffset = cardCenters[numCards - 1] ?? 0;
     const offsetRange = maxOffset - minOffset;
+    const canSwipe = numCards > 1;
 
     // Physics state
     let offset = cardCenters[0] ?? 0; // center on first card
@@ -294,18 +303,22 @@ export default function PickScreen({
       if (cardEl) cardEl.style.zIndex = `${100 - Math.abs(i) * 10}`;
     }
 
-    // Start loop + listeners
+    // Start loop + listeners (only attach touch if more than 1 card)
     rafId = requestAnimationFrame(tick);
-    container.addEventListener("touchstart", onTouchStart, { passive: true });
-    container.addEventListener("touchmove", onTouchMove, { passive: false });
-    container.addEventListener("touchend", onTouchEnd, { passive: true });
+    if (canSwipe) {
+      container.addEventListener("touchstart", onTouchStart, { passive: true });
+      container.addEventListener("touchmove", onTouchMove, { passive: false });
+      container.addEventListener("touchend", onTouchEnd, { passive: true });
+    }
 
     return () => {
       running = false;
       cancelAnimationFrame(rafId);
-      container.removeEventListener("touchstart", onTouchStart);
-      container.removeEventListener("touchmove", onTouchMove);
-      container.removeEventListener("touchend", onTouchEnd);
+      if (canSwipe) {
+        container.removeEventListener("touchstart", onTouchStart);
+        container.removeEventListener("touchmove", onTouchMove);
+        container.removeEventListener("touchend", onTouchEnd);
+      }
     };
   }, [filteredCards.length, filterKey]);
 
@@ -348,46 +361,53 @@ export default function PickScreen({
     ? "Filter"
     : `Filter (${filterSet.size})`;
 
+  const draftDateStr = startedAt
+    ? new Date(startedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    : null;
+
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background overflow-hidden">
       {/* ===== MOBILE HEADER (two rows) ===== */}
       <header className="flex flex-col border-b border-border shrink-0 sm:hidden">
-        {/* Row 1: podman link | timer + picks */}
-        <div className="flex items-center justify-between px-3 py-1.5">
-          <Link href="/" className="text-sm font-bold text-foreground hover:text-accent transition-colors">
+        {/* Row 1: podman + draft name/date — matches app layout header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-background/95 backdrop-blur-sm">
+          <Link href="/" className="text-lg font-bold tracking-tight text-foreground">
             podman
           </Link>
-          <div className="flex items-center gap-2">
-            <Timer
-              seconds={timerSeconds}
-              maxSeconds={timerMaxSeconds}
-              paused={timerPaused}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPickedDrawer(true)}
-              className="px-2.5 py-1.5 rounded-lg bg-surface text-xs font-medium text-foreground hover:bg-surface-hover transition-colors border border-border"
-            >
-              Picks ({picks.length})
-            </button>
+          <div className="flex items-center gap-1.5 text-sm text-foreground/50">
+            {setName && <span>{setName}</span>}
+            {setName && draftDateStr && <span>&middot;</span>}
+            {draftDateStr && <span>{draftDateStr}</span>}
           </div>
         </div>
-        {/* Row 2: pack/pick info | pass direction */}
-        <div className="flex items-center justify-between px-3 pb-1.5">
-          <span className="text-sm font-semibold text-foreground">
-            Pack {packNumber} Pick {pickInPack}
-            <span className="text-foreground/40 font-normal ml-1.5">
-              {packCards.length}/{totalCardsInPack}
+        {/* Row 2: timer | pack/pick info | picks button */}
+        <div className="flex items-center justify-between px-4 py-2.5">
+          <Timer
+            seconds={timerSeconds}
+            maxSeconds={timerMaxSeconds}
+            paused={timerPaused}
+          />
+          <div className="flex flex-col items-center">
+            <span className="text-base font-semibold text-foreground">
+              Pack {packNumber} Pick {pickInPack}
             </span>
-            {!!packQueueLength && packQueueLength > 0 && (
-              <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-accent text-white text-xs font-medium">
-                +{packQueueLength} queued
-              </span>
-            )}
-          </span>
-          <span className="text-xs text-foreground/50">
-            {directionArrow} Pass {passDirection}
-          </span>
+            <span className="text-xs text-foreground/40">
+              {packCards.length}/{totalCardsInPack} cards
+              {!!packQueueLength && packQueueLength > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 rounded-full bg-accent text-white text-[10px] font-medium">
+                  +{packQueueLength}
+                </span>
+              )}
+              <span className="ml-1.5">{directionArrow} {passDirection}</span>
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowPickedDrawer(true)}
+            className="px-2.5 py-1.5 rounded-lg bg-surface text-xs font-medium text-foreground hover:bg-surface-hover transition-colors border border-border"
+          >
+            Picks ({picks.length})
+          </button>
         </div>
       </header>
 
@@ -514,10 +534,10 @@ export default function PickScreen({
 
             </div>
 
-            {/* Scrub bar — thicker, closer to carousel */}
+            {/* Scrub bar — thicker, tight under carousel. Hidden for single card. */}
             <div
               ref={scrubBarRef}
-              className="shrink-0 px-8 -mt-6"
+              className={`shrink-0 px-8 -mt-8 ${filteredCards.length <= 1 ? "invisible" : ""}`}
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 const progress = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
