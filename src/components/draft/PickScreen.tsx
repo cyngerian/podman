@@ -77,10 +77,10 @@ export default function PickScreen({
   const filteredCards = packCards.filter((card) => matchesFilter(card, filterMode));
 
   // Card dimensions for carousel
-  const CARD_WIDTH_VW = 58; // vw units for card width
-  const CARD_OVERLAP_PX = -20; // negative margin for overlap
-  const ACTIVE_SCALE = 1.08;
-  const INACTIVE_SCALE = 0.88;
+  const CARD_WIDTH_VW = 50; // base card width in vw
+  const CARD_OVERLAP_PX = -24; // negative margin for overlap
+  const ACTIVE_SCALE = 1.15;
+  const INACTIVE_SCALE = 0.82;
 
   // Track active card + apply scale transforms based on scroll position
   useEffect(() => {
@@ -96,14 +96,13 @@ export default function PickScreen({
         if (!cardEl) return;
         const cardCenter = cardEl.offsetLeft + cardEl.offsetWidth / 2;
         const dist = Math.abs(containerCenter - cardCenter);
-        const maxDist = el.offsetWidth * 0.5;
+        const maxDist = el.offsetWidth * 0.45;
         const t = Math.min(dist / maxDist, 1); // 0 = centered, 1 = far
         const scale = ACTIVE_SCALE - t * (ACTIVE_SCALE - INACTIVE_SCALE);
         const zIndex = 100 - Math.round(t * 100);
 
         cardEl.style.transform = `scale(${scale})`;
         cardEl.style.zIndex = `${zIndex}`;
-        cardEl.style.opacity = t > 0.85 ? `${1 - (t - 0.85) * 4}` : "1";
 
         if (dist < closestDist) {
           closestDist = dist;
@@ -191,7 +190,7 @@ export default function PickScreen({
       </header>
 
       {/* ==================== MOBILE: Carousel ==================== */}
-      <div className="flex-1 flex flex-col min-h-0 sm:hidden">
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden sm:hidden">
         {filteredCards.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">
             <p className="text-foreground/40 text-sm">No cards match this filter</p>
@@ -199,20 +198,20 @@ export default function PickScreen({
         ) : (
           <>
             {/* Carousel */}
-            <div className="flex-1 flex items-center min-h-0">
+            <div className="flex-1 flex items-center min-h-0 overflow-hidden">
               <div
                 ref={scrollRef}
-                className="flex overflow-x-auto snap-x snap-mandatory w-full no-scrollbar items-center"
+                className="flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory w-full no-scrollbar items-center py-8"
                 style={{ paddingLeft: `${(100 - CARD_WIDTH_VW) / 2}vw`, paddingRight: `${(100 - CARD_WIDTH_VW) / 2}vw` }}
               >
                 {filteredCards.map((card, i) => (
                   <div
                     key={card.scryfallId}
                     ref={(el) => { cardRefs.current[i] = el; }}
-                    className="snap-center shrink-0 transition-transform duration-150 ease-out"
+                    className="snap-center shrink-0 will-change-transform"
                     style={{
                       width: `${CARD_WIDTH_VW}vw`,
-                      maxWidth: "300px",
+                      maxWidth: "280px",
                       marginLeft: i === 0 ? 0 : `${CARD_OVERLAP_PX}px`,
                     }}
                   >
@@ -223,7 +222,7 @@ export default function PickScreen({
                         src={card.imageUri}
                         alt={card.name}
                         fill
-                        sizes="58vw"
+                        sizes="50vw"
                         className="object-cover"
                         priority
                       />
