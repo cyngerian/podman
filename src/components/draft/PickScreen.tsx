@@ -79,19 +79,38 @@ export default function PickScreen({
   // Card dimensions for carousel
   const CARD_WIDTH_VW = 50; // base card width in vw
   const CARD_OVERLAP_PX = -24; // negative margin for overlap
-  const ACTIVE_SCALE = 1.22;
-  const INACTIVE_SCALE = 0.75;
+  const SCROLL_ACTIVE_SCALE = 1.22; // while swiping
+  const SCROLL_INACTIVE_SCALE = 0.75;
+  const RESTED_SCALE = 1.52; // after snap, focused card grows to this
 
-  // Track active card + apply scale transforms based on scroll position
-  // Visual transforms are applied directly to DOM (no React re-render).
-  // Only setActiveIndex when the snapped card changes to update the name/counter.
+  // Track active card + apply scale transforms based on scroll position.
+  // Two phases: "scrolling" (compact) and "rested" (active card enlarges).
   const activeIndexRef = useRef(0);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout>>(0 as never);
+  const isScrollingRef = useRef(false);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     let rafId = 0;
 
+    // Apply rested state: active card scales up with CSS transition
+    const applyRested = () => {
+      isScrollingRef.current = false;
+      const idx = activeIndexRef.current;
+      cardRefs.current.forEach((cardEl, i) => {
+        if (!cardEl) return;
+        cardEl.style.transition = "transform 0.25s ease-out";
+        if (i === idx) {
+          cardEl.style.transform = `scale(${RESTED_SCALE})`;
+          cardEl.style.zIndex = "100";
+        } else {
+          cardEl.style.transform = `scale(${SCROLL_INACTIVE_SCALE})`;
+        }
+      });
+    };
+
+    // Apply scroll-time scales (no CSS transition, direct per-frame)
     const updateCards = () => {
       const containerCenter = el.scrollLeft + el.offsetWidth / 2;
       let closestIdx = 0;
@@ -99,11 +118,14 @@ export default function PickScreen({
 
       cardRefs.current.forEach((cardEl, i) => {
         if (!cardEl) return;
+        // Remove transition during scroll for instant updates
+        cardEl.style.transition = "none";
+
         const cardCenter = cardEl.offsetLeft + cardEl.offsetWidth / 2;
         const dist = Math.abs(containerCenter - cardCenter);
         const maxDist = el.offsetWidth * 0.45;
-        const t = Math.min(dist / maxDist, 1); // 0 = centered, 1 = far
-        const scale = ACTIVE_SCALE - t * (ACTIVE_SCALE - INACTIVE_SCALE);
+        const t = Math.min(dist / maxDist, 1);
+        const scale = SCROLL_ACTIVE_SCALE - t * (SCROLL_ACTIVE_SCALE - SCROLL_INACTIVE_SCALE);
         const zIndex = 100 - Math.round(t * 100);
 
         cardEl.style.transform = `scale(${scale})`;
@@ -115,7 +137,6 @@ export default function PickScreen({
         }
       });
 
-      // Only trigger re-render when the active card changes
       if (closestIdx !== activeIndexRef.current) {
         activeIndexRef.current = closestIdx;
         setActiveIndex(closestIdx);
@@ -123,15 +144,23 @@ export default function PickScreen({
     };
 
     const onScroll = () => {
+      isScrollingRef.current = true;
+      clearTimeout(scrollTimeoutRef.current);
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(updateCards);
+      // After scrolling stops, transition to rested state
+      scrollTimeoutRef.current = setTimeout(applyRested, 120);
     };
 
+    // Initial: start in rested state
     updateCards();
+    applyRested();
+
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => {
       el.removeEventListener("scroll", onScroll);
       cancelAnimationFrame(rafId);
+      clearTimeout(scrollTimeoutRef.current);
     };
   }, [filteredCards.length]);
 
