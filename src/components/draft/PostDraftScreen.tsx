@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, type ChangeEvent } from "react";
 import type { CardReference, BasicLandCounts, DraftPick } from "@/lib/types";
 import {
   formatDeckListText,
@@ -44,6 +44,7 @@ export default function PostDraftScreen({
   const [copiedState, setCopiedState] = useState<string | null>(null);
   const [expandedPlayers, setExpandedPlayers] = useState<Set<number>>(new Set());
   const [showHistory, setShowHistory] = useState(false);
+  const [deckName, setDeckName] = useState("");
 
   const hasDeck = deck !== null && sideboard !== null;
   const activeLands = lands ?? DEFAULT_LANDS;
@@ -59,33 +60,35 @@ export default function PostDraftScreen({
   }, []);
 
   // ---- Export handlers ----
+  const exportName = deckName || undefined;
+
   const handleCopy = useCallback(async () => {
     const text = hasDeck
-      ? formatDeckListText(deck!, sideboard!, activeLands)
+      ? formatDeckListText(deck!, sideboard!, activeLands, exportName)
       : formatPoolText(pool);
     const ok = await copyToClipboard(text);
     if (ok) flash("clipboard");
-  }, [hasDeck, deck, sideboard, activeLands, pool, flash]);
+  }, [hasDeck, deck, sideboard, activeLands, pool, flash, exportName]);
 
   const handleCockatrice = useCallback(() => {
     if (hasDeck) {
-      const xml = formatCockatriceXml(deck!, sideboard!, activeLands);
+      const xml = formatCockatriceXml(deck!, sideboard!, activeLands, exportName);
       downloadFile(xml, "podman-deck.cod", "application/octet-stream");
     } else {
-      const xml = formatCockatriceXml(pool, [], DEFAULT_LANDS);
+      const xml = formatCockatriceXml(pool, [], DEFAULT_LANDS, exportName);
       downloadFile(xml, "podman-pool.cod", "application/octet-stream");
     }
     flash("cockatrice");
-  }, [hasDeck, deck, sideboard, activeLands, pool, flash]);
+  }, [hasDeck, deck, sideboard, activeLands, pool, flash, exportName]);
 
   const handlePlainText = useCallback(() => {
     const text = hasDeck
-      ? formatDeckListText(deck!, sideboard!, activeLands)
+      ? formatDeckListText(deck!, sideboard!, activeLands, exportName)
       : formatPoolText(pool);
     const filename = hasDeck ? "podman-deck.txt" : "podman-pool.txt";
     downloadFile(text, filename, "text/plain");
     flash("text");
-  }, [hasDeck, deck, sideboard, activeLands, pool, flash]);
+  }, [hasDeck, deck, sideboard, activeLands, pool, flash, exportName]);
 
   const togglePlayer = useCallback((idx: number) => {
     setExpandedPlayers((prev) => {
@@ -109,9 +112,9 @@ export default function PostDraftScreen({
             {label} ({cards.length})
           </h3>
         )}
-        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-1.5">
+        <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-7 gap-1.5">
           {cards.map((card, i) => (
-            <CardThumbnail key={`${card.scryfallId}-${i}`} card={card} size="small" />
+            <CardThumbnail key={`${card.scryfallId}-${i}`} card={card} size="medium" />
           ))}
         </div>
       </div>
@@ -198,6 +201,13 @@ export default function PostDraftScreen({
       {/* Export Section */}
       <section className="space-y-3">
         <h2 className="text-lg font-semibold text-foreground">Export</h2>
+        <input
+          type="text"
+          value={deckName}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setDeckName(e.target.value)}
+          placeholder="Deck name (optional)"
+          className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-foreground/30 focus:outline-none focus:ring-1 focus:ring-accent"
+        />
         <div className="space-y-2">
           {renderExportButton(
             "Copy to Clipboard",

@@ -16,7 +16,6 @@ interface DeckBuilderScreenProps {
   initialDeck?: CardReference[];
   initialSideboard?: CardReference[];
   initialLands?: BasicLandCounts;
-  suggestedLands?: BasicLandCounts;
   onSubmitDeck: (
     deck: CardReference[],
     sideboard: CardReference[],
@@ -109,7 +108,6 @@ export default function DeckBuilderScreen({
   initialDeck,
   initialSideboard,
   initialLands,
-  suggestedLands,
   onSubmitDeck,
   onSkip,
   onDeckChange,
@@ -126,6 +124,7 @@ export default function DeckBuilderScreen({
     card: CardReference;
     zone: "deck" | "sideboard";
   } | null>(null);
+  const [deckName, setDeckName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [sideboardOpen, setSideboardOpen] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -217,12 +216,43 @@ export default function DeckBuilderScreen({
     setError(null);
   }, []);
 
-  const useSuggestedLands = useCallback(() => {
-    if (suggestedLands) {
-      setLands({ ...suggestedLands });
-      setError(null);
+  const suggestLands = useCallback(() => {
+    const totalTarget = 17;
+    const counts: Record<ManaColor, number> = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+    for (const card of deck) {
+      for (const color of card.colors) {
+        if (MANA_COLORS.includes(color)) {
+          counts[color]++;
+        }
+      }
     }
-  }, [suggestedLands]);
+    const totalSymbols = Object.values(counts).reduce((a, b) => a + b, 0);
+    if (totalSymbols === 0) {
+      setLands({ ...EMPTY_LANDS });
+      return;
+    }
+    const suggested: BasicLandCounts = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+    let assigned = 0;
+    const fractional: { color: ManaColor; frac: number }[] = [];
+    for (const color of MANA_COLORS) {
+      const exact = (counts[color] / totalSymbols) * totalTarget;
+      const floored = Math.floor(exact);
+      suggested[color] = floored;
+      assigned += floored;
+      fractional.push({ color, frac: exact - floored });
+    }
+    fractional.sort((a, b) => b.frac - a.frac);
+    let remaining = totalTarget - assigned;
+    for (const { color } of fractional) {
+      if (remaining <= 0) break;
+      if (counts[color] > 0) {
+        suggested[color]++;
+        remaining--;
+      }
+    }
+    setLands(suggested);
+    setError(null);
+  }, [deck]);
 
   const handleSubmit = useCallback(() => {
     if (mainCount < 40) {
@@ -282,19 +312,20 @@ export default function DeckBuilderScreen({
 
       {/* ---- Scrollable body ---- */}
       <main className="flex-1 overflow-y-auto px-4 pb-32 space-y-6 pt-4">
-        {/* Sort control */}
-        <div className="flex items-center gap-2">
-          <label
-            htmlFor="sort-select"
-            className="text-xs text-foreground/50 uppercase tracking-wider"
-          >
-            Sort
-          </label>
+        {/* Deck name + sort */}
+        <div className="flex items-center gap-3">
+          <input
+            type="text"
+            value={deckName}
+            onChange={(e) => setDeckName(e.target.value)}
+            placeholder="Deck name (for exports)"
+            className="flex-1 bg-surface border border-border rounded-lg px-3 py-1.5 text-sm text-foreground placeholder:text-foreground/30 focus:outline-none focus:ring-1 focus:ring-accent"
+          />
           <select
             id="sort-select"
             value={sortMode}
             onChange={(e) => setSortMode(e.target.value as SortMode)}
-            className="bg-surface border border-border rounded-lg px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+            className="bg-surface border border-border rounded-lg px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
           >
             <option value="cmc">Mana Cost</option>
             <option value="color">Color</option>
@@ -467,15 +498,13 @@ export default function DeckBuilderScreen({
             ))}
           </div>
 
-          {suggestedLands && (
-            <button
-              type="button"
-              onClick={useSuggestedLands}
-              className="mt-3 w-full py-2 rounded-lg border border-accent/40 text-accent text-sm font-medium hover:bg-accent/10 active:scale-[0.98] transition-all"
-            >
-              Use suggested lands
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={suggestLands}
+            className="mt-3 w-full py-2 rounded-lg border border-accent/40 text-accent text-sm font-medium hover:bg-accent/10 active:scale-[0.98] transition-all"
+          >
+            Suggest lands
+          </button>
         </section>
 
         {/* ---- Card Types ---- */}

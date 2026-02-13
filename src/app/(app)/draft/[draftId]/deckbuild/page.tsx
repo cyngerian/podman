@@ -1,7 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import { createServerSupabaseClient, getUser } from "@/lib/supabase-server";
 import type { Draft } from "@/lib/types";
-import { suggestLandCounts } from "@/lib/draft-engine";
 import DeckBuildClient from "./DeckBuildClient";
 
 export default async function DeckBuildPage({
@@ -37,8 +36,6 @@ export default async function DeckBuildPage({
     redirect(`/draft/${draftId}/results`);
   }
 
-  const suggested = suggestLandCounts(seat.pool);
-
   return (
     <DeckBuildClient
       draftId={draftId}
@@ -46,7 +43,6 @@ export default async function DeckBuildPage({
       initialDeck={seat.deck ?? undefined}
       initialSideboard={seat.sideboard ?? undefined}
       initialLands={seat.basicLands}
-      suggestedLands={suggested}
     />
   );
 }

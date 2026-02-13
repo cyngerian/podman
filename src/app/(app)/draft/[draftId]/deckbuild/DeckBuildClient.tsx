@@ -13,7 +13,6 @@ interface DeckBuildClientProps {
   initialDeck?: CardReference[];
   initialSideboard?: CardReference[];
   initialLands: BasicLandCounts;
-  suggestedLands: BasicLandCounts;
 }
 
 export default function DeckBuildClient({
@@ -22,7 +21,6 @@ export default function DeckBuildClient({
   initialDeck,
   initialSideboard,
   initialLands,
-  suggestedLands,
 }: DeckBuildClientProps) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -92,7 +90,6 @@ export default function DeckBuildClient({
       initialDeck={initialDeck}
       initialSideboard={initialSideboard}
       initialLands={initialLands}
-      suggestedLands={suggestedLands}
       onSubmitDeck={handleSubmitDeck}
       onSkip={handleSkip}
       onDeckChange={handleDeckChange}

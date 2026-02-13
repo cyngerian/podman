@@ -38,12 +38,14 @@ function addLands(counts: Map<string, number>, lands: BasicLandCounts): void {
 export function formatDeckListText(
   deck: CardReference[],
   sideboard: CardReference[],
-  lands: BasicLandCounts
+  lands: BasicLandCounts,
+  deckName?: string
 ): string {
   const mainCounts = aggregateCards(deck);
   addLands(mainCounts, lands);
 
   const lines: string[] = [];
+  if (deckName) lines.push(`// ${deckName}`, "");
   lines.push("// Main Deck");
   lines.push(...formatCardLines(mainCounts));
 
@@ -81,7 +83,8 @@ function escapeXml(str: string): string {
 export function formatCockatriceXml(
   deck: CardReference[],
   sideboard: CardReference[],
-  lands: BasicLandCounts
+  lands: BasicLandCounts,
+  deckName?: string
 ): string {
   const mainCounts = aggregateCards(deck);
   addLands(mainCounts, lands);
@@ -97,7 +100,7 @@ export function formatCockatriceXml(
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <cockatrice_deck version="1">
-  <deckname>podman Draft</deckname>
+  <deckname>${escapeXml(deckName || "podman Draft")}</deckname>
   <zone name="main">
 ${mainCards}
   </zone>
