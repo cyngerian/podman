@@ -77,10 +77,11 @@ export default function PickScreen({
   const filteredCards = packCards.filter((card) => matchesFilter(card, filterMode));
 
   // Card dimensions for carousel
-  const CARD_WIDTH_VW = 72; // base card width — big by default
-  const CARD_OVERLAP_PX = -30; // negative margin for overlap
-  const SCROLL_ACTIVE_SCALE = 1.0; // center card: full size, never exceeds container
-  const SCROLL_INACTIVE_SCALE = 0.7; // off-center cards shrink down
+  const CARD_WIDTH_VW = 72; // base card width
+  const CARD_OVERLAP_PX = -35; // base negative margin for overlap
+  const SCROLL_ACTIVE_SCALE = 1.15; // center card pops up large
+  const SCROLL_INACTIVE_SCALE = 0.55; // distant cards shrink significantly
+  const CARD_PULL_PX = 28; // max translateX pull toward center per distance unit
 
   // Track active card + apply scale transforms based on scroll position.
   // Cards are big by default (scale 1.0) and shrink when off-center.
@@ -104,8 +105,10 @@ export default function PickScreen({
         const t = Math.min(dist / maxDist, 1);
         const scale = SCROLL_ACTIVE_SCALE - t * (SCROLL_ACTIVE_SCALE - SCROLL_INACTIVE_SCALE);
         const zIndex = 100 - Math.round(t * 100);
+        // Pull distant cards toward center for tighter bunching
+        const pull = dist === 0 ? 0 : Math.sign(containerCenter - cardCenter) * t * CARD_PULL_PX;
 
-        cardEl.style.transform = `scale(${scale})`;
+        cardEl.style.transform = `translateX(${pull}px) scale(${scale})`;
         cardEl.style.zIndex = `${zIndex}`;
 
         if (dist < closestDist) {
@@ -219,7 +222,7 @@ export default function PickScreen({
               {/* Scroll container — cards are big by default, inactive ones shrink */}
               <div
                 ref={scrollRef}
-                className="flex overflow-x-auto snap-x snap-mandatory w-full no-scrollbar items-center"
+                className="flex overflow-x-auto snap-x snap-mandatory w-full h-full no-scrollbar items-center"
                 style={{ paddingLeft: `${(100 - CARD_WIDTH_VW) / 2}vw`, paddingRight: `${(100 - CARD_WIDTH_VW) / 2}vw`, touchAction: "pan-x" }}
               >
                 {filteredCards.map((card, i) => (
