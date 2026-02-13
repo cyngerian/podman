@@ -368,7 +368,7 @@ export default function PickScreen({
     : `Filter (${filterSet.size})`;
 
   const draftDateStr = startedAt
-    ? new Date(startedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    ? new Date(startedAt).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "2-digit" })
     : null;
 
   return (
@@ -552,7 +552,7 @@ export default function PickScreen({
             {/* Scrub bar — thicker, tight under carousel. Hidden for single card. */}
             <div
               ref={scrubBarRef}
-              className={`shrink-0 px-8 -mt-8 ${filteredCards.length <= 1 ? "invisible" : ""}`}
+              className={`shrink-0 px-6 -mt-8 ${filteredCards.length <= 1 ? "invisible" : ""}`}
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 const progress = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
@@ -575,12 +575,12 @@ export default function PickScreen({
                 snapToCardRef.current(Math.round(progress * (filteredCards.length - 1)));
               }}
             >
-              <div className="w-full h-10 flex items-center cursor-pointer">
-                <div data-scrub-track className="w-full h-2.5 rounded-full bg-foreground/10 relative">
+              <div className="w-full h-12 flex items-center cursor-pointer">
+                <div data-scrub-track className="w-full h-3.5 rounded-full bg-foreground/10 relative">
                   <div
                     ref={scrubThumbRef}
                     className="absolute top-0 h-full rounded-full bg-foreground/40 will-change-transform"
-                    style={{ width: "16px", transform: "translateX(0px)" }}
+                    style={{ width: "32px", transform: "translateX(0px)" }}
                   />
                 </div>
               </div>
