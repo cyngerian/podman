@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { CardReference, PodMemberStatus, PickedCardSortMode } from "@/lib/types";
 import PodMemberList from "./PodMemberList";
 import PickedCardsDrawer from "./PickedCardsDrawer";
@@ -23,10 +24,14 @@ export default function WaitingScreen({
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background">
       {/* Header */}
-      <div className="flex items-center justify-center px-4 h-12 border-b border-border">
-        <p className="text-sm font-medium text-foreground/60">
+      <div className="flex items-center px-4 h-12 border-b border-border">
+        <Link href="/dashboard" className="text-xl font-bold tracking-tight text-foreground shrink-0">
+          podman
+        </Link>
+        <p className="flex-1 text-sm font-medium text-foreground/60 text-center">
           Waiting for next pack...
         </p>
+        <div className="w-16 shrink-0" />
       </div>
 
       {/* Content */}
