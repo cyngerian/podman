@@ -84,7 +84,7 @@ export default function PickScreen({
   const CARD_PULL_PX = 28; // max translateX pull toward center per distance unit
 
   // Track active card + apply scale transforms based on scroll position.
-  // JS-based snap: after touch ends and momentum stops, scroll to nearest card.
+  // Optimized: cached positions, GPU-composited transforms, minimal zIndex writes.
   const activeIndexRef = useRef(0);
   const snapTimeoutRef = useRef<ReturnType<typeof setTimeout>>(0 as never);
 
@@ -95,24 +95,35 @@ export default function PickScreen({
     let isTouching = false;
     let isSnapping = false;
 
+    // Cache card center positions — these don't change during scroll
+    // (transforms don't affect layout, and card widths are fixed)
+    const halfContainer = el.offsetWidth / 2;
+    const maxDist = el.offsetWidth * 0.45;
+    const cardCenters: number[] = [];
+    cardRefs.current.forEach((cardEl) => {
+      if (!cardEl) { cardCenters.push(0); return; }
+      cardCenters.push(cardEl.offsetLeft + cardEl.offsetWidth / 2);
+    });
+
     const updateCards = () => {
-      const containerCenter = el.scrollLeft + el.offsetWidth / 2;
+      const containerCenter = el.scrollLeft + halfContainer;
       let closestIdx = 0;
       let closestDist = Infinity;
 
       cardRefs.current.forEach((cardEl, i) => {
         if (!cardEl) return;
-        const cardCenter = cardEl.offsetLeft + cardEl.offsetWidth / 2;
+        const cardCenter = cardCenters[i];
         const dist = Math.abs(containerCenter - cardCenter);
-        const maxDist = el.offsetWidth * 0.45;
         const t = Math.min(dist / maxDist, 1);
-        const scale = SCROLL_ACTIVE_SCALE - t * (SCROLL_ACTIVE_SCALE - SCROLL_INACTIVE_SCALE);
-        const zIndex = 100 - Math.round(t * 100);
-        // Pull distant cards toward center for tighter bunching
-        const pull = dist === 0 ? 0 : Math.sign(containerCenter - cardCenter) * t * CARD_PULL_PX;
+        // Round to avoid sub-pixel jitter on high-refresh displays
+        const scale = Math.round((SCROLL_ACTIVE_SCALE - t * (SCROLL_ACTIVE_SCALE - SCROLL_INACTIVE_SCALE)) * 1000) / 1000;
+        const pull = dist < 1 ? 0 : Math.round(Math.sign(containerCenter - cardCenter) * t * CARD_PULL_PX * 10) / 10;
 
-        cardEl.style.transform = `translateX(${pull}px) scale(${scale})`;
-        cardEl.style.zIndex = `${zIndex}`;
+        // Apply to inner transform wrapper (GPU-composited via will-change)
+        const inner = cardEl.firstElementChild as HTMLElement | null;
+        if (inner) {
+          inner.style.transform = `translate3d(${pull}px,0,0) scale3d(${scale},${scale},1)`;
+        }
 
         if (dist < closestDist) {
           closestDist = dist;
@@ -120,37 +131,41 @@ export default function PickScreen({
         }
       });
 
+      // Only update zIndex when active card changes (avoid per-frame stacking recalc)
       if (closestIdx !== activeIndexRef.current) {
         activeIndexRef.current = closestIdx;
         setActiveIndex(closestIdx);
+        cardRefs.current.forEach((cardEl, i) => {
+          if (!cardEl) return;
+          cardEl.style.zIndex = `${100 - Math.abs(i - closestIdx) * 10}`;
+        });
       }
     };
 
     const snapToNearest = () => {
-      const containerCenter = el.scrollLeft + el.offsetWidth / 2;
+      const containerCenter = el.scrollLeft + halfContainer;
       let closestOffset = el.scrollLeft;
       let closestDist = Infinity;
 
-      cardRefs.current.forEach((cardEl) => {
-        if (!cardEl) return;
-        const cardCenter = cardEl.offsetLeft + cardEl.offsetWidth / 2;
-        const dist = Math.abs(containerCenter - cardCenter);
+      cardCenters.forEach((center) => {
+        const dist = Math.abs(containerCenter - center);
         if (dist < closestDist) {
           closestDist = dist;
-          closestOffset = cardCenter - el.offsetWidth / 2;
+          closestOffset = center - halfContainer;
         }
       });
 
+      // Dead-zone: skip if CSS snap already centered the card (within 3px)
+      if (closestDist < 3) return;
+
       isSnapping = true;
       el.scrollTo({ left: closestOffset, behavior: "smooth" });
-      // Reset after smooth scroll completes
       setTimeout(() => { isSnapping = false; }, 350);
     };
 
     const onScroll = () => {
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(updateCards);
-      // Schedule snap after scrolling stops (only when finger is up)
       if (!isTouching && !isSnapping) {
         clearTimeout(snapTimeoutRef.current);
         snapTimeoutRef.current = setTimeout(snapToNearest, 100);
@@ -165,13 +180,16 @@ export default function PickScreen({
 
     const onTouchEnd = () => {
       isTouching = false;
-      // Schedule snap in case no scroll events follow (user grabbed to stop)
       clearTimeout(snapTimeoutRef.current);
       snapTimeoutRef.current = setTimeout(snapToNearest, 100);
     };
 
-    // Initial state
+    // Initial state: set transforms and zIndex
     updateCards();
+    cardRefs.current.forEach((cardEl, i) => {
+      if (!cardEl) return;
+      cardEl.style.zIndex = `${100 - Math.abs(i - activeIndexRef.current) * 10}`;
+    });
 
     el.addEventListener("scroll", onScroll, { passive: true });
     el.addEventListener("touchstart", onTouchStart, { passive: true });
@@ -312,22 +330,26 @@ export default function PickScreen({
                       scrollSnapStop: "always",
                     }}
                   >
-                    <div
-                      className={`relative card-aspect rounded-xl overflow-hidden border-2 shadow-lg ${getBorderClass(card.colors)}`}
-                    >
-                      <Image
-                        src={card.imageUri}
-                        alt={card.name}
-                        fill
-                        sizes="72vw"
-                        className="object-cover"
-                        priority
-                      />
-                      {card.isFoil && (
-                        <span className="absolute top-1 right-1 text-sm drop-shadow-md">
-                          ✦
-                        </span>
-                      )}
+                    {/* Inner transform wrapper — GPU-composited via will-change,
+                        separated from snap target (outer div) to avoid interference */}
+                    <div className="will-change-transform">
+                      <div
+                        className={`relative card-aspect rounded-xl overflow-hidden border-2 shadow-lg ${getBorderClass(card.colors)}`}
+                      >
+                        <Image
+                          src={card.imageUri}
+                          alt={card.name}
+                          fill
+                          sizes="72vw"
+                          className="object-cover"
+                          priority
+                        />
+                        {card.isFoil && (
+                          <span className="absolute top-1 right-1 text-sm drop-shadow-md">
+                            ✦
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
