@@ -70,12 +70,14 @@ export default function PickScreen({
   const [selectedCard, setSelectedCard] = useState<CardReference | null>(null);
   const [showPickedDrawer, setShowPickedDrawer] = useState(false);
   const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [showGridView, setShowGridView] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const nameRef = useRef<HTMLParagraphElement>(null);
   const counterRef = useRef<HTMLSpanElement>(null);
   const scrubThumbRef = useRef<HTMLDivElement>(null);
+  const scrubBarRef = useRef<HTMLDivElement>(null);
   const snapToCardRef = useRef<(index: number) => void>(() => {});
 
   const filteredCards = packCards.filter((card) => matchesFilter(card, filterMode));
@@ -458,8 +460,9 @@ export default function PickScreen({
 
             </div>
 
-            {/* Scrub bar — positioned tight under carousel */}
+            {/* Scrub bar — supports tap and drag */}
             <div
+              ref={scrubBarRef}
               className="shrink-0 px-8 -mt-3 mb-1"
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
@@ -467,8 +470,23 @@ export default function PickScreen({
                 const targetIdx = Math.round(progress * (filteredCards.length - 1));
                 snapToCardRef.current(targetIdx);
               }}
+              onTouchStart={(e) => {
+                e.stopPropagation(); // don't trigger carousel drag
+                const rect = e.currentTarget.getBoundingClientRect();
+                const progress = Math.max(0, Math.min(1, (e.touches[0].clientX - rect.left) / rect.width));
+                snapToCardRef.current(Math.round(progress * (filteredCards.length - 1)));
+              }}
+              onTouchMove={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                const bar = scrubBarRef.current;
+                if (!bar) return;
+                const rect = bar.getBoundingClientRect();
+                const progress = Math.max(0, Math.min(1, (e.touches[0].clientX - rect.left) / rect.width));
+                snapToCardRef.current(Math.round(progress * (filteredCards.length - 1)));
+              }}
             >
-              <div className="w-full h-6 flex items-center cursor-pointer">
+              <div className="w-full h-8 flex items-center cursor-pointer">
                 <div className="w-full h-1.5 rounded-full bg-foreground/10 relative">
                   <div
                     ref={scrubThumbRef}
@@ -482,11 +500,29 @@ export default function PickScreen({
             {/* Counter + Pick button */}
             <div className="shrink-0 px-4 pb-2 flex flex-col items-center gap-2">
 
-              {/* Counter — updated via ref, no React re-render */}
-              <div className="flex items-center gap-1">
+              {/* Counter + grid view button */}
+              <div className="flex items-center gap-2">
                 <span ref={counterRef} className="text-xs font-medium text-foreground/60">
                   1 / {filteredCards.length}
                 </span>
+                <button
+                  type="button"
+                  onClick={() => setShowGridView(true)}
+                  className="p-1 rounded text-foreground/40 hover:text-foreground/70 transition-colors"
+                  aria-label="View all cards"
+                >
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                    <rect x="0" y="0" width="4.5" height="4.5" rx="1" />
+                    <rect x="5.75" y="0" width="4.5" height="4.5" rx="1" />
+                    <rect x="11.5" y="0" width="4.5" height="4.5" rx="1" />
+                    <rect x="0" y="5.75" width="4.5" height="4.5" rx="1" />
+                    <rect x="5.75" y="5.75" width="4.5" height="4.5" rx="1" />
+                    <rect x="11.5" y="5.75" width="4.5" height="4.5" rx="1" />
+                    <rect x="0" y="11.5" width="4.5" height="4.5" rx="1" />
+                    <rect x="5.75" y="11.5" width="4.5" height="4.5" rx="1" />
+                    <rect x="11.5" y="11.5" width="4.5" height="4.5" rx="1" />
+                  </svg>
+                </button>
               </div>
 
               {/* Card name — updated via ref, no React re-render */}
@@ -633,6 +669,54 @@ export default function PickScreen({
           </div>
         </div>
       </div>
+
+      {/* Grid view overlay (mobile) */}
+      {showGridView && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-background sm:hidden">
+          <header className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
+            <span className="text-sm font-semibold text-foreground">
+              All Cards ({filteredCards.length})
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowGridView(false)}
+              className="px-2.5 py-1.5 rounded-lg bg-surface text-xs font-medium text-foreground hover:bg-surface-hover transition-colors border border-border"
+            >
+              Close
+            </button>
+          </header>
+          <div className="flex-1 overflow-y-auto p-2">
+            <div className="grid grid-cols-3 gap-1.5">
+              {filteredCards.map((card, i) => (
+                <button
+                  key={card.scryfallId}
+                  type="button"
+                  onClick={() => {
+                    setShowGridView(false);
+                    snapToCardRef.current(i);
+                  }}
+                  className="relative"
+                >
+                  <div className={`relative card-aspect rounded-lg overflow-hidden border-2 ${getBorderClass(card.colors)}`}>
+                    <Image
+                      src={card.smallImageUri || card.imageUri}
+                      alt={card.name}
+                      fill
+                      sizes="33vw"
+                      className="object-cover"
+                    />
+                    {card.isFoil && (
+                      <span className="absolute top-0.5 right-0.5 text-xs drop-shadow-md">
+                        ✦
+                      </span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Picked cards drawer */}
       <PickedCardsDrawer
