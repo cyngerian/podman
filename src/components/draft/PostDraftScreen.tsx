@@ -58,10 +58,10 @@ export default function PostDraftScreen({
   const handleCockatrice = useCallback(() => {
     if (hasDeck) {
       const xml = formatCockatriceXml(deck!, sideboard!, activeLands);
-      downloadFile(xml, "podman-deck.cod", "application/xml");
+      downloadFile(xml, "podman-deck.cod", "application/octet-stream");
     } else {
       const xml = formatCockatriceXml(pool, [], DEFAULT_LANDS);
-      downloadFile(xml, "podman-pool.cod", "application/xml");
+      downloadFile(xml, "podman-pool.cod", "application/octet-stream");
     }
     flash("cockatrice");
   }, [hasDeck, deck, sideboard, activeLands, pool, flash]);
