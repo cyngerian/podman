@@ -139,6 +139,16 @@ export default async function GroupDetailPage({
         </div>
       </section>
 
+      {/* Propose Draft */}
+      <div>
+        <Link
+          href={`/dashboard/groups/${groupId}/propose`}
+          className="inline-block rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover transition-colors"
+        >
+          Propose Draft
+        </Link>
+      </div>
+
       {/* Active Drafts */}
       {draftDisplayData.length > 0 && (
         <section>
@@ -206,17 +216,9 @@ export default async function GroupDetailPage({
 
       {/* Proposals */}
       <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-medium text-foreground/70 uppercase tracking-wide">
-            Proposals
-          </h2>
-          <Link
-            href={`/dashboard/groups/${groupId}/propose`}
-            className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover transition-colors"
-          >
-            Propose Draft
-          </Link>
-        </div>
+        <h2 className="text-sm font-medium text-foreground/70 uppercase tracking-wide mb-3">
+          Proposals
+        </h2>
         {(!proposals || proposals.length === 0) ? (
           <p className="text-sm text-foreground/40">No active proposals.</p>
         ) : (

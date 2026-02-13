@@ -10,8 +10,8 @@ export default async function DashboardPage() {
 
   const supabase = await createServerSupabaseClient();
 
-  // Fetch profile, group memberships, and active simulated drafts in parallel
-  const [{ data: profile }, { data: memberships }, { data: simDrafts }] = await Promise.all([
+  // Fetch profile, group memberships, active simulated drafts, and active group drafts in parallel
+  const [{ data: profile }, { data: memberships }, { data: simDrafts }, { data: activeDraftPlayers }] = await Promise.all([
     supabase
       .from("profiles")
       .select("display_name, avatar_url, is_site_admin")
@@ -30,7 +30,19 @@ export default async function DashboardPage() {
       .in("status", ["active", "deck_building"])
       .order("created_at", { ascending: false })
       .limit(5),
+    supabase
+      .from("draft_players")
+      .select("draft_id, drafts!inner(id, format, set_name, status, created_at, is_simulated, groups(name))")
+      .eq("user_id", user.id)
+      .eq("drafts.is_simulated", false)
+      .in("drafts.status", ["lobby", "active", "deck_building"])
+      .order("draft_id", { ascending: false })
+      .limit(10),
   ]);
+
+  const activeGroupDrafts = (activeDraftPlayers ?? [])
+    .map((dp) => dp.drafts)
+    .filter((d): d is NonNullable<typeof d> => d !== null);
 
   const groups = (memberships ?? []).map((m) => ({
     ...m.groups!,
@@ -64,6 +76,41 @@ export default async function DashboardPage() {
           </Link>
         )}
       </div>
+
+      {/* Active Drafts */}
+      {activeGroupDrafts.length > 0 && (
+        <>
+          <h2 className="text-xl font-bold">Active Drafts</h2>
+          <div className="space-y-2">
+            {activeGroupDrafts.map((draft) => (
+              <Link
+                key={draft.id}
+                href={`/draft/${draft.id}`}
+                className="flex items-center justify-between rounded-xl border border-border bg-surface p-3 hover:border-border-light transition-colors"
+              >
+                <div>
+                  <span className="text-sm font-medium">
+                    {draft.set_name ?? draft.format}
+                  </span>
+                  <span className={`ml-2 text-xs font-medium uppercase ${
+                    draft.status === "active" ? "text-green-500" : "text-foreground/40"
+                  }`}>
+                    {draft.status === "deck_building" ? "Deck Building" : draft.status === "lobby" ? "Lobby" : "In Progress"}
+                  </span>
+                  {draft.groups?.name && (
+                    <span className="ml-2 text-xs text-foreground/40">
+                      {draft.groups.name}
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs text-foreground/40">
+                  Resume
+                </span>
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Solo Practice */}
       <div className="flex items-center justify-between">

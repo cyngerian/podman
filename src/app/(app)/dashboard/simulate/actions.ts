@@ -37,6 +37,11 @@ interface SimulateConfig {
   cubeList?: string[];
   cubeSource?: "text" | "cubecobra";
   deckBuildingEnabled: boolean;
+  timerPreset?: "relaxed" | "competitive" | "speed" | "none";
+  reviewPeriodSeconds?: number;
+  pacingMode?: "realtime" | "async";
+  asyncDeadlineMinutes?: number;
+  pickHistoryPublic?: boolean;
 }
 
 export async function createSimulatedDraftAction(config: SimulateConfig) {
@@ -90,17 +95,18 @@ export async function createSimulatedDraftAction(config: SimulateConfig) {
     groupId: "",
     hostId: user.id,
     format: config.format,
-    pacingMode: "realtime",
+    pacingMode: config.pacingMode ?? "realtime",
     setCode: config.setCode,
     setName: config.setName,
     cubeList: config.cubeList,
     cubeSource: config.cubeSource,
     playerCount: config.playerCount,
     packsPerPlayer: config.packsPerPlayer,
-    timerPreset: "none",
-    reviewPeriodSeconds: 0,
+    timerPreset: config.timerPreset ?? "none",
+    reviewPeriodSeconds: config.reviewPeriodSeconds ?? 0,
     deckBuildingEnabled: config.deckBuildingEnabled,
-    pickHistoryPublic: true,
+    pickHistoryPublic: config.pickHistoryPublic ?? true,
+    asyncDeadlineMinutes: config.asyncDeadlineMinutes ?? null,
   });
 
   // Add human player as seat 0

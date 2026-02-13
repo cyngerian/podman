@@ -24,6 +24,11 @@ export default function SimulateFormWrapper() {
               cubeList: config.cubeList ?? undefined,
               cubeSource: config.cubeSource ?? undefined,
               deckBuildingEnabled: config.deckBuildingEnabled,
+              timerPreset: config.timerPreset,
+              reviewPeriodSeconds: config.reviewPeriodSeconds,
+              pacingMode: config.pacingMode,
+              asyncDeadlineMinutes: config.asyncDeadlineMinutes ?? undefined,
+              pickHistoryPublic: config.pickHistoryPublic,
             });
           });
         }}

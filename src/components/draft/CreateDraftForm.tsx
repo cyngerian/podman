@@ -139,18 +139,18 @@ export default function CreateDraftForm({ onSubmit, mode = "propose" }: CreateDr
 
     onSubmit({
       format,
-      pacingMode: isSimulate ? "realtime" : pacingMode,
+      pacingMode,
       setCode: format !== "cube" ? (selectedSet?.code ?? "") : "",
       setName: format !== "cube" ? (selectedSet?.name ?? "") : "",
       playerCount: effectivePlayerCount,
       packsPerPlayer: effectivePacksPerPlayer,
       mixedPacks: effectiveMixedPacks,
       packSets: effectivePackSets,
-      timerPreset: (isSimulate || pacingMode === "realtime") ? timerPreset : "none",
-      reviewPeriodSeconds: (isSimulate || pacingMode === "realtime") ? reviewPeriodSeconds : 0,
-      asyncDeadlineMinutes: isSimulate ? null : (pacingMode === "async" ? asyncDeadlineMinutes : null),
+      timerPreset: pacingMode === "realtime" ? timerPreset : "none",
+      reviewPeriodSeconds: pacingMode === "realtime" ? reviewPeriodSeconds : 0,
+      asyncDeadlineMinutes: pacingMode === "async" ? asyncDeadlineMinutes : null,
       deckBuildingEnabled,
-      pickHistoryPublic: isSimulate ? true : pickHistoryPublic,
+      pickHistoryPublic,
       cubeList: format === "cube" ? cubeList : null,
       cubeSource: format === "cube" ? cubeSource : null,
     });
@@ -403,8 +403,8 @@ export default function CreateDraftForm({ onSubmit, mode = "propose" }: CreateDr
         </div>
       </fieldset>
 
-      {/* ── Pacing Mode (hidden in simulate mode) ── */}
-      {!isSimulate && <fieldset>
+      {/* ── Pacing Mode ── */}
+      <fieldset>
         <legend className="text-sm font-medium text-foreground/70 uppercase tracking-wide mb-3">
           Pacing
         </legend>
@@ -468,10 +468,10 @@ export default function CreateDraftForm({ onSubmit, mode = "propose" }: CreateDr
             </span>
           </button>
         </div>
-      </fieldset>}
+      </fieldset>
 
-      {/* ── Timer Preset (realtime or simulate mode) ── */}
-      {(isSimulate || pacingMode === "realtime") && (
+      {/* ── Timer Preset (realtime only) ── */}
+      {pacingMode === "realtime" && (
         <fieldset>
           <legend className="text-sm font-medium text-foreground/70 uppercase tracking-wide mb-3">
             Timer Preset
@@ -498,8 +498,8 @@ export default function CreateDraftForm({ onSubmit, mode = "propose" }: CreateDr
         </fieldset>
       )}
 
-      {/* ── Review Period (realtime or simulate mode) ── */}
-      {(isSimulate || pacingMode === "realtime") && (
+      {/* ── Review Period (realtime only) ── */}
+      {pacingMode === "realtime" && (
         <fieldset>
           <legend className="text-sm font-medium text-foreground/70 uppercase tracking-wide mb-3">
             Review Period
@@ -526,8 +526,8 @@ export default function CreateDraftForm({ onSubmit, mode = "propose" }: CreateDr
         </fieldset>
       )}
 
-      {/* ── Async Deadline (hidden in simulate mode) ── */}
-      {!isSimulate && pacingMode === "async" && (
+      {/* ── Async Deadline (async only) ── */}
+      {pacingMode === "async" && (
         <fieldset>
           <legend className="text-sm font-medium text-foreground/70 uppercase tracking-wide mb-3">
             Pick Deadline
@@ -566,17 +566,15 @@ export default function CreateDraftForm({ onSubmit, mode = "propose" }: CreateDr
             />
             <span className="text-sm">Enable deck building phase</span>
           </label>
-          {!isSimulate && (
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={pickHistoryPublic}
-                onChange={(e) => setPickHistoryPublic(e.target.checked)}
-                className="h-5 w-5 rounded border-border bg-surface accent-accent"
-              />
-              <span className="text-sm">Share pick history after draft</span>
-            </label>
-          )}
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={pickHistoryPublic}
+              onChange={(e) => setPickHistoryPublic(e.target.checked)}
+              className="h-5 w-5 rounded border-border bg-surface accent-accent"
+            />
+            <span className="text-sm">Share pick history after draft</span>
+          </label>
         </div>
       </fieldset>
 
