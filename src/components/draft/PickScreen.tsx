@@ -375,20 +375,19 @@ export default function PickScreen({
 
             </div>
 
-            {/* Scrub bar + counter + Pick button */}
-            <div className="shrink-0 px-4 pb-2 pt-1 flex flex-col items-center gap-2">
-              {/* Scrub bar — tap to jump */}
-              <div
-                className="w-full max-w-[280px] h-5 flex items-center"
-                onClick={(e) => {
-                  const el = scrollRef.current;
-                  if (!el) return;
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const progress = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                  el.scrollTo({ left: progress * (el.scrollWidth - el.clientWidth), behavior: "smooth" });
-                }}
-              >
-                <div className="w-full h-1 rounded-full bg-foreground/10 relative">
+            {/* Scrub bar — positioned tight under carousel */}
+            <div
+              className="shrink-0 px-8 -mt-3 mb-1"
+              onClick={(e) => {
+                const el = scrollRef.current;
+                if (!el) return;
+                const rect = e.currentTarget.getBoundingClientRect();
+                const progress = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                el.scrollTo({ left: progress * (el.scrollWidth - el.clientWidth), behavior: "smooth" });
+              }}
+            >
+              <div className="w-full h-6 flex items-center cursor-pointer">
+                <div className="w-full h-1.5 rounded-full bg-foreground/10 relative">
                   <div
                     ref={scrubThumbRef}
                     className="absolute top-0 h-full rounded-full bg-foreground/30 transition-[left] duration-75"
@@ -396,6 +395,10 @@ export default function PickScreen({
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Counter + Pick button */}
+            <div className="shrink-0 px-4 pb-2 flex flex-col items-center gap-2">
 
               {/* Counter — updated via ref, no React re-render */}
               <div className="flex items-center gap-1">
