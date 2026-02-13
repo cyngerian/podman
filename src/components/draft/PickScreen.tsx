@@ -476,7 +476,7 @@ export default function PickScreen({
       {/* ===== MOBILE HEADER (two rows) ===== */}
       <header className="flex flex-col shrink-0 sm:hidden">
         {/* Row 1: podman left, set symbol + name centered, date right */}
-        <div className="flex items-center px-4 py-3 border-b border-border bg-background/95 backdrop-blur-sm">
+        <div className="flex items-center px-4 py-1.5 border-b border-border bg-background/95 backdrop-blur-sm">
           <Link href="/" className="text-lg font-bold tracking-tight text-foreground shrink-0 w-16">
             podman
           </Link>
@@ -495,7 +495,7 @@ export default function PickScreen({
           )}
         </div>
         {/* Row 2: timer | Pack N: Pick N | picks button */}
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
+        <div className="flex items-center justify-between px-4 py-1.5 border-b border-border">
           <Timer
             seconds={timerSeconds}
             maxSeconds={timerMaxSeconds}
@@ -563,7 +563,7 @@ export default function PickScreen({
       {/* ==================== MOBILE: Carousel ==================== */}
       <div className="flex-1 flex flex-col min-h-0 sm:hidden">
         {/* Filter pills — two centered rows */}
-        <div className="shrink-0 flex flex-col items-center gap-0.5 px-3 py-1">
+        <div className="shrink-0 flex flex-col items-center gap-1 px-3 py-1">
           {/* Row 1: color filters */}
           <div className="flex items-center justify-center gap-1.5 flex-nowrap">
             {COLOR_FILTERS.map((opt) => (
@@ -621,7 +621,7 @@ export default function PickScreen({
         ) : (
           <>
             {/* Carousel */}
-            <div className="flex-1 flex items-center min-h-0 relative" style={{ marginTop: "-15px" }}>
+            <div className="flex-1 flex items-center min-h-0 relative" style={{ marginTop: "-10px" }}>
               {/* Transform container — no native scroll, all movement via JS transforms */}
               <div
                 ref={scrollRef}
