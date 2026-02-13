@@ -128,6 +128,7 @@ export default function DeckBuilderScreen({
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sideboardOpen, setSideboardOpen] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
 
   // --- Derived ---
 
@@ -346,13 +347,32 @@ export default function DeckBuilderScreen({
               Sideboard ({sideboard.length} cards)
             </button>
             {sideboard.length > 0 && (
-              <button
-                type="button"
-                onClick={resetSideboard}
-                className="text-xs text-accent font-medium hover:text-accent-hover transition-colors"
-              >
-                Move all to deck
-              </button>
+              confirmReset ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { resetSideboard(); setConfirmReset(false); }}
+                    className="text-xs text-danger font-medium hover:text-danger/80 transition-colors"
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmReset(false)}
+                    className="text-xs text-foreground/40 font-medium hover:text-foreground/60 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmReset(true)}
+                  className="text-xs text-accent font-medium hover:text-accent-hover transition-colors"
+                >
+                  Move all to deck
+                </button>
+              )
             )}
           </div>
           {sideboardOpen && (
