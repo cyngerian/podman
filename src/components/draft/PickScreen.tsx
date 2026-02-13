@@ -70,9 +70,10 @@ export default function PickScreen({
   const [selectedCard, setSelectedCard] = useState<CardReference | null>(null);
   const [showPickedDrawer, setShowPickedDrawer] = useState(false);
   const [showFilterMenu, setShowFilterMenu] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const nameRef = useRef<HTMLParagraphElement>(null);
+  const counterRef = useRef<HTMLSpanElement>(null);
 
   const filteredCards = packCards.filter((card) => matchesFilter(card, filterMode));
 
@@ -131,14 +132,16 @@ export default function PickScreen({
         }
       });
 
-      // Only update zIndex when active card changes (avoid per-frame stacking recalc)
+      // Only update zIndex + UI text when active card changes (no React re-render)
       if (closestIdx !== activeIndexRef.current) {
         activeIndexRef.current = closestIdx;
-        setActiveIndex(closestIdx);
         cardRefs.current.forEach((cardEl, i) => {
           if (!cardEl) return;
           cardEl.style.zIndex = `${100 - Math.abs(i - closestIdx) * 10}`;
         });
+        // Direct DOM updates — avoids React re-render during scroll
+        if (counterRef.current) counterRef.current.textContent = `${closestIdx + 1} / ${filteredCards.length}`;
+        if (nameRef.current) nameRef.current.textContent = filteredCards[closestIdx]?.name ?? "";
       }
     };
 
@@ -205,11 +208,11 @@ export default function PickScreen({
 
   // Reset active index when filter changes
   useEffect(() => {
-    setActiveIndex(0);
-    if (scrollRef.current) {
-      scrollRef.current.scrollLeft = 0;
-    }
-  }, [filterMode]);
+    activeIndexRef.current = 0;
+    if (scrollRef.current) scrollRef.current.scrollLeft = 0;
+    if (counterRef.current) counterRef.current.textContent = `1 / ${filteredCards.length}`;
+    if (nameRef.current) nameRef.current.textContent = filteredCards[0]?.name ?? "";
+  }, [filterMode, filteredCards]);
 
   const handleCardClick = useCallback((card: CardReference) => {
     setSelectedCard(card);
@@ -230,11 +233,11 @@ export default function PickScreen({
   }, [selectedCard, onPick]);
 
   const handleCarouselPick = useCallback(() => {
-    const card = filteredCards[activeIndex];
+    const card = filteredCards[activeIndexRef.current];
     if (card) {
       onPick(card.scryfallId);
     }
-  }, [filteredCards, activeIndex, onPick]);
+  }, [filteredCards, onPick]);
 
   const directionArrow = passDirection === "left" ? "\u2190" : "\u2192";
 
@@ -327,7 +330,6 @@ export default function PickScreen({
                       maxWidth: "400px",
                       marginLeft: i === 0 ? 0 : `${CARD_OVERLAP_PX}px`,
                       scrollSnapAlign: "center",
-                      scrollSnapStop: "always",
                     }}
                   >
                     {/* Inner transform wrapper — GPU-composited via will-change,
@@ -342,7 +344,7 @@ export default function PickScreen({
                           fill
                           sizes="72vw"
                           className="object-cover"
-                          priority
+                          priority={i < 3}
                         />
                         {card.isFoil && (
                           <span className="absolute top-1 right-1 text-sm drop-shadow-md">
@@ -359,19 +361,17 @@ export default function PickScreen({
 
             {/* Card counter + Pick button */}
             <div className="shrink-0 px-4 pb-2 pt-1 flex flex-col items-center gap-2">
-              {/* Dot indicator */}
+              {/* Dot indicator — updated via ref, no React re-render */}
               <div className="flex items-center gap-1">
-                <span className="text-xs font-medium text-foreground/60">
-                  {activeIndex + 1} / {filteredCards.length}
+                <span ref={counterRef} className="text-xs font-medium text-foreground/60">
+                  1 / {filteredCards.length}
                 </span>
               </div>
 
-              {/* Card name */}
-              {filteredCards[activeIndex] && (
-                <p className="text-sm font-semibold text-foreground text-center leading-tight truncate max-w-full">
-                  {filteredCards[activeIndex].name}
-                </p>
-              )}
+              {/* Card name — updated via ref, no React re-render */}
+              <p ref={nameRef} className="text-sm font-semibold text-foreground text-center leading-tight truncate max-w-full">
+                {filteredCards[0]?.name ?? ""}
+              </p>
 
               {/* Pick button */}
               <button
