@@ -198,6 +198,9 @@ export default function PickClient({
         if (next.has(value)) {
           next.delete(value);
         } else {
+          // Creature and non-creature are mutually exclusive
+          if (value === "creature") next.delete("noncreature");
+          else if (value === "noncreature") next.delete("creature");
           next.add(value);
         }
         return next;
