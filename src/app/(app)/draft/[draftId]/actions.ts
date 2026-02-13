@@ -655,7 +655,8 @@ export async function submitDeckAction(
   draftId: string,
   deck: CardReference[],
   sideboard: CardReference[],
-  lands: { W: number; U: number; B: number; R: number; G: number }
+  lands: { W: number; U: number; B: number; R: number; G: number },
+  deckName?: string
 ) {
   const user = await getAuthenticatedUser();
 
@@ -667,7 +668,7 @@ export async function submitDeckAction(
 
       const updatedSeats = draft.seats.map((s) =>
         s.userId === user.id
-          ? { ...s, deck, sideboard, basicLands: lands }
+          ? { ...s, deck, sideboard, basicLands: lands, deckName: deckName || undefined }
           : s
       );
 
@@ -725,7 +726,8 @@ export async function saveDeckAction(
   draftId: string,
   deck: CardReference[],
   sideboard: CardReference[],
-  lands: { W: number; U: number; B: number; R: number; G: number }
+  lands: { W: number; U: number; B: number; R: number; G: number },
+  deckName?: string
 ) {
   const user = await getAuthenticatedUser();
 
@@ -740,7 +742,7 @@ export async function saveDeckAction(
 
       const newSeats = draft.seats.map((s) =>
         s.userId === user.id
-          ? { ...s, deck, sideboard, basicLands: lands }
+          ? { ...s, deck, sideboard, basicLands: lands, deckName: deckName || undefined }
           : s
       );
 

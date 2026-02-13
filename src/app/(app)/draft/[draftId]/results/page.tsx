@@ -50,6 +50,7 @@ export default async function ResultsPage({
       deck={seat.deck}
       sideboard={seat.sideboard}
       lands={seat.basicLands}
+      deckName={seat.deckName}
       pickHistory={seat.picks}
       allPlayersHistory={allPlayersHistory}
     />

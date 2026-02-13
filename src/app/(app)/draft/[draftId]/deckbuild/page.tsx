@@ -43,6 +43,7 @@ export default async function DeckBuildPage({
       initialDeck={seat.deck ?? undefined}
       initialSideboard={seat.sideboard ?? undefined}
       initialLands={seat.basicLands}
+      initialDeckName={seat.deckName}
     />
   );
 }

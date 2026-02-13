@@ -13,6 +13,7 @@ interface DeckBuildClientProps {
   initialDeck?: CardReference[];
   initialSideboard?: CardReference[];
   initialLands: BasicLandCounts;
+  initialDeckName?: string;
 }
 
 export default function DeckBuildClient({
@@ -21,6 +22,7 @@ export default function DeckBuildClient({
   initialDeck,
   initialSideboard,
   initialLands,
+  initialDeckName,
 }: DeckBuildClientProps) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -51,10 +53,10 @@ export default function DeckBuildClient({
   );
 
   const handleSubmitDeck = useCallback(
-    (deck: CardReference[], sideboard: CardReference[], lands: BasicLandCounts) => {
+    (deck: CardReference[], sideboard: CardReference[], lands: BasicLandCounts, deckName?: string) => {
       startTransition(async () => {
         try {
-          await submitDeckAction(draftId, deck, sideboard, lands);
+          await submitDeckAction(draftId, deck, sideboard, lands, deckName);
           router.push(`/draft/${draftId}/results`);
         } catch {
           // Error handling
@@ -76,8 +78,8 @@ export default function DeckBuildClient({
   }, [draftId, router]);
 
   const handleDeckChange = useCallback(
-    (deck: CardReference[], sideboard: CardReference[], lands: BasicLandCounts) => {
-      saveDeckAction(draftId, deck, sideboard, lands).catch(() => {
+    (deck: CardReference[], sideboard: CardReference[], lands: BasicLandCounts, deckName?: string) => {
+      saveDeckAction(draftId, deck, sideboard, lands, deckName).catch(() => {
         // Silent save failure — non-critical
       });
     },
@@ -90,6 +92,7 @@ export default function DeckBuildClient({
       initialDeck={initialDeck}
       initialSideboard={initialSideboard}
       initialLands={initialLands}
+      initialDeckName={initialDeckName}
       onSubmitDeck={handleSubmitDeck}
       onSkip={handleSkip}
       onDeckChange={handleDeckChange}

@@ -16,16 +16,19 @@ interface DeckBuilderScreenProps {
   initialDeck?: CardReference[];
   initialSideboard?: CardReference[];
   initialLands?: BasicLandCounts;
+  initialDeckName?: string;
   onSubmitDeck: (
     deck: CardReference[],
     sideboard: CardReference[],
-    lands: BasicLandCounts
+    lands: BasicLandCounts,
+    deckName?: string
   ) => void;
   onSkip?: () => void;
   onDeckChange?: (
     deck: CardReference[],
     sideboard: CardReference[],
-    lands: BasicLandCounts
+    lands: BasicLandCounts,
+    deckName?: string
   ) => void;
 }
 
@@ -108,6 +111,7 @@ export default function DeckBuilderScreen({
   initialDeck,
   initialSideboard,
   initialLands,
+  initialDeckName,
   onSubmitDeck,
   onSkip,
   onDeckChange,
@@ -124,7 +128,7 @@ export default function DeckBuilderScreen({
     card: CardReference;
     zone: "deck" | "sideboard";
   } | null>(null);
-  const [deckName, setDeckName] = useState("");
+  const [deckName, setDeckName] = useState(initialDeckName ?? "");
   const [error, setError] = useState<string | null>(null);
   const [sideboardOpen, setSideboardOpen] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -174,13 +178,13 @@ export default function DeckBuilderScreen({
 
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
-      onDeckChange(deck, sideboard, lands);
+      onDeckChange(deck, sideboard, lands, deckName || undefined);
     }, 1000);
 
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
-  }, [deck, sideboard, lands, onDeckChange]);
+  }, [deck, sideboard, lands, deckName, onDeckChange]);
 
   // --- Actions ---
 
@@ -262,8 +266,8 @@ export default function DeckBuilderScreen({
       return;
     }
     setError(null);
-    onSubmitDeck(deck, sideboard, lands);
-  }, [mainCount, deck, sideboard, lands, totalLands, onSubmitDeck]);
+    onSubmitDeck(deck, sideboard, lands, deckName || undefined);
+  }, [mainCount, deck, sideboard, lands, totalLands, deckName, onSubmitDeck]);
 
   const resetSideboard = useCallback(() => {
     setSideboard((prev) => {

@@ -16,6 +16,7 @@ interface PostDraftScreenProps {
   deck: CardReference[] | null;
   sideboard: CardReference[] | null;
   lands: BasicLandCounts | null;
+  initialDeckName?: string;
   pickHistory?: DraftPick[];
   allPlayersHistory?: Array<{
     playerName: string;
@@ -36,6 +37,7 @@ export default function PostDraftScreen({
   deck,
   sideboard,
   lands,
+  initialDeckName,
   pickHistory,
   allPlayersHistory,
   onEditDeck,
@@ -44,7 +46,7 @@ export default function PostDraftScreen({
   const [copiedState, setCopiedState] = useState<string | null>(null);
   const [expandedPlayers, setExpandedPlayers] = useState<Set<number>>(new Set());
   const [showHistory, setShowHistory] = useState(false);
-  const [deckName, setDeckName] = useState("");
+  const [deckName, setDeckName] = useState(initialDeckName ?? "");
 
   const hasDeck = deck !== null && sideboard !== null;
   const activeLands = lands ?? DEFAULT_LANDS;

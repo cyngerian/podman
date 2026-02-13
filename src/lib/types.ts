@@ -139,6 +139,7 @@ export interface DraftSeat {
   sideboard: CardReference[] | null; // remaining cards not in deck
   queuedCardId: string | null; // card to auto-pick if timer expires
   basicLands: BasicLandCounts;
+  deckName?: string;
   hasSubmittedDeck: boolean;
   packQueue: PackState[]; // packs waiting behind currentPack
   packReceivedAt: number | null; // when currentPack was received (for timer)

@@ -12,6 +12,7 @@ interface ResultsClientProps {
   deck: CardReference[] | null;
   sideboard: CardReference[] | null;
   lands: BasicLandCounts | null;
+  deckName?: string;
   pickHistory?: DraftPick[];
   allPlayersHistory?: Array<{
     playerName: string;
@@ -25,6 +26,7 @@ export default function ResultsClient({
   deck,
   sideboard,
   lands,
+  deckName,
   pickHistory,
   allPlayersHistory,
 }: ResultsClientProps) {
@@ -48,6 +50,7 @@ export default function ResultsClient({
       deck={deck}
       sideboard={sideboard}
       lands={lands}
+      initialDeckName={deckName}
       pickHistory={pickHistory}
       allPlayersHistory={allPlayersHistory}
       onEditDeck={handleEditDeck}
