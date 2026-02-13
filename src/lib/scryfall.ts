@@ -397,6 +397,57 @@ export async function fetchDraftableSets(): Promise<ScryfallSet[]> {
     .sort((a, b) => b.released_at.localeCompare(a.released_at));
 }
 
+// --- Card Hydration ---
+
+/**
+ * Hydrate missing typeLine on CardReferences using Scryfall's collection endpoint.
+ * Only calls Scryfall if any cards are missing typeLine. Handles up to 75 cards
+ * per request (Scryfall limit). Returns cards with typeLine filled in.
+ */
+export async function hydrateCardTypeLines(
+  cards: CardReference[]
+): Promise<CardReference[]> {
+  const missing = cards.filter((c) => !c.typeLine && !c.scryfallId.startsWith("cube-"));
+  if (missing.length === 0) return cards;
+
+  const identifiers = missing.map((c) => ({ id: c.scryfallId }));
+
+  // Scryfall collection endpoint: POST, up to 75 identifiers per request
+  await rateLimiter.acquire();
+  let data: ScryfallCard[] = [];
+  try {
+    const response = await fetch(`${SCRYFALL_API_BASE}/cards/collection`, {
+      method: "POST",
+      headers: {
+        "User-Agent": USER_AGENT,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ identifiers }),
+    });
+
+    if (response.ok) {
+      const json = await response.json();
+      data = json.data ?? [];
+    }
+  } catch {
+    // Non-critical — just return cards without hydration
+    return cards;
+  }
+
+  // Build lookup map: scryfallId → type_line
+  const typeMap = new Map<string, string>();
+  for (const card of data) {
+    if (card.type_line) typeMap.set(card.id, card.type_line);
+  }
+
+  return cards.map((c) => {
+    if (c.typeLine) return c;
+    const tl = typeMap.get(c.scryfallId);
+    return tl ? { ...c, typeLine: tl } : c;
+  });
+}
+
 // --- CubeCobra Integration ---
 
 /**

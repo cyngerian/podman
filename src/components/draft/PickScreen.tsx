@@ -504,7 +504,7 @@ export default function PickScreen({
       {/* ==================== MOBILE: Carousel ==================== */}
       <div className="flex-1 flex flex-col min-h-0 sm:hidden">
         {/* Filter pills — two centered rows */}
-        <div className="shrink-0 flex flex-col items-center gap-1 px-3 py-1.5">
+        <div className="shrink-0 flex flex-col items-center gap-0.5 px-3 py-1">
           {/* Row 1: color filters */}
           <div className="flex items-center justify-center gap-1.5 flex-nowrap">
             {COLOR_FILTERS.map((opt) => (
@@ -616,7 +616,7 @@ export default function PickScreen({
             {/* Scrub bar — thicker, tight under carousel. Hidden for single card. */}
             <div
               ref={scrubBarRef}
-              className={`shrink-0 px-6 -mt-8 ${filteredCards.length <= 1 ? "invisible" : ""}`}
+              className={`shrink-0 px-6 -mt-6 ${filteredCards.length <= 1 ? "invisible" : ""}`}
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 const progress = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
@@ -650,21 +650,24 @@ export default function PickScreen({
               </div>
             </div>
 
-            {/* Counter + Pick button */}
+            {/* Card name + Pick button */}
             <div className="shrink-0 px-4 pb-2 flex flex-col items-center gap-2">
 
-              {/* Counter + grid view button */}
-              <div className="flex items-center gap-2">
-                <span ref={counterRef} className="text-xs font-medium text-foreground/60">
+              {/* Card name line: counter left, name center, grid button right */}
+              <div className="flex items-center w-full gap-2">
+                <span ref={counterRef} className="text-xs font-medium text-foreground/60 shrink-0 w-12">
                   1 / {filteredCards.length}
                 </span>
+                <p ref={nameRef} className="flex-1 text-base font-semibold text-foreground text-center leading-tight truncate min-w-0">
+                  {filteredCards[0]?.name ?? ""}
+                </p>
                 <button
                   type="button"
                   onClick={() => setShowGridView(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface text-foreground/60 hover:text-foreground/80 transition-colors border border-border"
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-surface text-foreground/60 hover:text-foreground/80 transition-colors border border-border shrink-0"
                   aria-label="View all cards"
                 >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
                     <rect x="0" y="0" width="4.5" height="4.5" rx="1" />
                     <rect x="5.75" y="0" width="4.5" height="4.5" rx="1" />
                     <rect x="11.5" y="0" width="4.5" height="4.5" rx="1" />
@@ -675,14 +678,8 @@ export default function PickScreen({
                     <rect x="5.75" y="11.5" width="4.5" height="4.5" rx="1" />
                     <rect x="11.5" y="11.5" width="4.5" height="4.5" rx="1" />
                   </svg>
-                  <span className="text-xs font-medium">Grid</span>
                 </button>
               </div>
-
-              {/* Card name — updated via ref, no React re-render */}
-              <p ref={nameRef} className="text-base font-semibold text-foreground text-center leading-tight truncate max-w-full">
-                {filteredCards[0]?.name ?? ""}
-              </p>
 
               {/* Pick button */}
               <button

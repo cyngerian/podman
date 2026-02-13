@@ -2,6 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import type { Draft } from "@/lib/types";
 import { hydrateSeat } from "@/lib/draft-engine";
+import { hydrateCardTypeLines } from "@/lib/scryfall";
 import PickClient from "./PickClient";
 
 export default async function PickPage({
@@ -36,6 +37,11 @@ export default async function PickPage({
 
   const seat = hydrateSeat(rawSeat);
 
+  // Hydrate missing typeLine for creature/non-creature filtering
+  const packCards = seat.currentPack?.cards
+    ? await hydrateCardTypeLines(seat.currentPack.cards)
+    : [];
+
   return (
     <PickClient
       key={seat.packReceivedAt ?? "waiting"}
@@ -43,7 +49,7 @@ export default async function PickPage({
       setCode={draft.setCode}
       setName={draft.setName}
       startedAt={draft.startedAt}
-      packCards={seat.currentPack?.cards ?? []}
+      packCards={packCards}
       packNumber={seat.currentPack?.round ?? draft.currentPack}
       pickInPack={seat.currentPack?.pickNumber ?? 0}
       totalCardsInPack={draft.cardsPerPack}
