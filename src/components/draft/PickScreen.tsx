@@ -72,24 +72,51 @@ export default function PickScreen({
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const filteredCards = packCards.filter((card) => matchesFilter(card, filterMode));
 
-  // Track active card in carousel via scroll position
+  // Card dimensions for carousel
+  const CARD_WIDTH_VW = 58; // vw units for card width
+  const CARD_OVERLAP_PX = -20; // negative margin for overlap
+  const ACTIVE_SCALE = 1.08;
+  const INACTIVE_SCALE = 0.88;
+
+  // Track active card + apply scale transforms based on scroll position
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
 
-    const handleScroll = () => {
-      const scrollLeft = el.scrollLeft;
-      const cardWidth = el.offsetWidth * 0.72; // matches w-[72vw]
-      const gap = 12; // gap-3 = 12px
-      const index = Math.round(scrollLeft / (cardWidth + gap));
-      setActiveIndex(Math.min(index, filteredCards.length - 1));
+    const updateCards = () => {
+      const containerCenter = el.scrollLeft + el.offsetWidth / 2;
+      let closestIdx = 0;
+      let closestDist = Infinity;
+
+      cardRefs.current.forEach((cardEl, i) => {
+        if (!cardEl) return;
+        const cardCenter = cardEl.offsetLeft + cardEl.offsetWidth / 2;
+        const dist = Math.abs(containerCenter - cardCenter);
+        const maxDist = el.offsetWidth * 0.5;
+        const t = Math.min(dist / maxDist, 1); // 0 = centered, 1 = far
+        const scale = ACTIVE_SCALE - t * (ACTIVE_SCALE - INACTIVE_SCALE);
+        const zIndex = 100 - Math.round(t * 100);
+
+        cardEl.style.transform = `scale(${scale})`;
+        cardEl.style.zIndex = `${zIndex}`;
+        cardEl.style.opacity = t > 0.85 ? `${1 - (t - 0.85) * 4}` : "1";
+
+        if (dist < closestDist) {
+          closestDist = dist;
+          closestIdx = i;
+        }
+      });
+
+      setActiveIndex(closestIdx);
     };
 
-    el.addEventListener("scroll", handleScroll, { passive: true });
-    return () => el.removeEventListener("scroll", handleScroll);
+    updateCards();
+    el.addEventListener("scroll", updateCards, { passive: true });
+    return () => el.removeEventListener("scroll", updateCards);
   }, [filteredCards.length]);
 
   // Reset active index when filter changes
@@ -175,21 +202,28 @@ export default function PickScreen({
             <div className="flex-1 flex items-center min-h-0">
               <div
                 ref={scrollRef}
-                className="flex gap-3 overflow-x-auto snap-x snap-mandatory scroll-smooth w-full px-[14vw] py-2 no-scrollbar"
+                className="flex overflow-x-auto snap-x snap-mandatory w-full no-scrollbar items-center"
+                style={{ paddingLeft: `${(100 - CARD_WIDTH_VW) / 2}vw`, paddingRight: `${(100 - CARD_WIDTH_VW) / 2}vw` }}
               >
-                {filteredCards.map((card) => (
+                {filteredCards.map((card, i) => (
                   <div
                     key={card.scryfallId}
-                    className="snap-center shrink-0 w-[72vw] max-w-[320px]"
+                    ref={(el) => { cardRefs.current[i] = el; }}
+                    className="snap-center shrink-0 transition-transform duration-150 ease-out"
+                    style={{
+                      width: `${CARD_WIDTH_VW}vw`,
+                      maxWidth: "300px",
+                      marginLeft: i === 0 ? 0 : `${CARD_OVERLAP_PX}px`,
+                    }}
                   >
                     <div
-                      className={`relative card-aspect rounded-xl overflow-hidden border-2 ${getBorderClass(card.colors)}`}
+                      className={`relative card-aspect rounded-xl overflow-hidden border-2 shadow-lg ${getBorderClass(card.colors)}`}
                     >
                       <Image
                         src={card.imageUri}
                         alt={card.name}
                         fill
-                        sizes="72vw"
+                        sizes="58vw"
                         className="object-cover"
                         priority
                       />
