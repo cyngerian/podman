@@ -229,7 +229,7 @@ export default function PickScreen({
                   <div
                     key={card.scryfallId}
                     ref={(el) => { cardRefs.current[i] = el; }}
-                    className="snap-center shrink-0 will-change-transform"
+                    className="snap-center snap-always shrink-0"
                     style={{
                       width: `${CARD_WIDTH_VW}vw`,
                       maxWidth: "400px",
