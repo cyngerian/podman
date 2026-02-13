@@ -621,7 +621,7 @@ export default function PickScreen({
         ) : (
           <>
             {/* Carousel */}
-            <div className="flex-1 flex items-center min-h-0 relative" style={{ marginTop: "-20px" }}>
+            <div className="flex-1 flex items-center min-h-0 relative" style={{ marginTop: "-15px" }}>
               {/* Transform container — no native scroll, all movement via JS transforms */}
               <div
                 ref={scrollRef}
@@ -675,8 +675,8 @@ export default function PickScreen({
             {/* Scrub bar — thicker, tight under carousel. Hidden for single card. */}
             <div
               ref={scrubBarRef}
-              className={`shrink-0 mx-auto -mt-6 -mb-4 ${filteredCards.length <= 1 ? "invisible" : ""}`}
-              style={{ width: "70%" }}
+              className={`shrink-0 mx-auto -mt-10 ${filteredCards.length <= 1 ? "invisible" : ""}`}
+              style={{ width: "50%" }}
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 const progress = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
@@ -711,7 +711,7 @@ export default function PickScreen({
             </div>
 
             {/* Card name + Pick button */}
-            <div className="shrink-0 px-4 flex flex-col items-center gap-1" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 4px)" }}>
+            <div className="shrink-0 px-4 pt-2 flex flex-col items-center gap-2" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 6px)" }}>
 
               {/* Card name line: counter left, name center, grid button right */}
               <div className="flex items-center w-full gap-2">
@@ -725,7 +725,6 @@ export default function PickScreen({
                   type="button"
                   onClick={() => setShowGridView(true)}
                   className="flex items-center justify-center shrink-0 w-8 h-8 rounded-md bg-surface text-foreground/60 hover:text-foreground/80 transition-colors border border-border"
-                  style={{ marginTop: "-10px" }}
                   aria-label="View all cards"
                 >
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
