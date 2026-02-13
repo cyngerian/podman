@@ -73,12 +73,13 @@ export default function PostDraftScreen({
   }, [hasDeck, deck, sideboard, activeLands, pool, flash, exportName]);
 
   const handleCockatrice = useCallback(() => {
+    const baseName = exportName ?? (hasDeck ? "podman-deck" : "podman-pool");
     if (hasDeck) {
       const xml = formatCockatriceXml(deck!, sideboard!, activeLands, exportName);
-      downloadFile(xml, "podman-deck.cod", "application/octet-stream");
+      downloadFile(xml, `${baseName}.cod`, "application/octet-stream");
     } else {
       const xml = formatCockatriceXml(pool, [], DEFAULT_LANDS, exportName);
-      downloadFile(xml, "podman-pool.cod", "application/octet-stream");
+      downloadFile(xml, `${baseName}.cod`, "application/octet-stream");
     }
     flash("cockatrice");
   }, [hasDeck, deck, sideboard, activeLands, pool, flash, exportName]);
@@ -87,8 +88,8 @@ export default function PostDraftScreen({
     const text = hasDeck
       ? formatDeckListText(deck!, sideboard!, activeLands, exportName)
       : formatPoolText(pool);
-    const filename = hasDeck ? "podman-deck.txt" : "podman-pool.txt";
-    downloadFile(text, filename, "text/plain");
+    const baseName = exportName ?? (hasDeck ? "podman-deck" : "podman-pool");
+    downloadFile(text, `${baseName}.txt`, "text/plain");
     flash("text");
   }, [hasDeck, deck, sideboard, activeLands, pool, flash, exportName]);
 
