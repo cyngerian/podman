@@ -673,13 +673,14 @@ export default function PickScreen({
             </div>
 
             {/* Scrub row: counter | scrub bar | grid button */}
-            <div className={`shrink-0 flex items-start gap-3 px-4 -mt-4 ${filteredCards.length <= 1 ? "invisible" : ""}`}>
-              <span ref={counterRef} className="text-xs font-medium text-foreground/60 shrink-0 pt-1">
+            <div className={`shrink-0 flex items-start justify-center gap-3 px-4 -mt-4 ${filteredCards.length <= 1 ? "invisible" : ""}`}>
+              <span ref={counterRef} className="text-xs font-medium text-foreground/60 shrink-0" style={{ marginTop: "12px" }}>
                 1 / {filteredCards.length}
               </span>
               <div
                 ref={scrubBarRef}
-                className="flex-1 min-w-0"
+                className="shrink-0"
+                style={{ width: "50%" }}
                 onClick={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect();
                   const progress = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
@@ -716,6 +717,7 @@ export default function PickScreen({
                 type="button"
                 onClick={() => setShowGridView(true)}
                 className="flex items-center justify-center shrink-0 w-10 h-10 rounded-lg bg-surface text-foreground/60 hover:text-foreground/80 transition-colors border border-border"
+                style={{ marginTop: "14px" }}
                 aria-label="View all cards"
               >
                 <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
