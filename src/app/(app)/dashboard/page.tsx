@@ -27,9 +27,9 @@ export default async function DashboardPage() {
       .select("id, format, set_name, status, created_at")
       .eq("host_id", user.id)
       .eq("is_simulated", true)
-      .in("status", ["active", "deck_building"])
+      .in("status", ["active", "deck_building", "completed"])
       .order("created_at", { ascending: false })
-      .limit(5),
+      .limit(10),
     supabase
       .from("draft_players")
       .select("draft_id, drafts!inner(id, format, set_name, status, created_at, is_simulated, groups(name))")
@@ -43,6 +43,9 @@ export default async function DashboardPage() {
   const activeGroupDrafts = (activeDraftPlayers ?? [])
     .map((dp) => dp.drafts)
     .filter((d): d is NonNullable<typeof d> => d !== null);
+
+  const activeSimDrafts = (simDrafts ?? []).filter((d) => d.status !== "completed");
+  const completedSimDrafts = (simDrafts ?? []).filter((d) => d.status === "completed");
 
   const groups = (memberships ?? []).map((m) => ({
     ...m.groups!,
@@ -86,16 +89,13 @@ export default async function DashboardPage() {
               <Link
                 key={draft.id}
                 href={`/draft/${draft.id}`}
-                className="flex items-center justify-between rounded-xl border border-border bg-surface p-3 hover:border-border-light transition-colors"
+                className={`flex items-center justify-between rounded-xl border bg-surface p-3 hover:border-border-light transition-colors ${
+                  draft.status === "active" ? "border-green-500" : "border-border"
+                }`}
               >
                 <div>
                   <span className="text-sm font-medium">
                     {draft.set_name ?? draft.format}
-                  </span>
-                  <span className={`ml-2 text-xs font-medium uppercase ${
-                    draft.status === "active" ? "text-green-500" : "text-foreground/40"
-                  }`}>
-                    {draft.status === "deck_building" ? "Deck Building" : draft.status === "lobby" ? "Lobby" : "In Progress"}
                   </span>
                   {draft.groups?.name && (
                     <span className="ml-2 text-xs text-foreground/40">
@@ -123,20 +123,19 @@ export default async function DashboardPage() {
         </Link>
       </div>
 
-      {simDrafts && simDrafts.length > 0 ? (
+      {activeSimDrafts.length > 0 ? (
         <div className="space-y-2">
-          {simDrafts.map((draft) => (
+          {activeSimDrafts.map((draft) => (
             <Link
               key={draft.id}
               href={`/draft/${draft.id}`}
-              className="flex items-center justify-between rounded-xl border border-border bg-surface p-3 hover:border-border-light transition-colors"
+              className={`flex items-center justify-between rounded-xl border bg-surface p-3 hover:border-border-light transition-colors ${
+                draft.status === "active" ? "border-green-500" : "border-border"
+              }`}
             >
               <div>
                 <span className="text-sm font-medium">
                   {draft.set_name ?? draft.format} Simulation
-                </span>
-                <span className="ml-2 text-xs text-foreground/40">
-                  {draft.status === "deck_building" ? "Deck Building" : "In Progress"}
                 </span>
               </div>
               <span className="text-xs text-foreground/40">
@@ -149,6 +148,35 @@ export default async function DashboardPage() {
         <p className="text-sm text-foreground/40">
           No active simulations. Start one to practice drafting against bots.
         </p>
+      )}
+
+      {completedSimDrafts.length > 0 && (
+        <details open>
+          <summary className="text-sm font-medium text-foreground/50 cursor-pointer mb-2">
+            Completed ({completedSimDrafts.length})
+          </summary>
+          <div className="space-y-2">
+            {completedSimDrafts.map((draft) => (
+              <Link
+                key={draft.id}
+                href={`/draft/${draft.id}`}
+                className="flex items-center justify-between rounded-xl border border-border bg-surface p-3 hover:border-border-light transition-colors"
+              >
+                <div>
+                  <span className="text-sm font-medium">
+                    {draft.set_name ?? draft.format} Simulation
+                  </span>
+                  <span className="ml-2 text-xs text-foreground/40">
+                    Complete
+                  </span>
+                </div>
+                <span className="text-xs text-foreground/40">
+                  View
+                </span>
+              </Link>
+            ))}
+          </div>
+        </details>
       )}
 
       <div className="flex items-center justify-between">
