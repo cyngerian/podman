@@ -81,7 +81,7 @@ export default function PickScreen({
   const CARD_OVERLAP_PX = -24; // negative margin for overlap
   const SCROLL_ACTIVE_SCALE = 1.22; // while swiping
   const SCROLL_INACTIVE_SCALE = 0.75;
-  const RESTED_SCALE = 1.52; // after snap, focused card grows to this
+  const RESTED_SCALE = 1.7; // after snap, focused card grows to this
 
   // Track active card + apply scale transforms based on scroll position.
   // Two phases: "scrolling" (compact) and "rested" (active card enlarges).
@@ -236,7 +236,7 @@ export default function PickScreen({
       </header>
 
       {/* ==================== MOBILE: Carousel ==================== */}
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden sm:hidden">
+      <div className="flex-1 flex flex-col min-h-0 sm:hidden">
         {filteredCards.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">
             <p className="text-foreground/40 text-sm">No cards match this filter</p>
@@ -244,11 +244,11 @@ export default function PickScreen({
         ) : (
           <>
             {/* Carousel */}
-            <div className="flex-1 flex items-center min-h-0 overflow-hidden">
+            <div className="flex-1 flex items-center min-h-0">
               <div
                 ref={scrollRef}
-                className="flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory w-full no-scrollbar items-center py-8"
-                style={{ paddingLeft: `${(100 - CARD_WIDTH_VW) / 2}vw`, paddingRight: `${(100 - CARD_WIDTH_VW) / 2}vw`, touchAction: "pan-x" }}
+                className="flex overflow-x-auto snap-x snap-mandatory w-full no-scrollbar items-center"
+                style={{ paddingLeft: `${(100 - CARD_WIDTH_VW) / 2}vw`, paddingRight: `${(100 - CARD_WIDTH_VW) / 2}vw`, touchAction: "pan-x", overflowY: "clip" }}
               >
                 {filteredCards.map((card, i) => (
                   <div
