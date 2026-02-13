@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import type { CardReference, PackFilterMode, PickedCardSortMode, ManaColor } from "@/lib/types";
 import { MANA_COLORS } from "@/lib/types";
 import CardThumbnail from "@/components/ui/CardThumbnail";
-import CardPreview from "@/components/ui/CardPreview";
 import Timer from "@/components/ui/Timer";
 import PickedCardsDrawer from "./PickedCardsDrawer";
+import Image from "next/image";
 
 interface PickScreenProps {
   packCards: CardReference[];
@@ -44,6 +44,12 @@ function matchesFilter(card: CardReference, filter: PackFilterMode): boolean {
   return card.colors.includes(filter as ManaColor);
 }
 
+function getBorderClass(colors: string[]): string {
+  if (colors.length === 0) return "card-border-C";
+  if (colors.length > 1) return "card-border-M";
+  return `card-border-${colors[0]}`;
+}
+
 export default function PickScreen({
   packCards,
   packNumber,
@@ -64,8 +70,35 @@ export default function PickScreen({
   const [selectedCard, setSelectedCard] = useState<CardReference | null>(null);
   const [showPickedDrawer, setShowPickedDrawer] = useState(false);
   const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const filteredCards = packCards.filter((card) => matchesFilter(card, filterMode));
+
+  // Track active card in carousel via scroll position
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const handleScroll = () => {
+      const scrollLeft = el.scrollLeft;
+      const cardWidth = el.offsetWidth * 0.72; // matches w-[72vw]
+      const gap = 12; // gap-3 = 12px
+      const index = Math.round(scrollLeft / (cardWidth + gap));
+      setActiveIndex(Math.min(index, filteredCards.length - 1));
+    };
+
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, [filteredCards.length]);
+
+  // Reset active index when filter changes
+  useEffect(() => {
+    setActiveIndex(0);
+    if (scrollRef.current) {
+      scrollRef.current.scrollLeft = 0;
+    }
+  }, [filterMode]);
 
   const handleCardClick = useCallback((card: CardReference) => {
     setSelectedCard(card);
@@ -84,6 +117,13 @@ export default function PickScreen({
       setSelectedCard(null);
     }
   }, [selectedCard, onPick]);
+
+  const handleCarouselPick = useCallback(() => {
+    const card = filteredCards[activeIndex];
+    if (card) {
+      onPick(card.scryfallId);
+    }
+  }, [filteredCards, activeIndex, onPick]);
 
   const directionArrow = passDirection === "left" ? "\u2190" : "\u2192";
 
@@ -123,94 +163,257 @@ export default function PickScreen({
         </button>
       </header>
 
-      {/* Card grid — scrollable area */}
-      <div className="flex-1 overflow-y-auto min-h-0">
-        <div className="grid grid-cols-3 gap-1.5 p-2 sm:grid-cols-4">
-          {filteredCards.map((card) => (
-            <CardThumbnail
-              key={card.scryfallId}
-              card={card}
-              selected={selectedCard?.scryfallId === card.scryfallId}
-              onClick={() => handleCardClick(card)}
-              onDoubleClick={() => handleQuickPick(card)}
-            />
-          ))}
+      {/* ==================== MOBILE: Carousel ==================== */}
+      <div className="flex-1 flex flex-col min-h-0 sm:hidden">
+        {filteredCards.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-foreground/40 text-sm">No cards match this filter</p>
+          </div>
+        ) : (
+          <>
+            {/* Carousel */}
+            <div className="flex-1 flex items-center min-h-0">
+              <div
+                ref={scrollRef}
+                className="flex gap-3 overflow-x-auto snap-x snap-mandatory scroll-smooth w-full px-[14vw] py-2 no-scrollbar"
+              >
+                {filteredCards.map((card) => (
+                  <div
+                    key={card.scryfallId}
+                    className="snap-center shrink-0 w-[72vw] max-w-[320px]"
+                  >
+                    <div
+                      className={`relative card-aspect rounded-xl overflow-hidden border-2 ${getBorderClass(card.colors)}`}
+                    >
+                      <Image
+                        src={card.imageUri}
+                        alt={card.name}
+                        fill
+                        sizes="72vw"
+                        className="object-cover"
+                        priority
+                      />
+                      {card.isFoil && (
+                        <span className="absolute top-1 right-1 text-sm drop-shadow-md">
+                          ✦
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Card counter + Pick button */}
+            <div className="shrink-0 px-4 pb-2 pt-1 flex flex-col items-center gap-2">
+              {/* Dot indicator */}
+              <div className="flex items-center gap-1">
+                <span className="text-xs font-medium text-foreground/60">
+                  {activeIndex + 1} / {filteredCards.length}
+                </span>
+              </div>
+
+              {/* Card name */}
+              {filteredCards[activeIndex] && (
+                <p className="text-sm font-semibold text-foreground text-center leading-tight truncate max-w-full">
+                  {filteredCards[activeIndex].name}
+                </p>
+              )}
+
+              {/* Pick button */}
+              <button
+                type="button"
+                onClick={handleCarouselPick}
+                className="
+                  w-full max-w-[320px] py-3 rounded-xl
+                  bg-accent text-white font-bold text-base tracking-wide
+                  active:scale-[0.97] transition-all duration-100
+                  hover:bg-accent-hover
+                "
+              >
+                PICK THIS CARD
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Mobile bottom bar with filter */}
+        <div className="flex items-center justify-end px-3 py-2 border-t border-border bg-surface shrink-0">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowFilterMenu((prev) => !prev)}
+              className={`
+                px-3 py-2 rounded-lg text-sm font-medium transition-colors
+                ${filterMode !== "all"
+                  ? "bg-accent text-white"
+                  : "bg-background text-foreground hover:bg-surface-hover"
+                }
+              `}
+            >
+              Filter{filterMode !== "all" ? ` (${filterMode})` : ""}
+            </button>
+
+            {showFilterMenu && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowFilterMenu(false)}
+                />
+                <div className="absolute bottom-full right-0 mb-2 z-50 bg-surface border border-border rounded-xl p-2 shadow-lg min-w-[200px]">
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {FILTER_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => {
+                          onFilterChange(opt.value);
+                          setShowFilterMenu(false);
+                        }}
+                        className={`
+                          flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-xs font-semibold
+                          transition-colors
+                          ${filterMode === opt.value
+                            ? "bg-accent text-white"
+                            : "bg-background text-foreground/70 hover:bg-surface-hover"
+                          }
+                        `}
+                      >
+                        {opt.colorVar && (
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: opt.colorVar }}
+                          />
+                        )}
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ==================== DESKTOP: Grid ==================== */}
+      <div className="hidden sm:flex flex-1 flex-col min-h-0">
+        {/* Card grid — scrollable area */}
+        <div className="flex-1 overflow-y-auto min-h-0">
+          <div className="grid grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-1.5 p-2">
+            {filteredCards.map((card) => (
+              <CardThumbnail
+                key={card.scryfallId}
+                card={card}
+                selected={selectedCard?.scryfallId === card.scryfallId}
+                onClick={() => handleCardClick(card)}
+                onDoubleClick={() => handleQuickPick(card)}
+              />
+            ))}
+          </div>
+
+          {filteredCards.length === 0 && (
+            <p className="text-center text-foreground/40 text-sm py-8">
+              No cards match this filter
+            </p>
+          )}
         </div>
 
-        {filteredCards.length === 0 && (
-          <p className="text-center text-foreground/40 text-sm py-8">
-            No cards match this filter
-          </p>
-        )}
-      </div>
-
-      {/* Preview panel */}
-      <div className="shrink-0 border-t border-border bg-surface">
-        <CardPreview
-          card={selectedCard}
-          onPick={handlePick}
-          showPickButton={!!selectedCard}
-          onClose={selectedCard ? () => setSelectedCard(null) : undefined}
-        />
-      </div>
-
-      {/* Bottom bar */}
-      <div className="flex items-center justify-end px-3 py-2 border-t border-border bg-surface shrink-0">
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setShowFilterMenu((prev) => !prev)}
-            className={`
-              px-3 py-2 rounded-lg text-sm font-medium transition-colors
-              ${filterMode !== "all"
-                ? "bg-accent text-white"
-                : "bg-background text-foreground hover:bg-surface-hover"
-              }
-            `}
-          >
-            Filter{filterMode !== "all" ? ` (${filterMode})` : ""}
-          </button>
-
-          {/* Filter dropdown */}
-          {showFilterMenu && (
-            <>
-              {/* Backdrop to close */}
-              <div
-                className="fixed inset-0 z-40"
-                onClick={() => setShowFilterMenu(false)}
-              />
-              <div className="absolute bottom-full right-0 mb-2 z-50 bg-surface border border-border rounded-xl p-2 shadow-lg min-w-[200px]">
-                <div className="grid grid-cols-4 gap-1.5">
-                  {FILTER_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => {
-                        onFilterChange(opt.value);
-                        setShowFilterMenu(false);
-                      }}
-                      className={`
-                        flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-xs font-semibold
-                        transition-colors
-                        ${filterMode === opt.value
-                          ? "bg-accent text-white"
-                          : "bg-background text-foreground/70 hover:bg-surface-hover"
-                        }
-                      `}
-                    >
-                      {opt.colorVar && (
-                        <span
-                          className="w-2.5 h-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: opt.colorVar }}
-                        />
-                      )}
-                      {opt.label}
-                    </button>
-                  ))}
+        {/* Preview panel */}
+        <div className="shrink-0 border-t border-border bg-surface">
+          <div className="flex items-center gap-4 px-4 py-3">
+            {selectedCard ? (
+              <>
+                <div className="relative w-20 card-aspect rounded-lg overflow-hidden shrink-0">
+                  <Image
+                    src={selectedCard.imageUri}
+                    alt={selectedCard.name}
+                    fill
+                    sizes="80px"
+                    className="object-cover"
+                  />
                 </div>
-              </div>
-            </>
-          )}
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-semibold text-foreground truncate">
+                    {selectedCard.name}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={handlePick}
+                  className="
+                    px-6 py-2.5 rounded-xl shrink-0
+                    bg-accent text-white font-bold text-sm tracking-wide
+                    hover:bg-accent-hover active:scale-[0.97] transition-all duration-100
+                  "
+                >
+                  PICK
+                </button>
+              </>
+            ) : (
+              <p className="text-sm text-foreground/40 w-full text-center py-2">
+                Click a card to select it, double-click to pick immediately
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Desktop bottom bar with filter */}
+        <div className="flex items-center justify-end px-3 py-2 border-t border-border bg-surface shrink-0">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowFilterMenu((prev) => !prev)}
+              className={`
+                px-3 py-2 rounded-lg text-sm font-medium transition-colors
+                ${filterMode !== "all"
+                  ? "bg-accent text-white"
+                  : "bg-background text-foreground hover:bg-surface-hover"
+                }
+              `}
+            >
+              Filter{filterMode !== "all" ? ` (${filterMode})` : ""}
+            </button>
+
+            {showFilterMenu && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowFilterMenu(false)}
+                />
+                <div className="absolute bottom-full right-0 mb-2 z-50 bg-surface border border-border rounded-xl p-2 shadow-lg min-w-[200px]">
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {FILTER_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => {
+                          onFilterChange(opt.value);
+                          setShowFilterMenu(false);
+                        }}
+                        className={`
+                          flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-xs font-semibold
+                          transition-colors
+                          ${filterMode === opt.value
+                            ? "bg-accent text-white"
+                            : "bg-background text-foreground/70 hover:bg-surface-hover"
+                          }
+                        `}
+                      >
+                        {opt.colorVar && (
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: opt.colorVar }}
+                          />
+                        )}
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 

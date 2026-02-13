@@ -92,6 +92,15 @@ body {
   padding-right: env(safe-area-inset-right);
 }
 
+/* Hide scrollbar for carousel */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Card color borders */
 .card-border-W { border-color: var(--mana-white); }
 .card-border-U { border-color: var(--mana-blue); }
