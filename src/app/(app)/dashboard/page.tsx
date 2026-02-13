@@ -1,14 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { createServerSupabaseClient, getUser } from "@/lib/supabase-server";
 
 export default async function DashboardPage() {
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUser();
 
   if (!user) redirect("/auth/login");
+
+  const supabase = await createServerSupabaseClient();
 
   // Fetch user's group memberships with group info
   const { data: memberships } = await supabase

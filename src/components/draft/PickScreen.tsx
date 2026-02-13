@@ -477,7 +477,7 @@ export default function PickScreen({
       <header className="flex flex-col shrink-0 sm:hidden">
         {/* Row 1: podman left, set symbol + name centered, date right */}
         <div className="flex items-center px-4 pt-3 pb-1 border-b border-border bg-background/95 backdrop-blur-sm">
-          <Link href="/" className="text-lg font-bold tracking-tight text-foreground shrink-0 w-16">
+          <Link href="/dashboard" className="text-lg font-bold tracking-tight text-foreground shrink-0 w-16">
             podman
           </Link>
           <div className="flex-1 flex items-center justify-center gap-1.5 min-w-0">

@@ -42,7 +42,7 @@ All draft logic is pure functions that transform immutable `Draft` state objects
 
 ### Key Types (`src/lib/types.ts`)
 
-`Draft`, `DraftSeat`, `PackState`, `CardReference` (minimal card data cached in draft state — never store full Scryfall objects). `TimerPreset` controls pick speed via lookup table + multiplier. `PackFilterMode` and `PickedCardSortMode` for UI filtering.
+`Draft`, `DraftSeat`, `PackState`, `CardReference` (minimal card data cached in draft state — never store full Scryfall objects). `TimerPreset` controls pick speed via lookup table + multiplier. `PackFilterValue` for multi-select filters (`Set<PackFilterValue>`), `PickedCardSortMode` for UI sorting. `CardReference.typeLine` is optional — missing on drafts created before Feb 2026; hydrated at page load via Scryfall collection endpoint.
 
 ### Realtime Updates
 
@@ -72,6 +72,8 @@ SUPABASE_SECRET_KEY                     # sb_secret_* format (not legacy service
 
 ## Mobile Carousel (`src/components/draft/PickScreen.tsx`)
 
-Active development area. Uses a "flipped-scale" approach: cards are big by default (72vw), active card `scale(1.15)`, inactive shrink to `scale(0.55)`. GPU-composited via snap target / transform target separation (outer div for `scroll-snap-align`, inner div for `will-change-transform`). rAF polling loop with zero React re-renders during scroll — all scroll-linked UI updated via refs and direct DOM manipulation. Desktop uses a standard grid layout (split by `sm:hidden` / `hidden sm:flex`).
+Active development area. Pure transform carousel (Option C) — no native scroll. Container is `overflow-hidden` with `touch-action: none`, wrapper moves via `translate3d`. Cards 72vw, active `scale(1.15)`, inactive `scale(0.55)`. rAF polling loop with zero React re-renders during scroll. Desktop uses a standard grid layout (split by `sm:hidden` / `hidden sm:flex`).
 
-**CSS caveat**: Tailwind's `snap-mandatory` class uses a CSS variable that can fail — always use inline `scrollSnapType: "x mandatory"` instead.
+**Critical**: `py-8` on the carousel wrapper must not be reduced — the active card's 1.15x scale needs vertical overflow room. Reducing to `py-4` causes visible clipping.
+
+**Dependencies**: `mana-font` (mana symbol icons), `keyrune` (set symbol icons). Pick button uses 500ms long-press with fill animation (`LongPressPickButton`). Filters are multi-select (`Set<PackFilterValue>`) with color OR + type AND logic; creature/non-creature are mutually exclusive.

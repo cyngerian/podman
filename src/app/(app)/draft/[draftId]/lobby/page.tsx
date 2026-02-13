@@ -1,5 +1,5 @@
 import { redirect, notFound } from "next/navigation";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { createServerSupabaseClient, getUser } from "@/lib/supabase-server";
 import type { Draft } from "@/lib/types";
 import LobbyClient from "./LobbyClient";
 
@@ -10,32 +10,27 @@ export default async function LobbyPage({
 }) {
   const { draftId } = await params;
 
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUser();
 
   if (!user) redirect("/auth/login");
 
-  // Fetch draft
-  const { data: dbDraft } = await supabase
-    .from("drafts")
-    .select("*")
-    .eq("id", draftId)
-    .single();
+  const supabase = await createServerSupabaseClient();
+
+  // Fetch draft and players in parallel
+  const [{ data: dbDraft }, { data: players }] = await Promise.all([
+    supabase.from("drafts").select("*").eq("id", draftId).single(),
+    supabase
+      .from("draft_players")
+      .select("user_id, seat_position, profiles(display_name)")
+      .eq("draft_id", draftId)
+      .order("joined_at", { ascending: true }),
+  ]);
 
   if (!dbDraft) notFound();
 
   if (dbDraft.status !== "lobby") {
     redirect(`/draft/${draftId}`);
   }
-
-  // Fetch players with profiles
-  const { data: players } = await supabase
-    .from("draft_players")
-    .select("user_id, seat_position, profiles(display_name)")
-    .eq("draft_id", draftId)
-    .order("joined_at", { ascending: true });
 
   const playerList = (players ?? []).map((p) => ({
     userId: p.user_id,

@@ -1,15 +1,15 @@
 import Link from "next/link";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { createServerSupabaseClient, getUser } from "@/lib/supabase-server";
 
 export default async function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const [user, supabase] = await Promise.all([
+    getUser(),
+    createServerSupabaseClient(),
+  ]);
 
   let displayName = "User";
   if (user) {
@@ -25,7 +25,7 @@ export default async function AppLayout({
     <div className="flex min-h-dvh flex-col">
       {/* Top bar */}
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-background/95 backdrop-blur-sm px-4 py-3">
-        <Link href="/" className="text-lg font-bold tracking-tight text-foreground">
+        <Link href="/dashboard" className="text-lg font-bold tracking-tight text-foreground">
           podman
         </Link>
         <div className="flex items-center gap-3">

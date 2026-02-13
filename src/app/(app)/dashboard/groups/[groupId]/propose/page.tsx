@@ -1,5 +1,5 @@
 import { redirect, notFound } from "next/navigation";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { createServerSupabaseClient, getUser } from "@/lib/supabase-server";
 import ProposalFormWrapper from "./ProposalFormWrapper";
 
 export default async function ProposeDraftPage({
@@ -12,12 +12,11 @@ export default async function ProposeDraftPage({
   const { groupId } = await params;
   const { error } = await searchParams;
 
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUser();
 
   if (!user) redirect("/auth/login");
+
+  const supabase = await createServerSupabaseClient();
 
   // Verify group exists and user is a member
   const { data: group } = await supabase

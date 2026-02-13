@@ -1,5 +1,5 @@
 import { redirect, notFound } from "next/navigation";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { createServerSupabaseClient, getUser } from "@/lib/supabase-server";
 import type { Draft } from "@/lib/types";
 import WinstonClient from "./WinstonClient";
 
@@ -10,12 +10,11 @@ export default async function WinstonPage({
 }) {
   const { draftId } = await params;
 
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUser();
 
   if (!user) redirect("/auth/login");
+
+  const supabase = await createServerSupabaseClient();
 
   const { data: dbDraft } = await supabase
     .from("drafts")

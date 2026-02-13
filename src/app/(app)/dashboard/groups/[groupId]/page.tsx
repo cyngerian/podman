@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { createServerSupabaseClient, getUser } from "@/lib/supabase-server";
 import { leaveGroup } from "../actions";
 import CopyInviteCode from "./CopyInviteCode";
 
@@ -10,28 +10,40 @@ export default async function GroupDetailPage({
   params: Promise<{ groupId: string }>;
 }) {
   const { groupId } = await params;
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUser();
 
   if (!user) redirect("/auth/login");
 
-  // Fetch group
-  const { data: group } = await supabase
-    .from("groups")
-    .select("*")
-    .eq("id", groupId)
-    .single();
+  const supabase = await createServerSupabaseClient();
+
+  // Run all queries in parallel
+  const [
+    { data: group },
+    { data: members },
+    { data: proposals },
+    { data: drafts },
+  ] = await Promise.all([
+    supabase.from("groups").select("*").eq("id", groupId).single(),
+    supabase
+      .from("group_members")
+      .select("user_id, role, joined_at, profiles(display_name)")
+      .eq("group_id", groupId)
+      .order("joined_at", { ascending: true }),
+    supabase
+      .from("draft_proposals")
+      .select("id, title, format, player_count, status, created_at, proposed_by, profiles!draft_proposals_proposed_by_fkey(display_name)")
+      .eq("group_id", groupId)
+      .in("status", ["open", "confirmed"])
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("drafts")
+      .select("id, format, set_code, set_name, status, created_at, draft_players(count)")
+      .eq("group_id", groupId)
+      .in("status", ["lobby", "active", "deck_building"])
+      .order("created_at", { ascending: false }),
+  ]);
 
   if (!group) notFound();
-
-  // Fetch members with profiles
-  const { data: members } = await supabase
-    .from("group_members")
-    .select("user_id, role, joined_at, profiles(display_name)")
-    .eq("group_id", groupId)
-    .order("joined_at", { ascending: true });
 
   const memberList = (members ?? []).map((m) => ({
     userId: m.user_id,
@@ -41,22 +53,6 @@ export default async function GroupDetailPage({
 
   const currentMember = memberList.find((m) => m.userId === user.id);
   const isAdmin = currentMember?.role === "admin";
-
-  // Fetch active proposals
-  const { data: proposals } = await supabase
-    .from("draft_proposals")
-    .select("id, title, format, player_count, status, created_at, proposed_by, profiles!draft_proposals_proposed_by_fkey(display_name)")
-    .eq("group_id", groupId)
-    .in("status", ["open", "confirmed"])
-    .order("created_at", { ascending: false });
-
-  // Fetch active/recent drafts with player count
-  const { data: drafts } = await supabase
-    .from("drafts")
-    .select("id, format, set_code, set_name, status, created_at, draft_players(count)")
-    .eq("group_id", groupId)
-    .in("status", ["lobby", "active", "deck_building"])
-    .order("created_at", { ascending: false });
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 space-y-8">

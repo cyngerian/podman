@@ -1,5 +1,5 @@
 import { redirect, notFound } from "next/navigation";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { createServerSupabaseClient, getUser } from "@/lib/supabase-server";
 
 export default async function DraftRouterPage({
   params,
@@ -8,12 +8,11 @@ export default async function DraftRouterPage({
 }) {
   const { draftId } = await params;
 
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getUser();
 
   if (!user) redirect("/auth/login");
+
+  const supabase = await createServerSupabaseClient();
 
   const { data: draft } = await supabase
     .from("drafts")
