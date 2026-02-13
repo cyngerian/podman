@@ -9,6 +9,7 @@ import PickedCardsDrawer from "./PickedCardsDrawer";
 import Image from "next/image";
 
 interface PickScreenProps {
+  setCode: string | null;
   setName: string | null;
   startedAt: number | null;
   packCards: CardReference[];
@@ -56,6 +57,7 @@ function getBorderClass(colors: string[]): string {
 }
 
 export default function PickScreen({
+  setCode,
   setName,
   startedAt,
   packCards,
@@ -199,10 +201,14 @@ export default function PickScreen({
         if (nameRef.current) nameRef.current.textContent = filteredCards[closestIdx]?.name ?? "";
       }
 
-      // Scrub bar
+      // Scrub bar — position thumb by center, clamped to track bounds
       if (scrubThumbRef.current && offsetRange > 0) {
         const progress = (offset - minOffset) / offsetRange;
-        scrubThumbRef.current.style.left = `${progress * 100}%`;
+        const trackWidth = scrubBarRef.current?.querySelector('[data-scrub-track]')?.clientWidth ?? 0;
+        const thumbWidth = scrubThumbRef.current.offsetWidth;
+        const maxLeft = trackWidth - thumbWidth;
+        const leftPx = Math.round(progress * maxLeft);
+        scrubThumbRef.current.style.transform = `translateX(${leftPx}px)`;
       }
     };
 
@@ -362,34 +368,49 @@ export default function PickScreen({
     : `Filter (${filterSet.size})`;
 
   const draftDateStr = startedAt
-    ? new Date(startedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    ? new Date(startedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })
     : null;
+
+  const setIconUrl = setCode ? `https://svgs.scryfall.io/sets/${setCode}.svg` : null;
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background overflow-hidden">
       {/* ===== MOBILE HEADER (two rows) ===== */}
-      <header className="flex flex-col border-b border-border shrink-0 sm:hidden">
-        {/* Row 1: podman + draft name/date — matches app layout header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-background/95 backdrop-blur-sm">
-          <Link href="/" className="text-lg font-bold tracking-tight text-foreground">
+      <header className="flex flex-col shrink-0 sm:hidden">
+        {/* Row 1: podman left, set icon + name + date centered — matches app layout */}
+        <div className="flex items-center px-4 py-3 border-b border-border bg-background/95 backdrop-blur-sm">
+          <Link href="/" className="text-lg font-bold tracking-tight text-foreground shrink-0">
             podman
           </Link>
-          <div className="flex items-center gap-1.5 text-sm text-foreground/50">
-            {setName && <span>{setName}</span>}
-            {setName && draftDateStr && <span>&middot;</span>}
-            {draftDateStr && <span>{draftDateStr}</span>}
+          <div className="flex-1 flex items-center justify-center gap-1.5">
+            {setIconUrl && (
+              <img
+                src={setIconUrl}
+                alt={setCode ?? ""}
+                className="w-4 h-4 shrink-0 invert brightness-75"
+              />
+            )}
+            {setName && (
+              <span className="text-sm font-bold text-foreground truncate">{setName}</span>
+            )}
+            {draftDateStr && (
+              <span className="text-sm text-foreground/40 shrink-0">&middot; {draftDateStr}</span>
+            )}
           </div>
+          {/* Invisible spacer to balance podman link for centering */}
+          <div className="w-[62px] shrink-0" />
         </div>
-        {/* Row 2: timer | pack/pick info | picks button */}
-        <div className="flex items-center justify-between px-4 py-2.5">
+        {/* Row 2: timer | Pack N: Pick N | picks button */}
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
           <Timer
             seconds={timerSeconds}
             maxSeconds={timerMaxSeconds}
             paused={timerPaused}
           />
           <div className="flex flex-col items-center">
-            <span className="text-base font-semibold text-foreground">
-              Pack {packNumber} Pick {pickInPack}
+            <span className="text-base text-foreground">
+              <span className="font-bold">Pack {packNumber}:</span>{" "}
+              <span className="font-medium">Pick {pickInPack}</span>
             </span>
             <span className="text-xs text-foreground/40">
               {packCards.length}/{totalCardsInPack} cards
@@ -492,7 +513,7 @@ export default function PickScreen({
               >
                 <div
                   ref={wrapperRef}
-                  className="flex items-center py-8 will-change-transform"
+                  className="flex items-center py-4 will-change-transform"
                   style={{ transform: "translate3d(0,0,0)" }}
                 >
                   {filteredCards.map((card, i) => (
@@ -537,7 +558,7 @@ export default function PickScreen({
             {/* Scrub bar — thicker, tight under carousel. Hidden for single card. */}
             <div
               ref={scrubBarRef}
-              className={`shrink-0 px-8 -mt-8 ${filteredCards.length <= 1 ? "invisible" : ""}`}
+              className={`shrink-0 px-8 -mt-4 ${filteredCards.length <= 1 ? "invisible" : ""}`}
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 const progress = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
@@ -561,11 +582,11 @@ export default function PickScreen({
               }}
             >
               <div className="w-full h-10 flex items-center cursor-pointer">
-                <div className="w-full h-2.5 rounded-full bg-foreground/10 relative">
+                <div data-scrub-track className="w-full h-2.5 rounded-full bg-foreground/10 relative">
                   <div
                     ref={scrubThumbRef}
-                    className="absolute top-0 h-full rounded-full bg-foreground/30 transition-[left] duration-75"
-                    style={{ width: `${Math.max(8, 100 / Math.max(filteredCards.length, 1))}%`, left: "0%" }}
+                    className="absolute top-0 h-full rounded-full bg-foreground/40 will-change-transform"
+                    style={{ width: "16px", transform: "translateX(0px)" }}
                   />
                 </div>
               </div>
@@ -601,7 +622,7 @@ export default function PickScreen({
               </div>
 
               {/* Card name — updated via ref, no React re-render */}
-              <p ref={nameRef} className="text-sm font-semibold text-foreground text-center leading-tight truncate max-w-full">
+              <p ref={nameRef} className="text-base font-semibold text-foreground text-center leading-tight truncate max-w-full">
                 {filteredCards[0]?.name ?? ""}
               </p>
 

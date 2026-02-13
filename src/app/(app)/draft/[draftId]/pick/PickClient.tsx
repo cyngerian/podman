@@ -16,6 +16,7 @@ import { makePickAction, autoPickAction } from "../actions";
 
 interface PickClientProps {
   draftId: string;
+  setCode: string | null;
   setName: string | null;
   startedAt: number | null;
   packCards: CardReference[];
@@ -33,6 +34,7 @@ interface PickClientProps {
 
 export default function PickClient({
   draftId,
+  setCode,
   setName,
   startedAt,
   packCards: initialPackCards,
@@ -220,6 +222,7 @@ export default function PickClient({
 
   return (
     <PickScreen
+      setCode={setCode}
       setName={setName}
       startedAt={startedAt}
       packCards={packCards}

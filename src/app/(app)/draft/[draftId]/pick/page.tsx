@@ -40,6 +40,7 @@ export default async function PickPage({
     <PickClient
       key={seat.packReceivedAt ?? "waiting"}
       draftId={draftId}
+      setCode={draft.setCode}
       setName={draft.setName}
       startedAt={draft.startedAt}
       packCards={seat.currentPack?.cards ?? []}
