@@ -97,6 +97,65 @@ function getBorderClass(colors: string[]): string {
   return `card-border-${colors[0]}`;
 }
 
+const LONG_PRESS_MS = 500;
+
+function LongPressPickButton({ onPick }: { onPick: () => void }) {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fillRef = useRef<HTMLDivElement>(null);
+  const [pressing, setPressing] = useState(false);
+
+  const start = useCallback(() => {
+    setPressing(true);
+    if (fillRef.current) {
+      fillRef.current.style.transition = `width ${LONG_PRESS_MS}ms linear`;
+      fillRef.current.style.width = "100%";
+    }
+    timerRef.current = setTimeout(() => {
+      onPick();
+      cancel();
+    }, LONG_PRESS_MS);
+  }, [onPick]);
+
+  const cancel = useCallback(() => {
+    setPressing(false);
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+    if (fillRef.current) {
+      fillRef.current.style.transition = "width 150ms ease-out";
+      fillRef.current.style.width = "0%";
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, []);
+
+  return (
+    <button
+      type="button"
+      onTouchStart={start}
+      onTouchEnd={cancel}
+      onTouchCancel={cancel}
+      onMouseDown={start}
+      onMouseUp={cancel}
+      onMouseLeave={cancel}
+      className={`
+        relative w-full max-w-[320px] py-3 rounded-xl overflow-hidden
+        bg-accent/30 text-white font-bold text-base tracking-wide
+        select-none
+        ${pressing ? "scale-[0.97]" : ""}
+        transition-transform duration-100
+      `}
+    >
+      <div
+        ref={fillRef}
+        className="absolute inset-0 bg-accent rounded-xl"
+        style={{ width: "0%", transition: "width 150ms ease-out" }}
+      />
+      <span className="relative z-10">HOLD TO PICK</span>
+    </button>
+  );
+}
+
 export default function PickScreen({
   setCode,
   setName,
@@ -562,7 +621,7 @@ export default function PickScreen({
         ) : (
           <>
             {/* Carousel */}
-            <div className="flex-1 flex items-center min-h-0 relative" style={{ marginTop: "-20px" }}>
+            <div className="flex-1 flex items-center min-h-0 relative" style={{ marginTop: "-40px" }}>
               {/* Transform container — no native scroll, all movement via JS transforms */}
               <div
                 ref={scrollRef}
@@ -616,7 +675,7 @@ export default function PickScreen({
             {/* Scrub bar — thicker, tight under carousel. Hidden for single card. */}
             <div
               ref={scrubBarRef}
-              className={`shrink-0 px-6 -mt-6 ${filteredCards.length <= 1 ? "invisible" : ""}`}
+              className={`shrink-0 px-6 -mt-10 ${filteredCards.length <= 1 ? "invisible" : ""}`}
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 const progress = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
@@ -651,7 +710,7 @@ export default function PickScreen({
             </div>
 
             {/* Card name + Pick button */}
-            <div className="shrink-0 px-4 pb-2 flex flex-col items-center gap-2">
+            <div className="shrink-0 px-4 pb-2 flex flex-col items-center gap-1">
 
               {/* Card name line: counter left, name center, grid button right */}
               <div className="flex items-center w-full gap-2">
@@ -664,10 +723,10 @@ export default function PickScreen({
                 <button
                   type="button"
                   onClick={() => setShowGridView(true)}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-surface text-foreground/60 hover:text-foreground/80 transition-colors border border-border shrink-0"
+                  className="flex items-center justify-center shrink-0 w-10 h-10 rounded-lg bg-surface text-foreground/60 hover:text-foreground/80 transition-colors border border-border"
                   aria-label="View all cards"
                 >
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                  <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
                     <rect x="0" y="0" width="4.5" height="4.5" rx="1" />
                     <rect x="5.75" y="0" width="4.5" height="4.5" rx="1" />
                     <rect x="11.5" y="0" width="4.5" height="4.5" rx="1" />
@@ -681,19 +740,11 @@ export default function PickScreen({
                 </button>
               </div>
 
-              {/* Pick button */}
-              <button
-                type="button"
-                onClick={handleCarouselPick}
-                className="
-                  w-full max-w-[320px] py-3 rounded-xl
-                  bg-accent text-white font-bold text-base tracking-wide
-                  active:scale-[0.97] transition-all duration-100
-                  hover:bg-accent-hover
-                "
-              >
-                PICK THIS CARD
-              </button>
+              {/* Spacer between card name and pick button */}
+              <div className="h-4" />
+
+              {/* Pick button — long-press to confirm */}
+              <LongPressPickButton onPick={handleCarouselPick} />
             </div>
           </>
         )}
