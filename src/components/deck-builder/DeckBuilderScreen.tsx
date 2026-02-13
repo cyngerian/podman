@@ -330,23 +330,28 @@ export default function DeckBuilderScreen({
           )}
         </section>
 
+        {/* ---- Color Breakdown ---- */}
+        {colorPercentages && (
+          <section>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-foreground/60 mb-2">
+              Color Breakdown
+            </h2>
+            <div className="flex items-center justify-between">
+              {colorPercentages.map(({ color, pct }) => (
+                <span key={color} className="flex items-center gap-1.5 text-sm text-foreground/70">
+                  <i className={MANA_ICON_CLASS[color]} style={{ fontSize: "16px" }} />
+                  <span>{pct}%</span>
+                </span>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* ---- Basic Lands Section ---- */}
         <section>
           <h2 className="text-xs font-bold uppercase tracking-wider text-foreground/60 mb-3">
             Basic Lands ({totalLands})
           </h2>
-
-          {/* Color percentages */}
-          {colorPercentages && (
-            <div className="flex items-center gap-3 mb-3 flex-wrap">
-              {colorPercentages.map(({ color, pct }) => (
-                <span key={color} className="flex items-center gap-1 text-xs text-foreground/60">
-                  <i className={MANA_ICON_CLASS[color]} style={{ fontSize: "14px" }} />
-                  <span>{pct}%</span>
-                </span>
-              ))}
-            </div>
-          )}
 
           <div className="space-y-2">
             {MANA_COLORS.map((color) => (
@@ -404,17 +409,24 @@ export default function DeckBuilderScreen({
           )}
         </section>
 
-        {/* ---- Deck Stats + Mana Curve ---- */}
+        {/* ---- Card Types ---- */}
         <section>
           <h2 className="text-xs font-bold uppercase tracking-wider text-foreground/60 mb-2">
-            Deck Stats
+            Card Types
           </h2>
-          <div className="bg-surface rounded-lg p-3 space-y-3">
-            <div className="flex items-center justify-center gap-6 text-sm text-foreground/70">
-              <span>{creatureCount} creatures</span>
-              <span className="text-foreground/20">|</span>
-              <span>{nonCreatureCount} other spells</span>
-            </div>
+          <div className="bg-surface rounded-lg p-3 flex items-center justify-center gap-6 text-sm text-foreground/70">
+            <span>{creatureCount} creatures</span>
+            <span className="text-foreground/20">|</span>
+            <span>{nonCreatureCount} other spells</span>
+          </div>
+        </section>
+
+        {/* ---- Mana Curve ---- */}
+        <section>
+          <h2 className="text-xs font-bold uppercase tracking-wider text-foreground/60 mb-2">
+            Mana Curve
+          </h2>
+          <div className="bg-surface rounded-lg p-3">
             <ManaCurve cards={deck} />
           </div>
         </section>
