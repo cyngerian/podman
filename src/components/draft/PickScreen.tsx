@@ -71,10 +71,12 @@ export default function PickScreen({
   const [showPickedDrawer, setShowPickedDrawer] = useState(false);
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const nameRef = useRef<HTMLParagraphElement>(null);
   const counterRef = useRef<HTMLSpanElement>(null);
   const scrubThumbRef = useRef<HTMLDivElement>(null);
+  const snapToCardRef = useRef<(index: number) => void>(() => {});
 
   const filteredCards = packCards.filter((card) => matchesFilter(card, filterMode));
 
@@ -85,55 +87,90 @@ export default function PickScreen({
   const SCROLL_INACTIVE_SCALE = 0.55; // distant cards shrink significantly
   const CARD_PULL_PX = 28; // max translateX pull toward center per distance unit
 
-  // Track active card + apply scale transforms based on scroll position.
-  // Uses rAF polling loop for perfect sync with display refresh (fixes 120Hz flicker).
+  // Pure transform carousel — no native scroll. All card movement driven by
+  // JS touch handlers + rAF physics loop. Eliminates compositor/main-thread
+  // timing mismatch that causes flicker on 120Hz displays.
   const activeIndexRef = useRef(0);
 
   useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    let rafId = 0;
-    let running = true;
-    let isTouching = false;
-    let isSnapping = false;
-    let lastScrollLeft = -1;
-    let idleFrames = 0;
-    const SNAP_IDLE_FRAMES = 12; // ~100ms at 120Hz
+    const container = scrollRef.current;
+    const wrapper = wrapperRef.current;
+    if (!container || !wrapper || filteredCards.length === 0) return;
 
-    // Cache layout values — none of these change during scroll
-    const halfContainer = el.offsetWidth / 2;
-    const maxDist = el.offsetWidth * 0.45;
-    const maxScroll = el.scrollWidth - el.clientWidth;
+    let running = true;
+    let rafId = 0;
+
+    // Layout cache
+    const containerWidth = container.offsetWidth;
+    const halfContainer = containerWidth / 2;
+    const maxDist = containerWidth * 0.45;
     const scaleRange = SCROLL_ACTIVE_SCALE - SCROLL_INACTIVE_SCALE;
+
     const cardCenters: number[] = [];
     cardRefs.current.forEach((cardEl) => {
       if (!cardEl) { cardCenters.push(0); return; }
       cardCenters.push(cardEl.offsetLeft + cardEl.offsetWidth / 2);
     });
 
-    const updateCards = (scrollLeft: number) => {
-      const containerCenter = scrollLeft + halfContainer;
+    const minOffset = cardCenters[0] ?? 0;
+    const maxOffset = cardCenters[cardCenters.length - 1] ?? 0;
+    const offsetRange = maxOffset - minOffset;
+
+    // Physics state
+    let offset = cardCenters[0] ?? 0; // center on first card
+    let velocity = 0; // px/ms
+    let snapTarget: number | null = null;
+    let isDragging = false;
+    let lastTouchX = 0;
+    let lastFrameTime = performance.now();
+    const touchHistory: { x: number; t: number }[] = [];
+
+    // Physics constants
+    const FRICTION_PER_MS = 0.9975; // ~0.96 per 16ms frame
+    const SNAP_VEL_THRESHOLD = 0.03; // px/ms — below this, snap to nearest
+    const SNAP_SETTLE = 0.5; // px — snap animation done when this close
+    const RUBBER_BAND = 0.3; // overscroll resistance during drag
+
+    const clampOffset = (v: number) => Math.max(minOffset, Math.min(maxOffset, v));
+
+    const rubberBand = (v: number): number => {
+      if (v < minOffset) return minOffset + (v - minOffset) * RUBBER_BAND;
+      if (v > maxOffset) return maxOffset + (v - maxOffset) * RUBBER_BAND;
+      return v;
+    };
+
+    const findNearestCard = (pos: number): number => {
+      let closest = cardCenters[0];
+      let closestDist = Infinity;
+      for (const center of cardCenters) {
+        const d = Math.abs(pos - center);
+        if (d < closestDist) { closestDist = d; closest = center; }
+      }
+      return closest;
+    };
+
+    const updateVisuals = () => {
+      // Wrapper position — offset is the point in wrapper-space at screen center
+      wrapper.style.transform = `translate3d(${halfContainer - offset}px, 0, 0)`;
+
+      // Per-card transforms
       let closestIdx = 0;
       let closestDist = Infinity;
 
       for (let i = 0; i < cardRefs.current.length; i++) {
         const cardEl = cardRefs.current[i];
         if (!cardEl) continue;
-        const cardCenter = cardCenters[i];
-        const dist = Math.abs(containerCenter - cardCenter);
+        const dist = Math.abs(offset - cardCenters[i]);
         const t = Math.min(dist / maxDist, 1);
         const scale = Math.round((SCROLL_ACTIVE_SCALE - t * scaleRange) * 1000) / 1000;
-        const pull = dist < 1 ? 0 : Math.round(Math.sign(containerCenter - cardCenter) * t * CARD_PULL_PX * 10) / 10;
+        const pull = dist < 1 ? 0 : Math.round(Math.sign(offset - cardCenters[i]) * t * CARD_PULL_PX * 10) / 10;
 
         const inner = cardEl.firstElementChild as HTMLElement | null;
         if (inner) {
           inner.style.transform = `translate3d(${pull}px,0,0) scale3d(${scale},${scale},1)`;
         }
 
-        if (dist < closestDist) {
-          closestDist = dist;
-          closestIdx = i;
-        }
+        if (dist < closestDist) { closestDist = dist; closestIdx = i; }
       }
 
       // Update zIndex + UI text only when active card changes
@@ -147,87 +184,129 @@ export default function PickScreen({
         if (nameRef.current) nameRef.current.textContent = filteredCards[closestIdx]?.name ?? "";
       }
 
-      // Update scrub bar position
-      if (scrubThumbRef.current && maxScroll > 0) {
-        const progress = scrollLeft / maxScroll;
+      // Scrub bar
+      if (scrubThumbRef.current && offsetRange > 0) {
+        const progress = (offset - minOffset) / offsetRange;
         scrubThumbRef.current.style.left = `${progress * 100}%`;
       }
     };
 
-    const snapToNearest = () => {
-      const containerCenter = el.scrollLeft + halfContainer;
-      let closestOffset = el.scrollLeft;
-      let closestDist = Infinity;
-
-      for (let i = 0; i < cardCenters.length; i++) {
-        const dist = Math.abs(containerCenter - cardCenters[i]);
-        if (dist < closestDist) {
-          closestDist = dist;
-          closestOffset = cardCenters[i] - halfContainer;
-        }
-      }
-
-      if (closestDist < 3) return;
-      isSnapping = true;
-      el.scrollTo({ left: closestOffset, behavior: "smooth" });
-      setTimeout(() => { isSnapping = false; }, 350);
+    // Expose snap-to-card for scrub bar
+    snapToCardRef.current = (idx: number) => {
+      velocity = 0;
+      snapTarget = cardCenters[Math.max(0, Math.min(idx, cardCenters.length - 1))];
     };
 
-    // Continuous rAF loop — checks scrollLeft every frame for perfect
-    // display sync. Only does work when scroll position actually changed.
+    // --- Touch handlers ---
+    const onTouchStart = (e: TouchEvent) => {
+      isDragging = true;
+      velocity = 0;
+      snapTarget = null;
+      lastTouchX = e.touches[0].clientX;
+      touchHistory.length = 0;
+      touchHistory.push({ x: lastTouchX, t: performance.now() });
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      e.preventDefault(); // we own all touch behavior
+      const x = e.touches[0].clientX;
+      const dx = x - lastTouchX;
+      lastTouchX = x;
+      offset = rubberBand(offset - dx); // drag right → offset decreases → earlier cards
+
+      const now = performance.now();
+      touchHistory.push({ x, t: now });
+      if (touchHistory.length > 5) touchHistory.shift();
+    };
+
+    const onTouchEnd = () => {
+      isDragging = false;
+
+      // Snap back from rubber band overscroll
+      if (offset < minOffset || offset > maxOffset) {
+        velocity = 0;
+        snapTarget = offset < minOffset ? minOffset : maxOffset;
+        return;
+      }
+
+      // Compute velocity from touch history
+      if (touchHistory.length >= 2) {
+        const last = touchHistory[touchHistory.length - 1];
+        let ref = touchHistory[0];
+        const now = performance.now();
+        for (let i = touchHistory.length - 2; i >= 0; i--) {
+          if (now - touchHistory[i].t > 50) { ref = touchHistory[i]; break; }
+        }
+        const dt = last.t - ref.t;
+        if (dt > 0) velocity = -(last.x - ref.x) / dt; // px/ms
+      }
+
+      // If velocity too low, snap immediately
+      if (Math.abs(velocity) < SNAP_VEL_THRESHOLD) {
+        velocity = 0;
+        snapTarget = findNearestCard(offset);
+      }
+    };
+
+    // --- rAF loop ---
     const tick = () => {
       if (!running) return;
-      const scrollLeft = el.scrollLeft;
-      if (scrollLeft !== lastScrollLeft) {
-        lastScrollLeft = scrollLeft;
-        idleFrames = 0;
-        updateCards(scrollLeft);
-      } else if (!isTouching && !isSnapping) {
-        idleFrames++;
-        if (idleFrames === SNAP_IDLE_FRAMES) {
-          snapToNearest();
+      const now = performance.now();
+      const dt = Math.min(now - lastFrameTime, 32); // cap at ~30fps min
+      lastFrameTime = now;
+
+      if (!isDragging) {
+        if (snapTarget !== null) {
+          // Snap animation — frame-rate independent lerp
+          const diff = snapTarget - offset;
+          offset += diff * (1 - Math.pow(0.85, dt / 16.67));
+          if (Math.abs(diff) < SNAP_SETTLE) {
+            offset = snapTarget;
+            snapTarget = null;
+          }
+        } else if (Math.abs(velocity) > 0.001) {
+          // Momentum — frame-rate independent friction
+          offset += velocity * dt;
+          velocity *= Math.pow(FRICTION_PER_MS, dt);
+          offset = clampOffset(offset);
+
+          if (Math.abs(velocity) < SNAP_VEL_THRESHOLD) {
+            velocity = 0;
+            snapTarget = findNearestCard(offset);
+          }
         }
       }
+
+      updateVisuals();
       rafId = requestAnimationFrame(tick);
     };
 
-    const onTouchStart = () => {
-      isTouching = true;
-      isSnapping = false;
-      idleFrames = 0;
-    };
-    const onTouchEnd = () => {
-      isTouching = false;
-      idleFrames = 0;
-    };
-
     // Initial state
-    updateCards(el.scrollLeft);
-    lastScrollLeft = el.scrollLeft;
+    updateVisuals();
     for (let i = 0; i < cardRefs.current.length; i++) {
       const cardEl = cardRefs.current[i];
-      if (cardEl) cardEl.style.zIndex = `${100 - Math.abs(i - activeIndexRef.current) * 10}`;
+      if (cardEl) cardEl.style.zIndex = `${100 - Math.abs(i) * 10}`;
     }
 
-    // Start rAF loop + touch listeners
+    // Start loop + listeners
     rafId = requestAnimationFrame(tick);
-    el.addEventListener("touchstart", onTouchStart, { passive: true });
-    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    container.addEventListener("touchstart", onTouchStart, { passive: true });
+    container.addEventListener("touchmove", onTouchMove, { passive: false });
+    container.addEventListener("touchend", onTouchEnd, { passive: true });
+
     return () => {
       running = false;
       cancelAnimationFrame(rafId);
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchend", onTouchEnd);
+      container.removeEventListener("touchstart", onTouchStart);
+      container.removeEventListener("touchmove", onTouchMove);
+      container.removeEventListener("touchend", onTouchEnd);
     };
-  }, [filteredCards.length]);
+  }, [filteredCards.length, filterMode]);
 
-  // Reset active index when filter changes
+  // Reset active index when filter changes (main useEffect re-runs and re-initializes offset)
   useEffect(() => {
     activeIndexRef.current = 0;
-    if (scrollRef.current) scrollRef.current.scrollLeft = 0;
-    if (counterRef.current) counterRef.current.textContent = `1 / ${filteredCards.length}`;
-    if (nameRef.current) nameRef.current.textContent = filteredCards[0]?.name ?? "";
-  }, [filterMode, filteredCards]);
+  }, [filterMode]);
 
   const handleCardClick = useCallback((card: CardReference) => {
     setSelectedCard(card);
@@ -329,48 +408,52 @@ export default function PickScreen({
           <>
             {/* Carousel */}
             <div className="flex-1 flex items-center min-h-0 relative">
-              {/* Scroll container — cards are big by default, inactive ones shrink */}
+              {/* Transform container — no native scroll, all movement via JS transforms */}
               <div
                 ref={scrollRef}
-                className="flex overflow-x-auto w-full py-8 no-scrollbar items-center"
-                style={{ paddingLeft: `${(100 - CARD_WIDTH_VW) / 2}vw`, paddingRight: `${(100 - CARD_WIDTH_VW) / 2}vw`, touchAction: "pan-x", scrollSnapType: "x mandatory", overscrollBehavior: "contain" }}
+                className="w-full overflow-hidden"
+                style={{ touchAction: "none" }}
               >
-                {filteredCards.map((card, i) => (
-                  <div
-                    key={card.scryfallId}
-                    ref={(el) => { cardRefs.current[i] = el; }}
-                    className="shrink-0"
-                    style={{
-                      width: `${CARD_WIDTH_VW}vw`,
-                      maxWidth: "400px",
-                      marginLeft: i === 0 ? 0 : `${CARD_OVERLAP_PX}px`,
-                      scrollSnapAlign: "center",
-                    }}
-                  >
-                    {/* Inner transform wrapper — GPU-composited via will-change,
-                        separated from snap target (outer div) to avoid interference.
-                        Initial transform ensures compositor layer exists from first paint. */}
-                    <div className="will-change-transform" style={{ transform: "translate3d(0,0,0) scale3d(1,1,1)" }}>
-                      <div
-                        className={`relative card-aspect rounded-xl overflow-hidden border-2 shadow-lg ${getBorderClass(card.colors)}`}
-                      >
-                        <Image
-                          src={card.imageUri}
-                          alt={card.name}
-                          fill
-                          sizes="72vw"
-                          className="object-cover"
-                          priority={i < 3}
-                        />
-                        {card.isFoil && (
-                          <span className="absolute top-1 right-1 text-sm drop-shadow-md">
-                            ✦
-                          </span>
-                        )}
+                <div
+                  ref={wrapperRef}
+                  className="flex items-center py-8 will-change-transform"
+                  style={{ transform: "translate3d(0,0,0)" }}
+                >
+                  {filteredCards.map((card, i) => (
+                    <div
+                      key={card.scryfallId}
+                      ref={(el) => { cardRefs.current[i] = el; }}
+                      className="shrink-0"
+                      style={{
+                        width: `${CARD_WIDTH_VW}vw`,
+                        maxWidth: "400px",
+                        marginLeft: i === 0 ? 0 : `${CARD_OVERLAP_PX}px`,
+                      }}
+                    >
+                      {/* Inner transform wrapper — GPU-composited, initial transform
+                          ensures compositor layer exists from first paint */}
+                      <div className="will-change-transform" style={{ transform: "translate3d(0,0,0) scale3d(1,1,1)" }}>
+                        <div
+                          className={`relative card-aspect rounded-xl overflow-hidden border-2 shadow-lg ${getBorderClass(card.colors)}`}
+                        >
+                          <Image
+                            src={card.imageUri}
+                            alt={card.name}
+                            fill
+                            sizes="72vw"
+                            className="object-cover"
+                            priority={i < 3}
+                          />
+                          {card.isFoil && (
+                            <span className="absolute top-1 right-1 text-sm drop-shadow-md">
+                              ✦
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
 
             </div>
@@ -379,11 +462,10 @@ export default function PickScreen({
             <div
               className="shrink-0 px-8 -mt-3 mb-1"
               onClick={(e) => {
-                const el = scrollRef.current;
-                if (!el) return;
                 const rect = e.currentTarget.getBoundingClientRect();
                 const progress = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                el.scrollTo({ left: progress * (el.scrollWidth - el.clientWidth), behavior: "smooth" });
+                const targetIdx = Math.round(progress * (filteredCards.length - 1));
+                snapToCardRef.current(targetIdx);
               }}
             >
               <div className="w-full h-6 flex items-center cursor-pointer">
