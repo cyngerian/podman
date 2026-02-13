@@ -621,7 +621,7 @@ export default function PickScreen({
         ) : (
           <>
             {/* Carousel */}
-            <div className="flex-1 flex items-center min-h-0 relative" style={{ marginTop: "-40px" }}>
+            <div className="flex-1 flex items-center min-h-0 relative" style={{ marginTop: "-35px" }}>
               {/* Transform container — no native scroll, all movement via JS transforms */}
               <div
                 ref={scrollRef}
@@ -710,7 +710,7 @@ export default function PickScreen({
             </div>
 
             {/* Card name + Pick button */}
-            <div className="shrink-0 px-4 pb-2 flex flex-col items-center gap-1">
+            <div className="shrink-0 px-4 flex flex-col items-center gap-1" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 4px)" }}>
 
               {/* Card name line: counter left, name center, grid button right */}
               <div className="flex items-center w-full gap-2">
@@ -739,9 +739,6 @@ export default function PickScreen({
                   </svg>
                 </button>
               </div>
-
-              {/* Spacer between card name and pick button */}
-              <div className="h-4" />
 
               {/* Pick button — long-press to confirm */}
               <LongPressPickButton onPick={handleCarouselPick} />
