@@ -84,13 +84,16 @@ export default function PickScreen({
   const CARD_PULL_PX = 28; // max translateX pull toward center per distance unit
 
   // Track active card + apply scale transforms based on scroll position.
-  // Cards are big by default (scale 1.0) and shrink when off-center.
+  // JS-based snap: after touch ends and momentum stops, scroll to nearest card.
   const activeIndexRef = useRef(0);
+  const snapTimeoutRef = useRef<ReturnType<typeof setTimeout>>(0 as never);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     let rafId = 0;
+    let isTouching = false;
+    let isSnapping = false;
 
     const updateCards = () => {
       const containerCenter = el.scrollLeft + el.offsetWidth / 2;
@@ -123,18 +126,59 @@ export default function PickScreen({
       }
     };
 
+    const snapToNearest = () => {
+      const containerCenter = el.scrollLeft + el.offsetWidth / 2;
+      let closestOffset = el.scrollLeft;
+      let closestDist = Infinity;
+
+      cardRefs.current.forEach((cardEl) => {
+        if (!cardEl) return;
+        const cardCenter = cardEl.offsetLeft + cardEl.offsetWidth / 2;
+        const dist = Math.abs(containerCenter - cardCenter);
+        if (dist < closestDist) {
+          closestDist = dist;
+          closestOffset = cardCenter - el.offsetWidth / 2;
+        }
+      });
+
+      isSnapping = true;
+      el.scrollTo({ left: closestOffset, behavior: "smooth" });
+      // Reset after smooth scroll completes
+      setTimeout(() => { isSnapping = false; }, 350);
+    };
+
     const onScroll = () => {
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(updateCards);
+      // Schedule snap after scrolling stops (only when finger is up)
+      if (!isTouching && !isSnapping) {
+        clearTimeout(snapTimeoutRef.current);
+        snapTimeoutRef.current = setTimeout(snapToNearest, 100);
+      }
+    };
+
+    const onTouchStart = () => {
+      isTouching = true;
+      isSnapping = false;
+      clearTimeout(snapTimeoutRef.current);
+    };
+
+    const onTouchEnd = () => {
+      isTouching = false;
     };
 
     // Initial state
     updateCards();
 
     el.addEventListener("scroll", onScroll, { passive: true });
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
     return () => {
       el.removeEventListener("scroll", onScroll);
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchend", onTouchEnd);
       cancelAnimationFrame(rafId);
+      clearTimeout(snapTimeoutRef.current);
     };
   }, [filteredCards.length]);
 
@@ -222,14 +266,14 @@ export default function PickScreen({
               {/* Scroll container — cards are big by default, inactive ones shrink */}
               <div
                 ref={scrollRef}
-                className="flex overflow-x-auto snap-x snap-mandatory w-full py-8 no-scrollbar items-center"
+                className="flex overflow-x-auto w-full py-8 no-scrollbar items-center"
                 style={{ paddingLeft: `${(100 - CARD_WIDTH_VW) / 2}vw`, paddingRight: `${(100 - CARD_WIDTH_VW) / 2}vw`, touchAction: "pan-x" }}
               >
                 {filteredCards.map((card, i) => (
                   <div
                     key={card.scryfallId}
                     ref={(el) => { cardRefs.current[i] = el; }}
-                    className="snap-center snap-always shrink-0"
+                    className="shrink-0"
                     style={{
                       width: `${CARD_WIDTH_VW}vw`,
                       maxWidth: "400px",
