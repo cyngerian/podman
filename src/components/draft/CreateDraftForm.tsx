@@ -146,8 +146,8 @@ export default function CreateDraftForm({ onSubmit, mode = "propose" }: CreateDr
       packsPerPlayer: effectivePacksPerPlayer,
       mixedPacks: effectiveMixedPacks,
       packSets: effectivePackSets,
-      timerPreset: isSimulate ? "none" : (pacingMode === "realtime" ? timerPreset : "none"),
-      reviewPeriodSeconds: isSimulate ? 0 : (pacingMode === "realtime" ? reviewPeriodSeconds : 0),
+      timerPreset: (isSimulate || pacingMode === "realtime") ? timerPreset : "none",
+      reviewPeriodSeconds: (isSimulate || pacingMode === "realtime") ? reviewPeriodSeconds : 0,
       asyncDeadlineMinutes: isSimulate ? null : (pacingMode === "async" ? asyncDeadlineMinutes : null),
       deckBuildingEnabled,
       pickHistoryPublic: isSimulate ? true : pickHistoryPublic,
@@ -470,8 +470,8 @@ export default function CreateDraftForm({ onSubmit, mode = "propose" }: CreateDr
         </div>
       </fieldset>}
 
-      {/* ── Timer Preset (realtime, hidden in simulate mode) ── */}
-      {!isSimulate && pacingMode === "realtime" && (
+      {/* ── Timer Preset (realtime or simulate mode) ── */}
+      {(isSimulate || pacingMode === "realtime") && (
         <fieldset>
           <legend className="text-sm font-medium text-foreground/70 uppercase tracking-wide mb-3">
             Timer Preset
@@ -498,8 +498,8 @@ export default function CreateDraftForm({ onSubmit, mode = "propose" }: CreateDr
         </fieldset>
       )}
 
-      {/* ── Review Period (realtime, hidden in simulate mode) ── */}
-      {!isSimulate && pacingMode === "realtime" && (
+      {/* ── Review Period (realtime or simulate mode) ── */}
+      {(isSimulate || pacingMode === "realtime") && (
         <fieldset>
           <legend className="text-sm font-medium text-foreground/70 uppercase tracking-wide mb-3">
             Review Period
