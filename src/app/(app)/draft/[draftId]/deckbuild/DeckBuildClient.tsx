@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { CardReference, BasicLandCounts } from "@/lib/types";
 import DeckBuilderScreen from "@/components/deck-builder/DeckBuilderScreen";
 import { useRealtimeChannel } from "@/hooks/useRealtimeChannel";
-import { submitDeckAction, skipDeckBuildingAction } from "../actions";
+import { submitDeckAction, skipDeckBuildingAction, saveDeckAction } from "../actions";
 
 interface DeckBuildClientProps {
   draftId: string;
@@ -25,7 +25,7 @@ export default function DeckBuildClient({
   suggestedLands,
 }: DeckBuildClientProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   // Subscribe to draft state changes
   useRealtimeChannel(
@@ -77,6 +77,15 @@ export default function DeckBuildClient({
     });
   }, [draftId, router]);
 
+  const handleDeckChange = useCallback(
+    (deck: CardReference[], sideboard: CardReference[], lands: BasicLandCounts) => {
+      saveDeckAction(draftId, deck, sideboard, lands).catch(() => {
+        // Silent save failure — non-critical
+      });
+    },
+    [draftId]
+  );
+
   return (
     <DeckBuilderScreen
       pool={pool}
@@ -86,6 +95,7 @@ export default function DeckBuildClient({
       suggestedLands={suggestedLands}
       onSubmitDeck={handleSubmitDeck}
       onSkip={handleSkip}
+      onDeckChange={handleDeckChange}
     />
   );
 }

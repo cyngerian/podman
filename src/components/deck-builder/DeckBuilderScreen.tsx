@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import Image from "next/image";
 import type { CardReference, BasicLandCounts, ManaColor } from "@/lib/types";
 import { MANA_COLORS } from "@/lib/types";
@@ -23,6 +23,11 @@ interface DeckBuilderScreenProps {
     lands: BasicLandCounts
   ) => void;
   onSkip?: () => void;
+  onDeckChange?: (
+    deck: CardReference[],
+    sideboard: CardReference[],
+    lands: BasicLandCounts
+  ) => void;
 }
 
 // --- Helpers ---
@@ -107,6 +112,7 @@ export default function DeckBuilderScreen({
   suggestedLands,
   onSubmitDeck,
   onSkip,
+  onDeckChange,
 }: DeckBuilderScreenProps) {
   const [deck, setDeck] = useState<CardReference[]>(initialDeck ?? []);
   const [sideboard, setSideboard] = useState<CardReference[]>(
@@ -152,6 +158,29 @@ export default function DeckBuilderScreen({
       .map((c) => ({ color: c, pct: Math.round((counts[c] / total) * 100) }))
       .filter((x) => x.pct > 0);
   }, [deck]);
+
+  // --- Auto-save on change (debounced) ---
+
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isInitialRef = useRef(true);
+
+  useEffect(() => {
+    // Skip the initial render
+    if (isInitialRef.current) {
+      isInitialRef.current = false;
+      return;
+    }
+    if (!onDeckChange) return;
+
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      onDeckChange(deck, sideboard, lands);
+    }, 1000);
+
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [deck, sideboard, lands, onDeckChange]);
 
   // --- Actions ---
 
@@ -204,6 +233,15 @@ export default function DeckBuilderScreen({
     setError(null);
     onSubmitDeck(deck, sideboard, lands);
   }, [mainCount, deck, sideboard, lands, totalLands, onSubmitDeck]);
+
+  const resetSideboard = useCallback(() => {
+    setSideboard((prev) => {
+      if (prev.length === 0) return prev;
+      setDeck((d) => [...d, ...prev]);
+      return [];
+    });
+    setError(null);
+  }, []);
 
   const handlePreviewMove = useCallback(() => {
     if (!previewState) return;
@@ -290,22 +328,33 @@ export default function DeckBuilderScreen({
 
         {/* ---- Sideboard Section (collapsible) ---- */}
         <section>
-          <button
-            type="button"
-            onClick={() => setSideboardOpen((v) => !v)}
-            className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-foreground/60 mb-2 w-full"
-          >
-            <svg
-              className={`w-3.5 h-3.5 transition-transform ${sideboardOpen ? "rotate-90" : ""}`}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
+          <div className="flex items-center gap-2 mb-2">
+            <button
+              type="button"
+              onClick={() => setSideboardOpen((v) => !v)}
+              className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-foreground/60 flex-1"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-            Sideboard ({sideboard.length} cards)
-          </button>
+              <svg
+                className={`w-3.5 h-3.5 transition-transform ${sideboardOpen ? "rotate-90" : ""}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+              Sideboard ({sideboard.length} cards)
+            </button>
+            {sideboard.length > 0 && (
+              <button
+                type="button"
+                onClick={resetSideboard}
+                className="text-xs text-accent font-medium hover:text-accent-hover transition-colors"
+              >
+                Move all to deck
+              </button>
+            )}
+          </div>
           {sideboardOpen && (
             <>
               {sortedSideboard.length === 0 ? (

@@ -720,3 +720,33 @@ export async function editDeckAction(draftId: string) {
 
   if (!result.success) throw new Error(result.error ?? "Edit deck failed");
 }
+
+export async function saveDeckAction(
+  draftId: string,
+  deck: CardReference[],
+  sideboard: CardReference[],
+  lands: { W: number; U: number; B: number; R: number; G: number }
+) {
+  const user = await getAuthenticatedUser();
+
+  const result = await applyDraftMutation(
+    draftId,
+    (draft) => {
+      if (draft.status !== "deck_building") {
+        throw new Error("Draft is not in deck building phase");
+      }
+      const seat = draft.seats.find((s) => s.userId === user.id);
+      if (!seat) throw new Error("You are not in this draft");
+
+      const newSeats = draft.seats.map((s) =>
+        s.userId === user.id
+          ? { ...s, deck, sideboard, basicLands: lands }
+          : s
+      );
+
+      return { ...draft, seats: newSeats };
+    }
+  );
+
+  if (!result.success) throw new Error(result.error ?? "Save failed");
+}
