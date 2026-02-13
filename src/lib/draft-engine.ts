@@ -1056,6 +1056,31 @@ export function submitDeck(draft: Draft, seatPosition: number): Draft {
   return updatedDraft;
 }
 
+export function unsubmitDeck(draft: Draft, seatPosition: number): Draft {
+  if (draft.status !== "deck_building" && draft.status !== "complete") {
+    throw new Error(`Cannot unsubmit deck in ${draft.status} status`);
+  }
+
+  const seat = draft.seats[seatPosition];
+  if (!seat) throw new Error(`Invalid seat position: ${seatPosition}`);
+
+  const newSeats = draft.seats.map((s) =>
+    s.position === seatPosition ? { ...s, hasSubmittedDeck: false } : s
+  );
+
+  const updatedDraft: Draft = { ...draft, seats: newSeats };
+
+  if (draft.status === "complete") {
+    return {
+      ...updatedDraft,
+      status: "deck_building",
+      completedAt: null,
+    };
+  }
+
+  return updatedDraft;
+}
+
 export function isDeckValid(seat: DraftSeat): boolean {
   const deckCards = seat.deck ? seat.deck.length : 0;
   const totalBasicLands = Object.values(seat.basicLands).reduce(

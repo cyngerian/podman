@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import type { CardReference, BasicLandCounts, ManaColor } from "@/lib/types";
 import { MANA_COLORS } from "@/lib/types";
 import CardThumbnail from "@/components/ui/CardThumbnail";
@@ -93,62 +93,8 @@ function totalLandCount(lands: BasicLandCounts): number {
   return MANA_COLORS.reduce((sum, c) => sum + lands[c], 0);
 }
 
-// --- Long Press Hook ---
-
-const LONG_PRESS_MS = 500;
-
-function useLongPress(onLongPress: () => void, onClick: () => void) {
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isLongPressRef = useRef(false);
-
-  const start = useCallback(() => {
-    isLongPressRef.current = false;
-    timerRef.current = setTimeout(() => {
-      isLongPressRef.current = true;
-      onLongPress();
-    }, LONG_PRESS_MS);
-  }, [onLongPress]);
-
-  const cancel = useCallback(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  }, []);
-
-  const end = useCallback(() => {
-    cancel();
-    if (!isLongPressRef.current) {
-      onClick();
-    }
-  }, [cancel, onClick]);
-
-  return {
-    onPointerDown: start,
-    onPointerUp: end,
-    onPointerLeave: cancel,
-    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
-  };
-}
-
-// --- Card Grid Item (with long press) ---
-
-function DeckCardItem({
-  card,
-  onTap,
-  onLongPress,
-}: {
-  card: CardReference;
-  onTap: () => void;
-  onLongPress: () => void;
-}) {
-  const handlers = useLongPress(onLongPress, onTap);
-
-  return (
-    <div {...handlers} className="touch-none select-none">
-      <CardThumbnail card={card} size="small" />
-    </div>
-  );
+function isCreature(card: CardReference): boolean {
+  return card.typeLine?.toLowerCase().includes("creature") ?? false;
 }
 
 // --- Main Component ---
@@ -170,7 +116,10 @@ export default function DeckBuilderScreen({
     initialLands ?? { ...EMPTY_LANDS }
   );
   const [sortMode, setSortMode] = useState<SortMode>("cmc");
-  const [previewCard, setPreviewCard] = useState<CardReference | null>(null);
+  const [previewState, setPreviewState] = useState<{
+    card: CardReference;
+    zone: "deck" | "sideboard";
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // --- Derived ---
@@ -182,6 +131,9 @@ export default function DeckBuilderScreen({
     () => sortCards(sideboard, sortMode),
     [sideboard, sortMode]
   );
+
+  const creatureCount = useMemo(() => deck.filter(isCreature).length, [deck]);
+  const nonCreatureCount = deck.length - creatureCount;
 
   // --- Actions ---
 
@@ -235,6 +187,17 @@ export default function DeckBuilderScreen({
     onSubmitDeck(deck, sideboard, lands);
   }, [mainCount, deck, sideboard, lands, totalLands, onSubmitDeck]);
 
+  const handlePreviewMove = useCallback(() => {
+    if (!previewState) return;
+    const { card, zone } = previewState;
+    if (zone === "deck") {
+      moveToSideboard(card);
+    } else {
+      moveToDeck(card);
+    }
+    setPreviewState(null);
+  }, [previewState, moveToSideboard, moveToDeck]);
+
   // --- Render ---
 
   return (
@@ -246,7 +209,9 @@ export default function DeckBuilderScreen({
             <h1 className="text-lg font-bold text-foreground">
               Build Your Deck
             </h1>
-            <p className="text-xs text-foreground/50">40 card minimum</p>
+            <p className="text-xs text-foreground/50">
+              {creatureCount} creatures, {nonCreatureCount} other spells
+            </p>
           </div>
           <div className="text-right">
             <p
@@ -292,13 +257,15 @@ export default function DeckBuilderScreen({
               Tap cards in the sideboard to add them to your deck.
             </p>
           ) : (
-            <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-7 md:grid-cols-9">
+            <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5 md:grid-cols-7">
               {sortedDeck.map((card, i) => (
-                <DeckCardItem
+                <CardThumbnail
                   key={`deck-${card.scryfallId}-${i}`}
                   card={card}
-                  onTap={() => moveToSideboard(card)}
-                  onLongPress={() => setPreviewCard(card)}
+                  size="medium"
+                  onClick={() =>
+                    setPreviewState({ card, zone: "deck" })
+                  }
                 />
               ))}
             </div>
@@ -315,13 +282,15 @@ export default function DeckBuilderScreen({
               All cards are in the deck.
             </p>
           ) : (
-            <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-7 md:grid-cols-9">
+            <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5 md:grid-cols-7">
               {sortedSideboard.map((card, i) => (
-                <DeckCardItem
+                <CardThumbnail
                   key={`sb-${card.scryfallId}-${i}`}
                   card={card}
-                  onTap={() => moveToDeck(card)}
-                  onLongPress={() => setPreviewCard(card)}
+                  size="medium"
+                  onClick={() =>
+                    setPreviewState({ card, zone: "sideboard" })
+                  }
                 />
               ))}
             </div>
@@ -427,27 +396,37 @@ export default function DeckBuilderScreen({
       </footer>
 
       {/* ---- Card Preview Modal ---- */}
-      {previewCard && (
+      {previewState && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
-          onClick={() => setPreviewCard(null)}
+          onClick={() => setPreviewState(null)}
           onKeyDown={(e) => {
-            if (e.key === "Escape") setPreviewCard(null);
+            if (e.key === "Escape") setPreviewState(null);
           }}
           role="dialog"
           aria-modal="true"
-          aria-label={`Preview of ${previewCard.name}`}
+          aria-label={`Preview of ${previewState.card.name}`}
         >
           <div
             onClick={(e) => e.stopPropagation()}
             onKeyDown={() => {}}
             role="presentation"
+            className="flex flex-col items-center gap-3"
           >
             <CardPreview
-              card={previewCard}
+              card={previewState.card}
               showPickButton={false}
-              onClose={() => setPreviewCard(null)}
+              onClose={() => setPreviewState(null)}
             />
+            <button
+              type="button"
+              onClick={handlePreviewMove}
+              className="w-full max-w-[300px] py-3 rounded-xl bg-surface border border-border text-foreground font-medium text-sm active:scale-[0.97] transition-all hover:bg-surface-hover"
+            >
+              {previewState.zone === "deck"
+                ? "Move to Sideboard"
+                : "Move to Deck"}
+            </button>
           </div>
         </div>
       )}

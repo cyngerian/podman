@@ -1,7 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { createServerSupabaseClient, getUser } from "@/lib/supabase-server";
 import type { Draft } from "@/lib/types";
-import PostDraftScreen from "@/components/draft/PostDraftScreen";
+import ResultsClient from "./ResultsClient";
 
 export default async function ResultsPage({
   params,
@@ -44,7 +44,8 @@ export default async function ResultsPage({
     : undefined;
 
   return (
-    <PostDraftScreen
+    <ResultsClient
+      draftId={draftId}
       pool={seat.pool}
       deck={seat.deck}
       sideboard={seat.sideboard}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import type { CardReference, BasicLandCounts, DraftPick } from "@/lib/types";
 import {
   formatDeckListText,
@@ -21,9 +21,15 @@ interface PostDraftScreenProps {
     playerName: string;
     picks: DraftPick[];
   }>;
+  onEditDeck?: () => void;
+  editingDeck?: boolean;
 }
 
 const DEFAULT_LANDS: BasicLandCounts = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+
+function isCreature(card: CardReference): boolean {
+  return card.typeLine?.toLowerCase().includes("creature") ?? false;
+}
 
 export default function PostDraftScreen({
   pool,
@@ -32,13 +38,19 @@ export default function PostDraftScreen({
   lands,
   pickHistory,
   allPlayersHistory,
+  onEditDeck,
+  editingDeck,
 }: PostDraftScreenProps) {
   const [copiedState, setCopiedState] = useState<string | null>(null);
-  const [selectedPlayer, setSelectedPlayer] = useState(0);
+  const [expandedPlayers, setExpandedPlayers] = useState<Set<number>>(new Set());
   const [showHistory, setShowHistory] = useState(false);
 
   const hasDeck = deck !== null && sideboard !== null;
   const activeLands = lands ?? DEFAULT_LANDS;
+
+  const statsCards = hasDeck ? deck! : pool;
+  const creatureCount = useMemo(() => statsCards.filter(isCreature).length, [statsCards]);
+  const nonCreatureCount = statsCards.length - creatureCount;
 
   // ---- Feedback flash ----
   const flash = useCallback((key: string) => {
@@ -74,6 +86,18 @@ export default function PostDraftScreen({
     downloadFile(text, filename, "text/plain");
     flash("text");
   }, [hasDeck, deck, sideboard, activeLands, pool, flash]);
+
+  const togglePlayer = useCallback((idx: number) => {
+    setExpandedPlayers((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) {
+        next.delete(idx);
+      } else {
+        next.add(idx);
+      }
+      return next;
+    });
+  }, []);
 
   // ---- Render helpers ----
   function renderCardGrid(cards: CardReference[], label?: string) {
@@ -144,6 +168,19 @@ export default function PostDraftScreen({
             ? `${deck!.length} cards in deck, ${sideboard!.length} in sideboard`
             : `${pool.length} cards in pool`}
         </p>
+        <p className="text-xs text-foreground/40">
+          {creatureCount} creatures, {nonCreatureCount} other spells
+        </p>
+        {onEditDeck && (
+          <button
+            type="button"
+            onClick={onEditDeck}
+            disabled={editingDeck}
+            className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-surface border border-border text-sm font-medium text-foreground hover:bg-surface-hover active:scale-[0.97] transition-all disabled:opacity-50"
+          >
+            {editingDeck ? "Opening..." : "Edit Deck"}
+          </button>
+        )}
       </div>
 
       {/* Card Grid */}
@@ -210,39 +247,48 @@ export default function PostDraftScreen({
         </section>
       )}
 
-      {/* All Players' Picks */}
+      {/* All Players' Picks — Collapsible Accordion */}
       {allPlayersHistory && allPlayersHistory.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-lg font-semibold text-foreground">
             All Players&apos; Picks
           </h2>
 
-          {/* Player tabs */}
-          <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-none">
-            {allPlayersHistory.map((player, idx) => (
-              <button
-                key={player.playerName}
-                type="button"
-                onClick={() => setSelectedPlayer(idx)}
-                className={`
-                  shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors
-                  ${
-                    selectedPlayer === idx
-                      ? "bg-accent text-white"
-                      : "bg-surface text-foreground/60 hover:text-foreground hover:bg-surface-hover"
-                  }
-                `}
-              >
-                {player.playerName}
-              </button>
-            ))}
-          </div>
-
-          {/* Selected player's picks */}
-          <div className="bg-surface rounded-lg border border-border p-4 divide-y divide-border/50">
-            {allPlayersHistory[selectedPlayer].picks.map((pick) =>
-              renderPickRow(pick)
-            )}
+          <div className="space-y-2">
+            {allPlayersHistory.map((player, idx) => {
+              const isExpanded = expandedPlayers.has(idx);
+              return (
+                <div
+                  key={player.playerName}
+                  className="bg-surface rounded-lg border border-border overflow-hidden"
+                >
+                  <button
+                    type="button"
+                    onClick={() => togglePlayer(idx)}
+                    className="flex items-center gap-2 w-full px-4 py-3 text-sm font-medium text-foreground hover:bg-surface-hover transition-colors"
+                  >
+                    <svg
+                      className={`w-4 h-4 transition-transform shrink-0 ${isExpanded ? "rotate-90" : ""}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                    <span className="flex-1 text-left">{player.playerName}</span>
+                    <span className="text-foreground/40 text-xs">
+                      {player.picks.length} picks
+                    </span>
+                  </button>
+                  {isExpanded && (
+                    <div className="px-4 pb-3 divide-y divide-border/50">
+                      {player.picks.map((pick) => renderPickRow(pick))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </section>
       )}

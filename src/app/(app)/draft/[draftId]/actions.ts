@@ -18,6 +18,7 @@ import {
   transitionToDeckBuilding,
   completeDraft,
   submitDeck as engineSubmitDeck,
+  unsubmitDeck as engineUnsubmitDeck,
   winstonTakePile,
   winstonPassPile,
   winstonLookAtPile as engineWinstonLook,
@@ -56,7 +57,7 @@ async function getAuthenticatedUser() {
 async function applyDraftMutation(
   draftId: string,
   mutate: (draft: Draft, allPacks: CardReference[][] | null) => Draft,
-  opts?: { updateStatus?: boolean; updateStartedAt?: boolean; updateCompletedAt?: boolean }
+  opts?: { updateStatus?: boolean; updateStartedAt?: boolean; updateCompletedAt?: boolean; clearCompletedAt?: boolean }
 ): Promise<{ success: boolean; draft?: Draft; error?: string }> {
   const admin = createAdminClient();
 
@@ -100,6 +101,9 @@ async function applyDraftMutation(
     }
     if (opts?.updateCompletedAt && updatedDraft.completedAt) {
       updatePayload.completed_at = new Date(updatedDraft.completedAt).toISOString();
+    }
+    if (opts?.clearCompletedAt && !updatedDraft.completedAt) {
+      updatePayload.completed_at = null;
     }
 
     const { error: updateError, count } = await admin
@@ -697,4 +701,22 @@ export async function skipDeckBuildingAction(draftId: string) {
   );
 
   if (!result.success) throw new Error(result.error ?? "Skip failed");
+}
+
+export async function editDeckAction(draftId: string) {
+  const user = await getAuthenticatedUser();
+
+  const result = await applyDraftMutation(
+    draftId,
+    (draft) => {
+      const seat = draft.seats.find((s) => s.userId === user.id);
+      if (!seat) throw new Error("You are not in this draft");
+      if (!seat.hasSubmittedDeck) throw new Error("Deck not yet submitted");
+
+      return engineUnsubmitDeck(draft, seat.position);
+    },
+    { updateStatus: true, clearCompletedAt: true }
+  );
+
+  if (!result.success) throw new Error(result.error ?? "Edit deck failed");
 }
