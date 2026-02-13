@@ -672,75 +672,71 @@ export default function PickScreen({
 
             </div>
 
-            {/* Scrub bar — thicker, tight under carousel. Hidden for single card. */}
-            <div
-              ref={scrubBarRef}
-              className={`shrink-0 mx-auto -mt-4 ${filteredCards.length <= 1 ? "invisible" : ""}`}
-              style={{ width: "50%" }}
-              onClick={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                const progress = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                const targetIdx = Math.round(progress * (filteredCards.length - 1));
-                snapToCardRef.current(targetIdx);
-              }}
-              onTouchStart={(e) => {
-                e.stopPropagation(); // don't trigger carousel drag
-                const rect = e.currentTarget.getBoundingClientRect();
-                const progress = Math.max(0, Math.min(1, (e.touches[0].clientX - rect.left) / rect.width));
-                snapToCardRef.current(Math.round(progress * (filteredCards.length - 1)));
-              }}
-              onTouchMove={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                const bar = scrubBarRef.current;
-                if (!bar) return;
-                const rect = bar.getBoundingClientRect();
-                const progress = Math.max(0, Math.min(1, (e.touches[0].clientX - rect.left) / rect.width));
-                snapToCardRef.current(Math.round(progress * (filteredCards.length - 1)));
-              }}
-            >
-              <div className="w-full h-12 flex items-center cursor-pointer">
-                <div data-scrub-track className="w-full h-3.5 rounded-full bg-foreground/10 relative">
-                  <div
-                    ref={scrubThumbRef}
-                    className="absolute top-0 h-full rounded-full bg-foreground/40 will-change-transform"
-                    style={{ width: "32px", transform: "translateX(0px)" }}
-                  />
+            {/* Scrub row: counter | scrub bar | grid button */}
+            <div className={`shrink-0 flex items-start gap-3 px-4 -mt-4 ${filteredCards.length <= 1 ? "invisible" : ""}`}>
+              <span ref={counterRef} className="text-xs font-medium text-foreground/60 shrink-0 pt-1">
+                1 / {filteredCards.length}
+              </span>
+              <div
+                ref={scrubBarRef}
+                className="flex-1 min-w-0"
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const progress = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                  const targetIdx = Math.round(progress * (filteredCards.length - 1));
+                  snapToCardRef.current(targetIdx);
+                }}
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const progress = Math.max(0, Math.min(1, (e.touches[0].clientX - rect.left) / rect.width));
+                  snapToCardRef.current(Math.round(progress * (filteredCards.length - 1)));
+                }}
+                onTouchMove={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  const bar = scrubBarRef.current;
+                  if (!bar) return;
+                  const rect = bar.getBoundingClientRect();
+                  const progress = Math.max(0, Math.min(1, (e.touches[0].clientX - rect.left) / rect.width));
+                  snapToCardRef.current(Math.round(progress * (filteredCards.length - 1)));
+                }}
+              >
+                <div className="w-full h-10 flex items-center cursor-pointer">
+                  <div data-scrub-track className="w-full h-3 rounded-full bg-foreground/10 relative">
+                    <div
+                      ref={scrubThumbRef}
+                      className="absolute top-0 h-full rounded-full bg-foreground/40 will-change-transform"
+                      style={{ width: "32px", transform: "translateX(0px)" }}
+                    />
+                  </div>
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={() => setShowGridView(true)}
+                className="flex items-center justify-center shrink-0 w-10 h-10 rounded-lg bg-surface text-foreground/60 hover:text-foreground/80 transition-colors border border-border"
+                aria-label="View all cards"
+              >
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
+                  <rect x="0" y="0" width="4.5" height="4.5" rx="1" />
+                  <rect x="5.75" y="0" width="4.5" height="4.5" rx="1" />
+                  <rect x="11.5" y="0" width="4.5" height="4.5" rx="1" />
+                  <rect x="0" y="5.75" width="4.5" height="4.5" rx="1" />
+                  <rect x="5.75" y="5.75" width="4.5" height="4.5" rx="1" />
+                  <rect x="11.5" y="5.75" width="4.5" height="4.5" rx="1" />
+                  <rect x="0" y="11.5" width="4.5" height="4.5" rx="1" />
+                  <rect x="5.75" y="11.5" width="4.5" height="4.5" rx="1" />
+                  <rect x="11.5" y="11.5" width="4.5" height="4.5" rx="1" />
+                </svg>
+              </button>
             </div>
 
             {/* Card name + Pick button */}
             <div className="shrink-0 px-4 pt-2 flex flex-col items-center gap-2" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 6px)" }}>
-
-              {/* Card name line: counter left, name center, grid button right */}
-              <div className="flex items-center w-full gap-2">
-                <span ref={counterRef} className="text-xs font-medium text-foreground/60 shrink-0 w-12">
-                  1 / {filteredCards.length}
-                </span>
-                <p ref={nameRef} className="flex-1 text-base font-semibold text-foreground text-center leading-tight truncate min-w-0">
-                  {filteredCards[0]?.name ?? ""}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setShowGridView(true)}
-                  className="flex items-center justify-center shrink-0 w-10 h-10 rounded-lg bg-surface text-foreground/60 hover:text-foreground/80 transition-colors border border-border"
-                  style={{ marginTop: "-18px", marginBottom: "-10px" }}
-                  aria-label="View all cards"
-                >
-                  <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
-                    <rect x="0" y="0" width="4.5" height="4.5" rx="1" />
-                    <rect x="5.75" y="0" width="4.5" height="4.5" rx="1" />
-                    <rect x="11.5" y="0" width="4.5" height="4.5" rx="1" />
-                    <rect x="0" y="5.75" width="4.5" height="4.5" rx="1" />
-                    <rect x="5.75" y="5.75" width="4.5" height="4.5" rx="1" />
-                    <rect x="11.5" y="5.75" width="4.5" height="4.5" rx="1" />
-                    <rect x="0" y="11.5" width="4.5" height="4.5" rx="1" />
-                    <rect x="5.75" y="11.5" width="4.5" height="4.5" rx="1" />
-                    <rect x="11.5" y="11.5" width="4.5" height="4.5" rx="1" />
-                  </svg>
-                </button>
-              </div>
+              <p ref={nameRef} className="text-base font-semibold text-foreground text-center leading-tight truncate max-w-full">
+                {filteredCards[0]?.name ?? ""}
+              </p>
 
               {/* Pick button — long-press to confirm */}
               <LongPressPickButton onPick={handleCarouselPick} />
