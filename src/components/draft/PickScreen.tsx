@@ -675,7 +675,7 @@ export default function PickScreen({
             {/* Scrub bar — thicker, tight under carousel. Hidden for single card. */}
             <div
               ref={scrubBarRef}
-              className={`shrink-0 mx-auto -mt-10 ${filteredCards.length <= 1 ? "invisible" : ""}`}
+              className={`shrink-0 mx-auto -mt-4 ${filteredCards.length <= 1 ? "invisible" : ""}`}
               style={{ width: "50%" }}
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
@@ -724,10 +724,11 @@ export default function PickScreen({
                 <button
                   type="button"
                   onClick={() => setShowGridView(true)}
-                  className="flex items-center justify-center shrink-0 w-8 h-8 rounded-md bg-surface text-foreground/60 hover:text-foreground/80 transition-colors border border-border"
+                  className="flex items-center justify-center shrink-0 w-10 h-10 rounded-lg bg-surface text-foreground/60 hover:text-foreground/80 transition-colors border border-border"
+                  style={{ marginTop: "-18px", marginBottom: "-10px" }}
                   aria-label="View all cards"
                 >
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                  <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
                     <rect x="0" y="0" width="4.5" height="4.5" rx="1" />
                     <rect x="5.75" y="0" width="4.5" height="4.5" rx="1" />
                     <rect x="11.5" y="0" width="4.5" height="4.5" rx="1" />
