@@ -222,7 +222,7 @@ export default function PickScreen({
               {/* Scroll container — cards are big by default, inactive ones shrink */}
               <div
                 ref={scrollRef}
-                className="flex overflow-x-auto snap-x snap-mandatory w-full h-full no-scrollbar items-center"
+                className="flex overflow-x-auto snap-x snap-mandatory w-full py-8 no-scrollbar items-center"
                 style={{ paddingLeft: `${(100 - CARD_WIDTH_VW) / 2}vw`, paddingRight: `${(100 - CARD_WIDTH_VW) / 2}vw`, touchAction: "pan-x" }}
               >
                 {filteredCards.map((card, i) => (
