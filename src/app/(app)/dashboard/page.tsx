@@ -10,8 +10,8 @@ export default async function DashboardPage() {
 
   const supabase = await createServerSupabaseClient();
 
-  // Fetch profile and group memberships in parallel
-  const [{ data: profile }, { data: memberships }] = await Promise.all([
+  // Fetch profile, group memberships, and active simulated drafts in parallel
+  const [{ data: profile }, { data: memberships }, { data: simDrafts }] = await Promise.all([
     supabase
       .from("profiles")
       .select("display_name, avatar_url")
@@ -22,6 +22,14 @@ export default async function DashboardPage() {
       .select("role, group_id, groups(id, name, description, invite_code, created_at)")
       .eq("user_id", user.id)
       .order("joined_at", { ascending: false }),
+    supabase
+      .from("drafts")
+      .select("id, format, set_name, status, created_at")
+      .eq("host_id", user.id)
+      .eq("is_simulated", true)
+      .in("status", ["active", "deck_building"])
+      .order("created_at", { ascending: false })
+      .limit(5),
   ]);
 
   const groups = (memberships ?? []).map((m) => ({
@@ -48,6 +56,45 @@ export default async function DashboardPage() {
           Edit Profile
         </Link>
       </div>
+
+      {/* Solo Practice */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold">Solo Practice</h2>
+        <Link
+          href="/dashboard/simulate"
+          className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover transition-colors"
+        >
+          Simulate Draft
+        </Link>
+      </div>
+
+      {simDrafts && simDrafts.length > 0 ? (
+        <div className="space-y-2">
+          {simDrafts.map((draft) => (
+            <Link
+              key={draft.id}
+              href={`/draft/${draft.id}`}
+              className="flex items-center justify-between rounded-xl border border-border bg-surface p-3 hover:border-border-light transition-colors"
+            >
+              <div>
+                <span className="text-sm font-medium">
+                  {draft.set_name ?? draft.format} Simulation
+                </span>
+                <span className="ml-2 text-xs text-foreground/40">
+                  {draft.status === "deck_building" ? "Deck Building" : "In Progress"}
+                </span>
+              </div>
+              <span className="text-xs text-foreground/40">
+                Resume
+              </span>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-foreground/40">
+          No active simulations. Start one to practice drafting against bots.
+        </p>
+      )}
 
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Your Groups</h1>

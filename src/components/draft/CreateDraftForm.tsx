@@ -29,6 +29,7 @@ export interface DraftFormConfig {
 
 interface CreateDraftFormProps {
   onSubmit: (config: DraftFormConfig) => void;
+  mode?: "propose" | "simulate";
 }
 
 const FORMAT_OPTIONS: {
@@ -60,7 +61,8 @@ const TIMER_OPTIONS: { value: TimerPreset; label: string; detail: string }[] = [
   { value: "none", label: "No Timer", detail: "Unlimited" },
 ];
 
-export default function CreateDraftForm({ onSubmit }: CreateDraftFormProps) {
+export default function CreateDraftForm({ onSubmit, mode = "propose" }: CreateDraftFormProps) {
+  const isSimulate = mode === "simulate";
   // Format
   const [format, setFormat] = useState<DraftFormat>("standard");
 
@@ -137,18 +139,18 @@ export default function CreateDraftForm({ onSubmit }: CreateDraftFormProps) {
 
     onSubmit({
       format,
-      pacingMode,
+      pacingMode: isSimulate ? "realtime" : pacingMode,
       setCode: format !== "cube" ? (selectedSet?.code ?? "") : "",
       setName: format !== "cube" ? (selectedSet?.name ?? "") : "",
       playerCount: effectivePlayerCount,
       packsPerPlayer: effectivePacksPerPlayer,
       mixedPacks: effectiveMixedPacks,
       packSets: effectivePackSets,
-      timerPreset: pacingMode === "realtime" ? timerPreset : "none",
-      reviewPeriodSeconds: pacingMode === "realtime" ? reviewPeriodSeconds : 0,
-      asyncDeadlineMinutes: pacingMode === "async" ? asyncDeadlineMinutes : null,
+      timerPreset: isSimulate ? "none" : (pacingMode === "realtime" ? timerPreset : "none"),
+      reviewPeriodSeconds: isSimulate ? 0 : (pacingMode === "realtime" ? reviewPeriodSeconds : 0),
+      asyncDeadlineMinutes: isSimulate ? null : (pacingMode === "async" ? asyncDeadlineMinutes : null),
       deckBuildingEnabled,
-      pickHistoryPublic,
+      pickHistoryPublic: isSimulate ? true : pickHistoryPublic,
       cubeList: format === "cube" ? cubeList : null,
       cubeSource: format === "cube" ? cubeSource : null,
     });
@@ -401,8 +403,8 @@ export default function CreateDraftForm({ onSubmit }: CreateDraftFormProps) {
         </div>
       </fieldset>
 
-      {/* ── Pacing Mode ── */}
-      <fieldset>
+      {/* ── Pacing Mode (hidden in simulate mode) ── */}
+      {!isSimulate && <fieldset>
         <legend className="text-sm font-medium text-foreground/70 uppercase tracking-wide mb-3">
           Pacing
         </legend>
@@ -466,10 +468,10 @@ export default function CreateDraftForm({ onSubmit }: CreateDraftFormProps) {
             </span>
           </button>
         </div>
-      </fieldset>
+      </fieldset>}
 
-      {/* ── Timer Preset (realtime) ── */}
-      {pacingMode === "realtime" && (
+      {/* ── Timer Preset (realtime, hidden in simulate mode) ── */}
+      {!isSimulate && pacingMode === "realtime" && (
         <fieldset>
           <legend className="text-sm font-medium text-foreground/70 uppercase tracking-wide mb-3">
             Timer Preset
@@ -496,8 +498,8 @@ export default function CreateDraftForm({ onSubmit }: CreateDraftFormProps) {
         </fieldset>
       )}
 
-      {/* ── Review Period (realtime) ── */}
-      {pacingMode === "realtime" && (
+      {/* ── Review Period (realtime, hidden in simulate mode) ── */}
+      {!isSimulate && pacingMode === "realtime" && (
         <fieldset>
           <legend className="text-sm font-medium text-foreground/70 uppercase tracking-wide mb-3">
             Review Period
@@ -524,8 +526,8 @@ export default function CreateDraftForm({ onSubmit }: CreateDraftFormProps) {
         </fieldset>
       )}
 
-      {/* ── Async Deadline ── */}
-      {pacingMode === "async" && (
+      {/* ── Async Deadline (hidden in simulate mode) ── */}
+      {!isSimulate && pacingMode === "async" && (
         <fieldset>
           <legend className="text-sm font-medium text-foreground/70 uppercase tracking-wide mb-3">
             Pick Deadline
@@ -564,15 +566,17 @@ export default function CreateDraftForm({ onSubmit }: CreateDraftFormProps) {
             />
             <span className="text-sm">Enable deck building phase</span>
           </label>
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={pickHistoryPublic}
-              onChange={(e) => setPickHistoryPublic(e.target.checked)}
-              className="h-5 w-5 rounded border-border bg-surface accent-accent"
-            />
-            <span className="text-sm">Share pick history after draft</span>
-          </label>
+          {!isSimulate && (
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={pickHistoryPublic}
+                onChange={(e) => setPickHistoryPublic(e.target.checked)}
+                className="h-5 w-5 rounded border-border bg-surface accent-accent"
+              />
+              <span className="text-sm">Share pick history after draft</span>
+            </label>
+          )}
         </div>
       </fieldset>
 
@@ -582,7 +586,7 @@ export default function CreateDraftForm({ onSubmit }: CreateDraftFormProps) {
         disabled={!isValid}
         className="w-full rounded-xl bg-accent py-3.5 text-base font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed"
       >
-        Create Draft
+        {isSimulate ? "Start Simulation" : "Create Draft"}
       </button>
     </form>
   );

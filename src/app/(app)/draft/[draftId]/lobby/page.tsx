@@ -43,7 +43,7 @@ export default async function LobbyPage({
   // Construct a Draft object for the DraftLobby component
   const draft: Draft = {
     id: dbDraft.id,
-    groupId: dbDraft.group_id,
+    groupId: dbDraft.group_id ?? "",
     hostId: dbDraft.host_id,
     format: dbDraft.format as Draft["format"],
     pacingMode: (config.pacingMode as Draft["pacingMode"]) ?? "realtime",

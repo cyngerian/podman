@@ -119,9 +119,10 @@ export type Database = {
           config: Json
           created_at: string
           format: string
-          group_id: string
+          group_id: string | null
           host_id: string
           id: string
+          is_simulated: boolean
           proposal_id: string | null
           result: Json | null
           set_code: string | null
@@ -136,9 +137,10 @@ export type Database = {
           config?: Json
           created_at?: string
           format: string
-          group_id: string
+          group_id?: string | null
           host_id: string
           id?: string
+          is_simulated?: boolean
           proposal_id?: string | null
           result?: Json | null
           set_code?: string | null
@@ -153,9 +155,10 @@ export type Database = {
           config?: Json
           created_at?: string
           format?: string
-          group_id?: string
+          group_id?: string | null
           host_id?: string
           id?: string
+          is_simulated?: boolean
           proposal_id?: string | null
           result?: Json | null
           set_code?: string | null

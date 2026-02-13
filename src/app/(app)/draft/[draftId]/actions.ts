@@ -33,6 +33,8 @@ import {
   groupCardsByRarity,
 } from "@/lib/scryfall";
 import { generateAllPacks, generateCubePacks, getTemplateForSet } from "@/lib/pack-generator";
+import { isBotUserId } from "@/lib/bot-drafter";
+import { runBotPicks, runWinstonBotTurns } from "@/lib/bot-runner";
 
 // ============================================================================
 // Helpers
@@ -190,7 +192,7 @@ export async function startDraftAction(draftId: string) {
   // Build Draft object via engine
   let draftObj = createDraft({
     id: draftId,
-    groupId: draft.group_id,
+    groupId: draft.group_id ?? "",
     hostId: draft.host_id,
     format: draft.format as "standard" | "winston" | "cube",
     pacingMode: (config.pacingMode as "realtime" | "async") ?? "realtime",
@@ -427,6 +429,11 @@ export async function makePickAction(draftId: string, cardId: string) {
         }
       }
 
+      // Run bot picks if this is a simulated draft
+      if (updated.status === "active" && updated.seats.some((s) => isBotUserId(s.userId))) {
+        updated = runBotPicks(updated, allPacks);
+      }
+
       return updated;
     },
     { updateStatus: true, updateCompletedAt: true }
@@ -474,6 +481,11 @@ export async function autoPickAction(draftId: string) {
             ? transitionToDeckBuilding(updated)
             : completeDraft(updated);
         }
+      }
+
+      // Run bot picks if this is a simulated draft
+      if (updated.status === "active" && updated.seats.some((s) => isBotUserId(s.userId))) {
+        updated = runBotPicks(updated, allPacks);
       }
 
       return updated;
@@ -584,6 +596,11 @@ export async function winstonTakeAction(draftId: string) {
           : completeDraft(updated);
       }
 
+      // Run bot turns if this is a simulated draft
+      if (!isWinstonComplete(updated) && updated.seats.some((s) => isBotUserId(s.userId))) {
+        updated = runWinstonBotTurns(updated);
+      }
+
       return updated;
     },
     { updateStatus: true, updateCompletedAt: true }
@@ -611,6 +628,11 @@ export async function winstonPassAction(draftId: string) {
         updated = updated.deckBuildingEnabled
           ? transitionToDeckBuilding(updated)
           : completeDraft(updated);
+      }
+
+      // Run bot turns if this is a simulated draft
+      if (!isWinstonComplete(updated) && updated.seats.some((s) => isBotUserId(s.userId))) {
+        updated = runWinstonBotTurns(updated);
       }
 
       return updated;

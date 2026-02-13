@@ -25,10 +25,12 @@ MTG (Magic: The Gathering) draft web app. Players open packs, pick cards in time
 
 - `/auth/*` — login, signup, signout (public)
 - `/(app)/dashboard/*` — group management, draft proposals (auth-protected via middleware)
+- `/(app)/dashboard/profile` — user profile edit page (avatar, bio, favorite color)
 - `/(app)/draft/[draftId]/*` — draft flow: lobby → pick → deck-build → results
 - `/api/sets` — public API (cached 24h)
+- `/api/avatar` — POST avatar image upload via `@vercel/blob`
 
-The `(app)` layout adds a sticky header with user info. The pick screen uses `fixed inset-0 z-40` to overlay this header on mobile.
+The `(app)` layout adds a sticky header (`z-30`, `h-12`) with user avatar, display name, and sign out. Content constrained to `max-w-5xl`. The pick screen uses `fixed inset-0 z-40` to overlay this header.
 
 ### Three Supabase Clients
 
@@ -68,12 +70,23 @@ Supabase Postgres with RLS. Key tables: `profiles`, `groups`, `group_members`, `
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY   # sb_publishable_* format (not legacy anon key)
 SUPABASE_SECRET_KEY                     # sb_secret_* format (not legacy service_role)
+BLOB_READ_WRITE_TOKEN                   # Vercel Blob store (for avatar uploads)
 ```
+
+## User Profiles
+
+`profiles` table: `display_name`, `avatar_url`, `bio`, `favorite_color` (W/U/B/R/G or null). Avatar can be an emoji string or a URL (Vercel Blob). `UserAvatar` component (`src/components/ui/UserAvatar.tsx`) renders URL images, emoji, or first-letter fallback. Sizes: `sm` (24px), `md` (32px), `lg` (64px).
+
+## Header Height Constraint
+
+**Critical**: All headers containing "podman" must use `h-12` to ensure identical vertical positioning across page transitions. The app layout header, mobile draft row 1, and desktop draft row 1 all use `h-12` + `items-center`. Using `py-3` or other padding instead causes vertical shift because `items-center` positions text based on the tallest flex sibling, which differs between pages (avatar height vs timer height).
 
 ## Mobile Carousel (`src/components/draft/PickScreen.tsx`)
 
-Active development area. Pure transform carousel (Option C) — no native scroll. Container is `overflow-hidden` with `touch-action: none`, wrapper moves via `translate3d`. Cards 72vw, active `scale(1.15)`, inactive `scale(0.55)`. rAF polling loop with zero React re-renders during scroll. Desktop uses a standard grid layout (split by `sm:hidden` / `hidden sm:flex`).
+Active development area. Pure transform carousel (Option C) — no native scroll. Container is `overflow-hidden` with `touch-action: none`, wrapper moves via `translate3d`. Cards 72vw, active `scale(1.15)`, inactive `scale(0.55)`. rAF polling loop with zero React re-renders during scroll. Desktop uses a grid layout (`grid-cols-3 lg:4 xl:4`, constrained to `max-w-5xl`), split by `sm:hidden` / `hidden sm:flex`.
+
+Desktop has a two-row header: row 1 mirrors the app layout (podman + set info + timer), row 2 has pack/pick info + inline filter pills + picks button. Inline filters replaced the old bottom-bar popup.
 
 **Critical**: `py-8` on the carousel wrapper must not be reduced — the active card's 1.15x scale needs vertical overflow room. Reducing to `py-4` causes visible clipping.
 
-**Dependencies**: `mana-font` (mana symbol icons), `keyrune` (set symbol icons). Pick button uses 500ms long-press with fill animation (`LongPressPickButton`). Filters are multi-select (`Set<PackFilterValue>`) with color OR + type AND logic; creature/non-creature are mutually exclusive.
+**Dependencies**: `mana-font` (mana symbol icons), `keyrune` (set symbol icons), `@vercel/blob` (avatar uploads). Pick button uses 500ms long-press with fill animation (`LongPressPickButton`). Filters are multi-select (`Set<PackFilterValue>`) with color OR + type AND logic; creature/non-creature are mutually exclusive.
