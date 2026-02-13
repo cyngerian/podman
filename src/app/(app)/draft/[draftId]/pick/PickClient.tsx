@@ -121,7 +121,7 @@ export default function PickClient({
 
     const interval = setInterval(() => {
       router.refresh();
-    }, 2000);
+    }, 500);
 
     return () => clearInterval(interval);
   }, [packCards.length, router]);
