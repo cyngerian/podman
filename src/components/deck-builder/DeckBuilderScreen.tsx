@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
+import Image from "next/image";
 import type { CardReference, BasicLandCounts, ManaColor } from "@/lib/types";
 import { MANA_COLORS } from "@/lib/types";
 import CardThumbnail from "@/components/ui/CardThumbnail";
-import CardPreview from "@/components/ui/CardPreview";
 import ManaCurve from "@/components/ui/ManaCurve";
 
 // --- Types ---
@@ -37,12 +37,12 @@ const LAND_NAMES: Record<ManaColor, string> = {
   G: "Forest",
 };
 
-const MANA_CSS_VARS: Record<ManaColor, string> = {
-  W: "var(--mana-white)",
-  U: "var(--mana-blue)",
-  B: "var(--mana-black)",
-  R: "var(--mana-red)",
-  G: "var(--mana-green)",
+const MANA_ICON_CLASS: Record<ManaColor, string> = {
+  W: "ms ms-w ms-cost",
+  U: "ms ms-u ms-cost",
+  B: "ms ms-b ms-cost",
+  R: "ms ms-r ms-cost",
+  G: "ms ms-g ms-cost",
 };
 
 const RARITY_ORDER: Record<string, number> = {
@@ -121,6 +121,7 @@ export default function DeckBuilderScreen({
     zone: "deck" | "sideboard";
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sideboardOpen, setSideboardOpen] = useState(false);
 
   // --- Derived ---
 
@@ -134,6 +135,23 @@ export default function DeckBuilderScreen({
 
   const creatureCount = useMemo(() => deck.filter(isCreature).length, [deck]);
   const nonCreatureCount = deck.length - creatureCount;
+
+  // Color percentages based on deck cards
+  const colorPercentages = useMemo(() => {
+    const counts: Record<ManaColor, number> = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+    for (const card of deck) {
+      for (const color of card.colors) {
+        if (MANA_COLORS.includes(color)) {
+          counts[color]++;
+        }
+      }
+    }
+    const total = Object.values(counts).reduce((a, b) => a + b, 0);
+    if (total === 0) return null;
+    return MANA_COLORS
+      .map((c) => ({ color: c, pct: Math.round((counts[c] / total) * 100) }))
+      .filter((x) => x.pct > 0);
+  }, [deck]);
 
   // --- Actions ---
 
@@ -209,9 +227,7 @@ export default function DeckBuilderScreen({
             <h1 className="text-lg font-bold text-foreground">
               Build Your Deck
             </h1>
-            <p className="text-xs text-foreground/50">
-              {creatureCount} creatures, {nonCreatureCount} other spells
-            </p>
+            <p className="text-xs text-foreground/50">40 card minimum</p>
           </div>
           <div className="text-right">
             <p
@@ -257,7 +273,7 @@ export default function DeckBuilderScreen({
               Tap cards in the sideboard to add them to your deck.
             </p>
           ) : (
-            <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5 md:grid-cols-7">
+            <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5 md:grid-cols-7">
               {sortedDeck.map((card, i) => (
                 <CardThumbnail
                   key={`deck-${card.scryfallId}-${i}`}
@@ -272,28 +288,45 @@ export default function DeckBuilderScreen({
           )}
         </section>
 
-        {/* ---- Sideboard Section ---- */}
+        {/* ---- Sideboard Section (collapsible) ---- */}
         <section>
-          <h2 className="text-xs font-bold uppercase tracking-wider text-foreground/60 mb-2">
+          <button
+            type="button"
+            onClick={() => setSideboardOpen((v) => !v)}
+            className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-foreground/60 mb-2 w-full"
+          >
+            <svg
+              className={`w-3.5 h-3.5 transition-transform ${sideboardOpen ? "rotate-90" : ""}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
             Sideboard ({sideboard.length} cards)
-          </h2>
-          {sortedSideboard.length === 0 ? (
-            <p className="text-sm text-foreground/30 py-4 text-center">
-              All cards are in the deck.
-            </p>
-          ) : (
-            <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5 md:grid-cols-7">
-              {sortedSideboard.map((card, i) => (
-                <CardThumbnail
-                  key={`sb-${card.scryfallId}-${i}`}
-                  card={card}
-                  size="medium"
-                  onClick={() =>
-                    setPreviewState({ card, zone: "sideboard" })
-                  }
-                />
-              ))}
-            </div>
+          </button>
+          {sideboardOpen && (
+            <>
+              {sortedSideboard.length === 0 ? (
+                <p className="text-sm text-foreground/30 py-4 text-center">
+                  All cards are in the deck.
+                </p>
+              ) : (
+                <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5 md:grid-cols-7">
+                  {sortedSideboard.map((card, i) => (
+                    <CardThumbnail
+                      key={`sb-${card.scryfallId}-${i}`}
+                      card={card}
+                      size="medium"
+                      onClick={() =>
+                        setPreviewState({ card, zone: "sideboard" })
+                      }
+                    />
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </section>
 
@@ -303,16 +336,28 @@ export default function DeckBuilderScreen({
             Basic Lands ({totalLands})
           </h2>
 
+          {/* Color percentages */}
+          {colorPercentages && (
+            <div className="flex items-center gap-3 mb-3 flex-wrap">
+              {colorPercentages.map(({ color, pct }) => (
+                <span key={color} className="flex items-center gap-1 text-xs text-foreground/60">
+                  <i className={MANA_ICON_CLASS[color]} style={{ fontSize: "14px" }} />
+                  <span>{pct}%</span>
+                </span>
+              ))}
+            </div>
+          )}
+
           <div className="space-y-2">
             {MANA_COLORS.map((color) => (
               <div
                 key={color}
                 className="flex items-center gap-3 bg-surface rounded-lg px-3 py-2"
               >
-                {/* Color circle */}
-                <span
-                  className="w-5 h-5 rounded-full shrink-0 border border-border-light"
-                  style={{ backgroundColor: MANA_CSS_VARS[color] }}
+                {/* Mana symbol */}
+                <i
+                  className={MANA_ICON_CLASS[color]}
+                  style={{ fontSize: "18px" }}
                   aria-hidden="true"
                 />
 
@@ -359,12 +404,17 @@ export default function DeckBuilderScreen({
           )}
         </section>
 
-        {/* ---- Mana Curve ---- */}
+        {/* ---- Deck Stats + Mana Curve ---- */}
         <section>
           <h2 className="text-xs font-bold uppercase tracking-wider text-foreground/60 mb-2">
-            Mana Curve
+            Deck Stats
           </h2>
-          <div className="bg-surface rounded-lg p-3">
+          <div className="bg-surface rounded-lg p-3 space-y-3">
+            <div className="flex items-center justify-center gap-6 text-sm text-foreground/70">
+              <span>{creatureCount} creatures</span>
+              <span className="text-foreground/20">|</span>
+              <span>{nonCreatureCount} other spells</span>
+            </div>
             <ManaCurve cards={deck} />
           </div>
         </section>
@@ -411,17 +461,33 @@ export default function DeckBuilderScreen({
             onClick={(e) => e.stopPropagation()}
             onKeyDown={() => {}}
             role="presentation"
-            className="flex flex-col items-center gap-3"
+            className="flex flex-col items-center gap-4 px-4"
           >
-            <CardPreview
-              card={previewState.card}
-              showPickButton={false}
-              onClose={() => setPreviewState(null)}
+            {/* Close hint */}
+            <button
+              type="button"
+              onClick={() => setPreviewState(null)}
+              className="w-10 h-1 rounded-full bg-foreground/30 shrink-0 cursor-pointer"
+              aria-label="Close preview"
             />
+
+            {/* Large card image */}
+            <div className="relative w-[85vw] max-w-[400px] card-aspect rounded-xl overflow-hidden">
+              <Image
+                src={previewState.card.imageUri}
+                alt={previewState.card.name}
+                fill
+                sizes="(max-width: 768px) 85vw, 400px"
+                className="object-cover"
+                priority
+              />
+            </div>
+
+            {/* Move button */}
             <button
               type="button"
               onClick={handlePreviewMove}
-              className="w-full max-w-[300px] py-3 rounded-xl bg-surface border border-border text-foreground font-medium text-sm active:scale-[0.97] transition-all hover:bg-surface-hover"
+              className="w-full max-w-[400px] py-3 rounded-xl bg-surface border border-border text-foreground font-medium text-sm active:scale-[0.97] transition-all hover:bg-surface-hover"
             >
               {previewState.zone === "deck"
                 ? "Move to Sideboard"
