@@ -12,6 +12,8 @@ import type {
 } from "@/lib/types";
 import { getPickTimer, getPassDirection } from "@/lib/types";
 import PickScreen from "@/components/draft/PickScreen";
+import PickedCardsDrawer from "@/components/draft/PickedCardsDrawer";
+import WaitingScreen from "@/components/draft/WaitingScreen";
 import { useRealtimeChannel } from "@/hooks/useRealtimeChannel";
 import { makePickAction, autoPickAction } from "../actions";
 
@@ -216,13 +218,12 @@ export default function PickClient({
   // Waiting for pack
   if (packCards.length === 0) {
     return (
-      <div className="flex min-h-dvh items-center justify-center">
-        <div className="text-center space-y-2">
-          <p className="text-foreground/60 text-sm">
-            Waiting for next pack...
-          </p>
-        </div>
-      </div>
+      <WaitingScreen
+        podMembers={podMembers}
+        picks={picks}
+        sortMode={sortMode}
+        onSortChange={setSortMode}
+      />
     );
   }
 
