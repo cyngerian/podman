@@ -518,50 +518,54 @@ export default function PickScreen({
         </div>
       </header>
 
-      {/* ===== DESKTOP HEADER (app layout header stays visible above via z-50) ===== */}
-      <div className="hidden sm:flex border-b border-border shrink-0">
-        <div className="max-w-5xl mx-auto w-full flex items-center justify-between px-4 py-1.5">
-          {/* Left: timer + set info */}
-          <div className="flex items-center gap-3">
-            <Timer
-              seconds={timerSeconds}
-              maxSeconds={timerMaxSeconds}
-              paused={timerPaused}
-            />
-            <span className="w-px h-4 bg-border" />
-            <div className="flex items-center gap-1.5">
+      {/* ===== DESKTOP HEADER (two rows) ===== */}
+      <div className="hidden sm:flex flex-col shrink-0">
+        {/* Row 1: info bar — podman, set name, timer */}
+        <div className="border-b border-border bg-background/95 backdrop-blur-sm">
+          <div className="max-w-5xl mx-auto w-full flex items-center px-4 py-3">
+            <Link href="/dashboard" className="text-xl font-bold tracking-tight text-foreground shrink-0">
+              podman
+            </Link>
+            <div className="flex-1 flex items-center justify-center gap-1.5 min-w-0">
               {setCode && (
-                <i className={`ss ss-${setCode.toLowerCase()} text-foreground/60`} style={{ fontSize: "14px" }} />
+                <i className={`ss ss-${setCode.toLowerCase()} text-foreground`} style={{ fontSize: "16px" }} />
               )}
               {setName && (
-                <span className="text-xs text-foreground/60">{setName}</span>
+                <span className="text-sm font-bold text-foreground">{setName}</span>
               )}
               {draftDateStr && (
-                <span className="text-xs text-foreground/40">{draftDateStr}</span>
+                <span className="text-xs text-foreground/40 ml-1">{draftDateStr}</span>
               )}
             </div>
+            <div className="shrink-0 flex justify-end">
+              <Timer
+                seconds={timerSeconds}
+                maxSeconds={timerMaxSeconds}
+                paused={timerPaused}
+              />
+            </div>
           </div>
-
-          {/* Center: pack info */}
-          <div className="flex flex-col items-center">
-            <span className="text-sm font-semibold text-foreground">
-              Pack {packNumber} Pick {pickInPack}
-              <span className="text-foreground/40 font-normal ml-1.5">
-                {packCards.length}/{totalCardsInPack}
-              </span>
-              {!!packQueueLength && packQueueLength > 0 && (
-                <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-accent text-white text-xs font-medium">
-                  +{packQueueLength} queued
+        </div>
+        {/* Row 2: controls — pack info, filters, picks */}
+        <div className="border-b border-border">
+          <div className="max-w-5xl mx-auto w-full flex items-center justify-between px-4 py-1.5">
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-foreground">
+                Pack {packNumber} Pick {pickInPack}
+                <span className="text-foreground/40 font-normal ml-1.5">
+                  {packCards.length}/{totalCardsInPack}
                 </span>
-              )}
-            </span>
-            <span className="text-xs text-foreground/50">
-              {directionArrow} Pass {passDirection}
-            </span>
-          </div>
+                {!!packQueueLength && packQueueLength > 0 && (
+                  <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-accent text-white text-xs font-medium">
+                    +{packQueueLength} queued
+                  </span>
+                )}
+              </span>
+              <span className="text-xs text-foreground/50">
+                {directionArrow} Pass {passDirection}
+              </span>
+            </div>
 
-          {/* Right: filters + picks */}
-          <div className="flex items-center gap-2">
             {/* Inline filters */}
             <div className="flex items-center gap-1">
               {COLOR_FILTERS.map((opt) => (
@@ -589,7 +593,7 @@ export default function PickScreen({
                   {opt.value === "all" ? "All" : null}
                 </button>
               ))}
-              <span className="w-px h-4 bg-border mx-0.5" />
+              <span className="w-px h-4 bg-border mx-1" />
               {TYPE_FILTERS.map((opt) => (
                 <button
                   key={opt.value}
