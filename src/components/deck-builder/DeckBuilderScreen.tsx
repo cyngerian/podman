@@ -294,7 +294,7 @@ export default function DeckBuilderScreen({
   return (
     <div className="flex flex-col min-h-dvh bg-background">
       {/* ---- Header ---- */}
-      <header className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
+      <header className="sticky top-12 z-20 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold text-foreground">
