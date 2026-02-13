@@ -115,6 +115,17 @@ export default function PickClient({
     return () => clearInterval(interval);
   }, [pacingMode, timerPreset, timerSeconds, packCards.length, draftId, router]);
 
+  // Poll for new pack when waiting (fallback for realtime gaps)
+  useEffect(() => {
+    if (packCards.length > 0) return;
+
+    const interval = setInterval(() => {
+      router.refresh();
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [packCards.length, router]);
+
   // Subscribe to draft state changes
   useRealtimeChannel(
     `draft:${draftId}:pick`,
