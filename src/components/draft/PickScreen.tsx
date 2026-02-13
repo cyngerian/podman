@@ -79,13 +79,18 @@ export default function PickScreen({
   // Card dimensions for carousel
   const CARD_WIDTH_VW = 50; // base card width in vw
   const CARD_OVERLAP_PX = -24; // negative margin for overlap
-  const ACTIVE_SCALE = 1.15;
-  const INACTIVE_SCALE = 0.82;
+  const ACTIVE_SCALE = 1.22;
+  const INACTIVE_SCALE = 0.75;
 
   // Track active card + apply scale transforms based on scroll position
+  // Visual transforms are applied directly to DOM (no React re-render).
+  // Only setActiveIndex when the snapped card changes to update the name/counter.
+  const activeIndexRef = useRef(0);
+
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
+    let rafId = 0;
 
     const updateCards = () => {
       const containerCenter = el.scrollLeft + el.offsetWidth / 2;
@@ -110,12 +115,24 @@ export default function PickScreen({
         }
       });
 
-      setActiveIndex(closestIdx);
+      // Only trigger re-render when the active card changes
+      if (closestIdx !== activeIndexRef.current) {
+        activeIndexRef.current = closestIdx;
+        setActiveIndex(closestIdx);
+      }
+    };
+
+    const onScroll = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(updateCards);
     };
 
     updateCards();
-    el.addEventListener("scroll", updateCards, { passive: true });
-    return () => el.removeEventListener("scroll", updateCards);
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(rafId);
+    };
   }, [filteredCards.length]);
 
   // Reset active index when filter changes
@@ -154,7 +171,7 @@ export default function PickScreen({
   const directionArrow = passDirection === "left" ? "\u2190" : "\u2192";
 
   return (
-    <div className="flex flex-col h-dvh bg-background">
+    <div className="flex flex-col h-dvh bg-background overflow-hidden">
       {/* Header bar */}
       <header className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
         <Timer
@@ -202,7 +219,7 @@ export default function PickScreen({
               <div
                 ref={scrollRef}
                 className="flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory w-full no-scrollbar items-center py-8"
-                style={{ paddingLeft: `${(100 - CARD_WIDTH_VW) / 2}vw`, paddingRight: `${(100 - CARD_WIDTH_VW) / 2}vw` }}
+                style={{ paddingLeft: `${(100 - CARD_WIDTH_VW) / 2}vw`, paddingRight: `${(100 - CARD_WIDTH_VW) / 2}vw`, touchAction: "pan-x" }}
               >
                 {filteredCards.map((card, i) => (
                   <div
