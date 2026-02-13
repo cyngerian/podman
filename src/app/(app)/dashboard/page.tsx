@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createServerSupabaseClient, getUser } from "@/lib/supabase-server";
+import UserAvatar from "@/components/ui/UserAvatar";
 
 export default async function DashboardPage() {
   const user = await getUser();
@@ -9,12 +10,19 @@ export default async function DashboardPage() {
 
   const supabase = await createServerSupabaseClient();
 
-  // Fetch user's group memberships with group info
-  const { data: memberships } = await supabase
-    .from("group_members")
-    .select("role, group_id, groups(id, name, description, invite_code, created_at)")
-    .eq("user_id", user.id)
-    .order("joined_at", { ascending: false });
+  // Fetch profile and group memberships in parallel
+  const [{ data: profile }, { data: memberships }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("display_name, avatar_url")
+      .eq("id", user.id)
+      .single(),
+    supabase
+      .from("group_members")
+      .select("role, group_id, groups(id, name, description, invite_code, created_at)")
+      .eq("user_id", user.id)
+      .order("joined_at", { ascending: false }),
+  ]);
 
   const groups = (memberships ?? []).map((m) => ({
     ...m.groups!,
@@ -23,6 +31,24 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 space-y-6">
+      {/* Profile row */}
+      <div className="flex items-center gap-3">
+        <UserAvatar
+          avatarUrl={profile?.avatar_url ?? null}
+          displayName={profile?.display_name ?? "User"}
+          size="md"
+        />
+        <span className="text-sm font-medium text-foreground">
+          {profile?.display_name ?? "User"}
+        </span>
+        <Link
+          href="/dashboard/profile"
+          className="text-xs text-foreground/40 hover:text-foreground/60 transition-colors"
+        >
+          Edit Profile
+        </Link>
+      </div>
+
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Your Groups</h1>
         <div className="flex gap-2">

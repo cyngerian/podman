@@ -47,9 +47,6 @@ const TYPE_FILTERS: { value: PackFilterValue; label: string }[] = [
   { value: "noncreature", label: "Non-Creatures" },
 ];
 
-// All options combined for desktop popup
-const ALL_FILTER_OPTIONS = [...COLOR_FILTERS, ...TYPE_FILTERS];
-
 function isCreature(card: CardReference): boolean {
   if (!card.typeLine) return false;
   return card.typeLine.includes("Creature");
@@ -178,7 +175,6 @@ export default function PickScreen({
 }: PickScreenProps) {
   const [selectedCard, setSelectedCard] = useState<CardReference | null>(null);
   const [showPickedDrawer, setShowPickedDrawer] = useState(false);
-  const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [showGridView, setShowGridView] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -463,10 +459,6 @@ export default function PickScreen({
   const isFilterActive = (value: PackFilterValue | "all") =>
     value === "all" ? filterSet.size === 0 : filterSet.has(value);
 
-  const desktopFilterLabel = filterSet.size === 0
-    ? "Filter"
-    : `Filter (${filterSet.size})`;
-
   const draftDateStr = startedAt
     ? new Date(startedAt).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "2-digit" })
     : null;
@@ -526,39 +518,111 @@ export default function PickScreen({
         </div>
       </header>
 
-      {/* ===== DESKTOP HEADER (single row, unchanged layout) ===== */}
-      <header className="hidden sm:flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
-        <Timer
-          seconds={timerSeconds}
-          maxSeconds={timerMaxSeconds}
-          paused={timerPaused}
-        />
-
-        <div className="flex flex-col items-center">
-          <span className="text-sm font-semibold text-foreground">
-            Pack {packNumber} Pick {pickInPack}
-            <span className="text-foreground/40 font-normal ml-1.5">
-              {packCards.length}/{totalCardsInPack}
-            </span>
-            {!!packQueueLength && packQueueLength > 0 && (
-              <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-accent text-white text-xs font-medium">
-                +{packQueueLength} queued
-              </span>
-            )}
-          </span>
-          <span className="text-xs text-foreground/50">
-            {directionArrow} Pass {passDirection}
-          </span>
+      {/* ===== DESKTOP HEADER (two rows) ===== */}
+      <div className="hidden sm:flex flex-col shrink-0">
+        {/* Row 1: info bar — podman, set name, timer */}
+        <div className="flex items-center px-4 py-2 border-b border-border bg-background/95 backdrop-blur-sm">
+          <div className="max-w-6xl mx-auto w-full flex items-center">
+            <Link href="/dashboard" className="text-lg font-bold tracking-tight text-foreground shrink-0 w-20">
+              podman
+            </Link>
+            <div className="flex-1 flex items-center justify-center gap-1.5 min-w-0">
+              {setCode && (
+                <i className={`ss ss-${setCode.toLowerCase()} text-foreground`} style={{ fontSize: "16px" }} />
+              )}
+              {setName && (
+                <span className="text-sm font-bold text-foreground">{setName}</span>
+              )}
+              {draftDateStr && (
+                <span className="text-xs text-foreground/40 ml-1">{draftDateStr}</span>
+              )}
+            </div>
+            <div className="shrink-0 w-20 flex justify-end">
+              <Timer
+                seconds={timerSeconds}
+                maxSeconds={timerMaxSeconds}
+                paused={timerPaused}
+              />
+            </div>
+          </div>
         </div>
+        {/* Row 2: controls — pack info, filters, picks */}
+        <div className="flex items-center px-4 py-1.5 border-b border-border">
+          <div className="max-w-6xl mx-auto w-full flex items-center justify-between">
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-foreground">
+                Pack {packNumber} Pick {pickInPack}
+                <span className="text-foreground/40 font-normal ml-1.5">
+                  {packCards.length}/{totalCardsInPack}
+                </span>
+                {!!packQueueLength && packQueueLength > 0 && (
+                  <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-accent text-white text-xs font-medium">
+                    +{packQueueLength} queued
+                  </span>
+                )}
+              </span>
+              <span className="text-xs text-foreground/50">
+                {directionArrow} Pass {passDirection}
+              </span>
+            </div>
 
-        <button
-          type="button"
-          onClick={() => setShowPickedDrawer(true)}
-          className="px-2.5 py-1.5 rounded-lg bg-surface text-xs font-medium text-foreground hover:bg-surface-hover transition-colors border border-border"
-        >
-          Picks ({picks.length})
-        </button>
-      </header>
+            {/* Inline filters */}
+            <div className="flex items-center gap-1">
+              {COLOR_FILTERS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => onFilterToggle(opt.value)}
+                  className={`
+                    flex items-center justify-center gap-1 px-2 py-1 rounded-full text-xs font-semibold
+                    transition-colors
+                    ${isFilterActive(opt.value)
+                      ? "bg-accent text-white"
+                      : "bg-surface text-foreground/70 hover:bg-surface-hover"
+                    }
+                  `}
+                >
+                  {opt.manaClass ? (
+                    <i className={opt.manaClass} style={{ fontSize: "13px" }} />
+                  ) : opt.value === "multicolor" ? (
+                    <span
+                      className="w-3 h-3 rounded-full inline-block"
+                      style={{ backgroundColor: "var(--mana-gold)" }}
+                    />
+                  ) : null}
+                  {opt.value === "all" ? "All" : null}
+                </button>
+              ))}
+              <span className="w-px h-4 bg-border mx-1" />
+              {TYPE_FILTERS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => onFilterToggle(opt.value)}
+                  className={`
+                    px-2 py-1 rounded-full text-xs font-semibold
+                    transition-colors
+                    ${isFilterActive(opt.value)
+                      ? "bg-accent text-white"
+                      : "bg-surface text-foreground/70 hover:bg-surface-hover"
+                    }
+                  `}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowPickedDrawer(true)}
+              className="px-2.5 py-1.5 rounded-lg bg-surface text-xs font-medium text-foreground hover:bg-surface-hover transition-colors border border-border"
+            >
+              Picks ({picks.length})
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* ==================== MOBILE: Carousel ==================== */}
       <div className="flex-1 flex flex-col min-h-0 sm:hidden">
@@ -752,7 +816,7 @@ export default function PickScreen({
       <div className="hidden sm:flex flex-1 flex-col min-h-0">
         {/* Card grid — scrollable area */}
         <div className="flex-1 overflow-y-auto min-h-0">
-          <div className="grid grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-1.5 p-2">
+          <div className="max-w-6xl mx-auto grid grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-1.5 p-2">
             {filteredCards.map((card) => (
               <CardThumbnail
                 key={card.scryfallId}
@@ -773,7 +837,7 @@ export default function PickScreen({
 
         {/* Preview panel */}
         <div className="shrink-0 border-t border-border bg-surface">
-          <div className="flex items-center gap-4 px-4 py-3">
+          <div className="max-w-6xl mx-auto flex items-center gap-4 px-4 py-3">
             {selectedCard ? (
               <>
                 <div className="relative w-20 card-aspect rounded-lg overflow-hidden shrink-0">
@@ -810,84 +874,6 @@ export default function PickScreen({
           </div>
         </div>
 
-        {/* Desktop bottom bar with filter */}
-        <div className="flex items-center justify-end px-3 py-2 border-t border-border bg-surface shrink-0">
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowFilterMenu((prev) => !prev)}
-              className={`
-                px-3 py-2 rounded-lg text-sm font-medium transition-colors
-                ${filterSet.size > 0
-                  ? "bg-accent text-white"
-                  : "bg-background text-foreground hover:bg-surface-hover"
-                }
-              `}
-            >
-              {desktopFilterLabel}
-            </button>
-
-            {showFilterMenu && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setShowFilterMenu(false)}
-                />
-                <div className="absolute bottom-full right-0 mb-2 z-50 bg-surface border border-border rounded-xl p-2 shadow-lg min-w-[200px]">
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {COLOR_FILTERS.map((opt) => (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => {
-                          onFilterToggle(opt.value);
-                          if (opt.value === "all") setShowFilterMenu(false);
-                        }}
-                        className={`
-                          flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-xs font-semibold
-                          transition-colors
-                          ${isFilterActive(opt.value)
-                            ? "bg-accent text-white"
-                            : "bg-background text-foreground/70 hover:bg-surface-hover"
-                          }
-                        `}
-                      >
-                        {opt.manaClass ? (
-                          <i className={opt.manaClass} style={{ fontSize: "14px" }} />
-                        ) : opt.value === "multicolor" ? (
-                          <span
-                            className="w-3 h-3 rounded-full inline-block shrink-0"
-                            style={{ backgroundColor: "var(--mana-gold)" }}
-                          />
-                        ) : null}
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-2 gap-1.5 mt-1.5 border-t border-border pt-1.5">
-                    {TYPE_FILTERS.map((opt) => (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => onFilterToggle(opt.value)}
-                        className={`
-                          flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-xs font-semibold
-                          transition-colors
-                          ${isFilterActive(opt.value)
-                            ? "bg-accent text-white"
-                            : "bg-background text-foreground/70 hover:bg-surface-hover"
-                          }
-                        `}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* Grid view overlay (mobile) */}

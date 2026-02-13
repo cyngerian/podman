@@ -3,6 +3,22 @@ import { redirect, notFound } from "next/navigation";
 import { createServerSupabaseClient, getUser } from "@/lib/supabase-server";
 import { leaveGroup } from "../actions";
 import CopyInviteCode from "./CopyInviteCode";
+import UserAvatar from "@/components/ui/UserAvatar";
+
+function formatElapsed(startedAt: number, now: number) {
+  const startedStr = `Started ${new Date(startedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+  const elapsedMs = now - startedAt;
+  const mins = Math.floor(elapsedMs / 60000);
+  let elapsedStr: string;
+  if (mins < 60) {
+    elapsedStr = `${mins}m ago`;
+  } else {
+    const hrs = Math.floor(mins / 60);
+    const remMins = mins % 60;
+    elapsedStr = `${hrs}h ${remMins}m ago`;
+  }
+  return { startedStr, elapsedStr };
+}
 
 export default async function GroupDetailPage({
   params,
@@ -37,7 +53,7 @@ export default async function GroupDetailPage({
       .order("created_at", { ascending: false }),
     supabase
       .from("drafts")
-      .select("id, format, set_code, set_name, status, created_at, draft_players(count)")
+      .select("id, format, set_code, set_name, status, created_at, state, draft_players(user_id, profiles(display_name, avatar_url))")
       .eq("group_id", groupId)
       .in("status", ["lobby", "active", "deck_building"])
       .order("created_at", { ascending: false }),
@@ -53,6 +69,26 @@ export default async function GroupDetailPage({
 
   const currentMember = memberList.find((m) => m.userId === user.id);
   const isAdmin = currentMember?.role === "admin";
+
+  // Pre-compute draft display data (server component — Date.now() is safe here)
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
+  const draftDisplayData = (drafts ?? []).map((draft) => {
+    const players = draft.draft_players ?? [];
+    const isActive = draft.status === "active";
+    const state = draft.state as { startedAt?: number } | null;
+    const startedAt = state?.startedAt;
+    const elapsed = startedAt ? formatElapsed(startedAt, now) : null;
+    const MAX_AVATARS = 6;
+    return {
+      ...draft,
+      players,
+      isActive,
+      elapsed,
+      displayPlayers: players.slice(0, MAX_AVATARS),
+      overflow: players.length - MAX_AVATARS,
+    };
+  });
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 space-y-8">
@@ -104,39 +140,66 @@ export default async function GroupDetailPage({
       </section>
 
       {/* Active Drafts */}
-      {drafts && drafts.length > 0 && (
+      {draftDisplayData.length > 0 && (
         <section>
           <h2 className="text-sm font-medium text-foreground/70 uppercase tracking-wide mb-3">
             Active Drafts
           </h2>
           <div className="space-y-2">
-            {drafts.map((draft) => {
-              const playerCount = draft.draft_players?.[0]?.count ?? 0;
-              return (
-                <Link
-                  key={draft.id}
-                  href={`/draft/${draft.id}`}
-                  className="block rounded-lg border border-border bg-surface p-3 hover:border-border-light transition-colors"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">
-                      {draft.format === "standard"
-                        ? draft.set_name ?? draft.set_code ?? "Standard"
-                        : draft.format === "winston"
-                          ? "Winston Draft"
-                          : "Cube Draft"}
-                    </span>
-                    <span className="text-xs text-foreground/40 uppercase">
-                      {draft.status.replace("_", " ")}
-                    </span>
+            {draftDisplayData.map((draft) => (
+              <Link
+                key={draft.id}
+                href={`/draft/${draft.id}`}
+                className={`block rounded-lg border bg-surface p-3 hover:border-border-light transition-colors ${
+                  draft.isActive ? "border-green-500" : "border-border"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">
+                    {draft.format === "standard"
+                      ? draft.set_name ?? draft.set_code ?? "Standard"
+                      : draft.format === "winston"
+                        ? "Winston Draft"
+                        : "Cube Draft"}
+                  </span>
+                  <span className={`text-xs font-medium uppercase ${
+                    draft.isActive ? "text-green-500" : "text-foreground/40"
+                  }`}>
+                    {draft.status.replace("_", " ")}
+                  </span>
+                </div>
+
+                <p className="text-xs text-foreground/40 mt-1">
+                  {draft.players.length} player{draft.players.length !== 1 ? "s" : ""}
+                  {draft.elapsed && <> &middot; {draft.elapsed.startedStr}</>}
+                  {draft.elapsed && <> &middot; {draft.elapsed.elapsedStr}</>}
+                  {!draft.elapsed && <> &middot; {new Date(draft.created_at).toLocaleDateString()}</>}
+                </p>
+
+                {/* Player avatar row */}
+                {draft.players.length > 0 && (
+                  <div className="flex items-center mt-2">
+                    {draft.displayPlayers.map((p, i) => (
+                      <div key={p.user_id} className={i > 0 ? "-ml-2" : ""}>
+                        <UserAvatar
+                          avatarUrl={p.profiles?.avatar_url ?? null}
+                          displayName={p.profiles?.display_name ?? "?"}
+                          size="sm"
+                        />
+                      </div>
+                    ))}
+                    {draft.overflow > 0 && (
+                      <div
+                        className="-ml-2 inline-flex items-center justify-center rounded-full bg-surface border border-border text-[10px] font-medium text-foreground/60 shrink-0"
+                        style={{ width: 24, height: 24 }}
+                      >
+                        +{draft.overflow}
+                      </div>
+                    )}
                   </div>
-                  <p className="text-xs text-foreground/40 mt-1">
-                    {playerCount} player{playerCount !== 1 ? "s" : ""} &middot;{" "}
-                    {new Date(draft.created_at).toLocaleDateString()}
-                  </p>
-                </Link>
-              );
-            })}
+                )}
+              </Link>
+            ))}
           </div>
         </section>
       )}

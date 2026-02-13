@@ -308,24 +308,30 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          bio: string
           created_at: string
           display_name: string
+          favorite_color: string | null
           id: string
           is_site_admin: boolean
           updated_at: string
         }
         Insert: {
           avatar_url?: string | null
+          bio?: string
           created_at?: string
           display_name: string
+          favorite_color?: string | null
           id: string
           is_site_admin?: boolean
           updated_at?: string
         }
         Update: {
           avatar_url?: string | null
+          bio?: string
           created_at?: string
           display_name?: string
+          favorite_color?: string | null
           id?: string
           is_site_admin?: boolean
           updated_at?: string
