@@ -28,7 +28,7 @@ export default async function AppLayout({
     <div className="flex min-h-dvh flex-col">
       {/* Top bar */}
       <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur-sm">
-        <div className="max-w-5xl mx-auto w-full flex items-center justify-between px-4 py-3">
+        <div className="max-w-5xl mx-auto w-full flex items-center justify-between px-4 h-12">
           <Link href="/dashboard" className="text-xl font-bold tracking-tight text-foreground">
             podman
           </Link>
