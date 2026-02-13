@@ -29,7 +29,8 @@ interface PickScreenProps {
   packQueueLength?: number;
 }
 
-const FILTER_OPTIONS: { value: PackFilterValue | "all"; manaClass?: string; label: string }[] = [
+// Row 1: color filters
+const COLOR_FILTERS: { value: PackFilterValue | "all"; manaClass?: string; label: string }[] = [
   { value: "all", label: "All" },
   { value: "W", manaClass: "ms ms-w ms-cost", label: "W" },
   { value: "U", manaClass: "ms ms-u ms-cost", label: "U" },
@@ -40,14 +41,54 @@ const FILTER_OPTIONS: { value: PackFilterValue | "all"; manaClass?: string; labe
   { value: "colorless", manaClass: "ms ms-c ms-cost", label: "C" },
 ];
 
+// Row 2: type filters
+const TYPE_FILTERS: { value: PackFilterValue; label: string }[] = [
+  { value: "creature", label: "Creatures" },
+  { value: "noncreature", label: "Non-Creatures" },
+];
+
+// All options combined for desktop popup
+const ALL_FILTER_OPTIONS = [...COLOR_FILTERS, ...TYPE_FILTERS];
+
+function isCreature(card: CardReference): boolean {
+  if (!card.typeLine) return false;
+  return card.typeLine.includes("Creature");
+}
+
 function matchesFilterSet(card: CardReference, filterSet: Set<PackFilterValue>): boolean {
   if (filterSet.size === 0) return true;
+
+  // Split filters into color filters and type filters
+  const colorFilters: PackFilterValue[] = [];
+  let wantCreature = false;
+  let wantNoncreature = false;
+
   for (const f of filterSet) {
-    if (f === "colorless" && card.colors.length === 0) return true;
-    if (f === "multicolor" && card.colors.length >= 2) return true;
-    if (card.colors.includes(f as ManaColor)) return true;
+    if (f === "creature") wantCreature = true;
+    else if (f === "noncreature") wantNoncreature = true;
+    else colorFilters.push(f);
   }
-  return false;
+
+  // Color match (OR across color filters, pass if no color filters)
+  let colorMatch = colorFilters.length === 0;
+  if (!colorMatch) {
+    for (const f of colorFilters) {
+      if (f === "colorless" && card.colors.length === 0) { colorMatch = true; break; }
+      if (f === "multicolor" && card.colors.length >= 2) { colorMatch = true; break; }
+      if (card.colors.includes(f as ManaColor)) { colorMatch = true; break; }
+    }
+  }
+
+  // Type match (OR across type filters, pass if no type filters)
+  let typeMatch = !wantCreature && !wantNoncreature;
+  if (!typeMatch) {
+    const creature = isCreature(card);
+    if (wantCreature && creature) typeMatch = true;
+    if (wantNoncreature && !creature) typeMatch = true;
+  }
+
+  // Both must match (AND between color and type groups)
+  return colorMatch && typeMatch;
 }
 
 function getBorderClass(colors: string[]): string {
@@ -462,33 +503,56 @@ export default function PickScreen({
 
       {/* ==================== MOBILE: Carousel ==================== */}
       <div className="flex-1 flex flex-col min-h-0 sm:hidden">
-        {/* Inline filter pills — mana symbols, multi-select, no wrap */}
-        <div className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 flex-nowrap overflow-x-auto no-scrollbar">
-          {FILTER_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => onFilterToggle(opt.value)}
-              className={`
-                flex items-center justify-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0
-                transition-colors
-                ${isFilterActive(opt.value)
-                  ? "bg-accent text-white"
-                  : "bg-surface text-foreground/70"
-                }
-              `}
-            >
-              {opt.manaClass ? (
-                <i className={opt.manaClass} style={{ fontSize: "14px" }} />
-              ) : opt.value === "multicolor" ? (
-                <span
-                  className="w-3.5 h-3.5 rounded-full inline-block"
-                  style={{ backgroundColor: "var(--mana-gold)" }}
-                />
-              ) : null}
-              {opt.value === "all" ? "All" : null}
-            </button>
-          ))}
+        {/* Filter pills — two centered rows */}
+        <div className="shrink-0 flex flex-col items-center gap-1 px-3 py-1.5">
+          {/* Row 1: color filters */}
+          <div className="flex items-center justify-center gap-1.5 flex-nowrap">
+            {COLOR_FILTERS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => onFilterToggle(opt.value)}
+                className={`
+                  flex items-center justify-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0
+                  transition-colors
+                  ${isFilterActive(opt.value)
+                    ? "bg-accent text-white"
+                    : "bg-surface text-foreground/70"
+                  }
+                `}
+              >
+                {opt.manaClass ? (
+                  <i className={opt.manaClass} style={{ fontSize: "14px" }} />
+                ) : opt.value === "multicolor" ? (
+                  <span
+                    className="w-3.5 h-3.5 rounded-full inline-block"
+                    style={{ backgroundColor: "var(--mana-gold)" }}
+                  />
+                ) : null}
+                {opt.value === "all" ? "All" : null}
+              </button>
+            ))}
+          </div>
+          {/* Row 2: type filters */}
+          <div className="flex items-center justify-center gap-1.5">
+            {TYPE_FILTERS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => onFilterToggle(opt.value)}
+                className={`
+                  px-2.5 py-1 rounded-full text-xs font-semibold shrink-0
+                  transition-colors
+                  ${isFilterActive(opt.value)
+                    ? "bg-accent text-white"
+                    : "bg-surface text-foreground/70"
+                  }
+                `}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {filteredCards.length === 0 ? (
@@ -726,7 +790,7 @@ export default function PickScreen({
                 />
                 <div className="absolute bottom-full right-0 mb-2 z-50 bg-surface border border-border rounded-xl p-2 shadow-lg min-w-[200px]">
                   <div className="grid grid-cols-4 gap-1.5">
-                    {FILTER_OPTIONS.map((opt) => (
+                    {COLOR_FILTERS.map((opt) => (
                       <button
                         key={opt.value}
                         type="button"
@@ -751,6 +815,25 @@ export default function PickScreen({
                             style={{ backgroundColor: "var(--mana-gold)" }}
                           />
                         ) : null}
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5 mt-1.5 border-t border-border pt-1.5">
+                    {TYPE_FILTERS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => onFilterToggle(opt.value)}
+                        className={`
+                          flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-xs font-semibold
+                          transition-colors
+                          ${isFilterActive(opt.value)
+                            ? "bg-accent text-white"
+                            : "bg-background text-foreground/70 hover:bg-surface-hover"
+                          }
+                        `}
+                      >
                         {opt.label}
                       </button>
                     ))}

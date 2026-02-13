@@ -244,6 +244,7 @@ export function scryfallCardToReference(
     rarity: mapRarity(card.rarity),
     colors: mapColors(card.colors),
     cmc: card.cmc ?? 0,
+    typeLine: card.type_line,
     isFoil,
   };
 }
