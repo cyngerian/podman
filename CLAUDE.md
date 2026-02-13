@@ -40,11 +40,11 @@ The `(app)` layout adds a sticky header (`z-30`, `h-12`) with user avatar, displ
 
 ### Draft Engine (`src/lib/draft-engine.ts`)
 
-All draft logic is pure functions that transform immutable `Draft` state objects. Key functions: `createDraft`, `startDraft`, `makePickAndPass`, `advanceToNextPack`, `transitionToDeckBuilding`. Draft state is stored as JSON in the `drafts.state` column and mutated via `applyDraftMutation()` in server actions with optimistic concurrency.
+All draft logic is pure functions that transform immutable `Draft` state objects. Key functions: `createDraft`, `startDraft`, `makePickAndPass`, `advanceToNextPack`, `transitionToDeckBuilding`, `unsubmitDeck`. Draft state is stored as JSON in the `drafts.state` column and mutated via `applyDraftMutation()` in server actions with optimistic concurrency.
 
 ### Key Types (`src/lib/types.ts`)
 
-`Draft`, `DraftSeat`, `PackState`, `CardReference` (minimal card data cached in draft state — never store full Scryfall objects). `TimerPreset` controls pick speed via lookup table + multiplier. `PackFilterValue` for multi-select filters (`Set<PackFilterValue>`), `PickedCardSortMode` for UI sorting. `CardReference.typeLine` is optional — missing on drafts created before Feb 2026; hydrated at page load via Scryfall collection endpoint.
+`Draft`, `DraftSeat`, `PackState`, `CardReference` (minimal card data cached in draft state — never store full Scryfall objects). `TimerPreset` controls pick speed via lookup table + multiplier. `PackFilterValue` for multi-select filters (`Set<PackFilterValue>`), `PickedCardSortMode` for UI sorting. `CardReference.typeLine` is optional — missing on drafts created before Feb 2026; hydrated at page load via Scryfall collection endpoint. `DraftSeat.deckName` is optional — persisted via auto-save and used in exports.
 
 ### Realtime Updates
 
@@ -90,3 +90,13 @@ Desktop has a two-row header: row 1 mirrors the app layout (podman + set info + 
 **Critical**: `py-8` on the carousel wrapper must not be reduced — the active card's 1.15x scale needs vertical overflow room. Reducing to `py-4` causes visible clipping.
 
 **Dependencies**: `mana-font` (mana symbol icons), `keyrune` (set symbol icons), `@vercel/blob` (avatar uploads). Pick button uses 500ms long-press with fill animation (`LongPressPickButton`). Filters are multi-select (`Set<PackFilterValue>`) with color OR + type AND logic; creature/non-creature are mutually exclusive.
+
+## Deck Builder (`src/components/deck-builder/DeckBuilderScreen.tsx`)
+
+3-col mobile / 5-col tablet / 7-col desktop card grid with `size="medium"`. Tap card to open magnified preview modal (85vw/400px) with move-to-sideboard/deck button. Collapsible sideboard (default collapsed) with "Move all to deck" (two-tap confirm). Auto-saves deck/sideboard/lands/deckName to DB via debounced (1s) `onDeckChange` callback. Deck name persisted in `DraftSeat.deckName`.
+
+Sections: Color Breakdown (mana-font icons, `justify-between`), Basic Lands (mana symbol steppers + "Suggest lands" button computing 17 lands from deck color proportions), Card Types (creatures/other), Mana Curve.
+
+## Results Screen (`src/components/draft/PostDraftScreen.tsx`)
+
+Shows deck/sideboard/pool grids, creature stats, pick history (collapsible), per-player picks (accordion, all collapsed by default). Export: clipboard, Cockatrice (.cod), plain text (.txt) — all use `deckName` in content and filenames. "Edit Deck" button calls `editDeckAction` → `unsubmitDeck()` → redirects back to deck builder with state intact.

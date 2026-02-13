@@ -145,6 +145,16 @@ export interface DraftSeat {
   packReceivedAt: number | null; // when currentPack was received (for timer)
 }
 
+// --- Pod Status (safe summary for other players) ---
+
+export interface PodMemberStatus {
+  position: number;
+  displayName: string;
+  pickCount: number;
+  isCurrentlyPicking: boolean;
+  queuedPacks: number;
+}
+
 // --- Winston State ---
 
 export interface WinstonState {

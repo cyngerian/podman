@@ -2,10 +2,11 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
-import type { CardReference, PickedCardSortMode, ManaColor, PackFilterValue } from "@/lib/types";
+import type { CardReference, PickedCardSortMode, ManaColor, PackFilterValue, PodMemberStatus } from "@/lib/types";
 import CardThumbnail from "@/components/ui/CardThumbnail";
 import Timer from "@/components/ui/Timer";
 import PickedCardsDrawer from "./PickedCardsDrawer";
+import PodStatusOverlay from "./PodStatusOverlay";
 import Image from "next/image";
 
 interface PickScreenProps {
@@ -27,6 +28,7 @@ interface PickScreenProps {
   sortMode: PickedCardSortMode;
   onSortChange: (mode: PickedCardSortMode) => void;
   packQueueLength?: number;
+  podMembers: PodMemberStatus[];
 }
 
 // Row 1: color filters
@@ -172,10 +174,12 @@ export default function PickScreen({
   sortMode,
   onSortChange,
   packQueueLength,
+  podMembers,
 }: PickScreenProps) {
   const [selectedCard, setSelectedCard] = useState<CardReference | null>(null);
   const [showPickedDrawer, setShowPickedDrawer] = useState(false);
   const [showGridView, setShowGridView] = useState(false);
+  const [showPodStatus, setShowPodStatus] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -493,10 +497,15 @@ export default function PickScreen({
             maxSeconds={timerMaxSeconds}
             paused={timerPaused}
           />
-          <div className="flex flex-col items-center">
+          <button
+            type="button"
+            onClick={() => setShowPodStatus(true)}
+            className="flex flex-col items-center"
+          >
             <span className="text-base text-foreground">
               <span className="font-bold">Pack {packNumber}:</span>{" "}
               <span className="font-medium">Pick {pickInPack}</span>
+              <PodIcon className="inline-block ml-1 w-3.5 h-3.5 text-foreground/40 align-[-2px]" />
             </span>
             <span className="text-xs text-foreground/40">
               {packCards.length}/{totalCardsInPack} cards
@@ -507,7 +516,7 @@ export default function PickScreen({
               )}
               <span className="ml-1.5">{directionArrow} {passDirection}</span>
             </span>
-          </div>
+          </button>
           <button
             type="button"
             onClick={() => setShowPickedDrawer(true)}
@@ -549,7 +558,11 @@ export default function PickScreen({
         {/* Row 2: controls — pack info, filters, picks */}
         <div className="border-b border-border">
           <div className="max-w-5xl mx-auto w-full flex items-center justify-between px-4 py-1.5">
-            <div className="flex flex-col">
+            <button
+              type="button"
+              onClick={() => setShowPodStatus(true)}
+              className="flex flex-col text-left hover:bg-surface rounded-lg px-2 py-1 -mx-2 -my-1 transition-colors"
+            >
               <span className="text-sm font-semibold text-foreground">
                 Pack {packNumber} Pick {pickInPack}
                 <span className="text-foreground/40 font-normal ml-1.5">
@@ -560,11 +573,12 @@ export default function PickScreen({
                     +{packQueueLength} queued
                   </span>
                 )}
+                <PodIcon className="inline-block ml-1.5 w-3.5 h-3.5 text-foreground/40 align-[-2px]" />
               </span>
               <span className="text-xs text-foreground/50">
                 {directionArrow} Pass {passDirection}
               </span>
-            </div>
+            </button>
 
             {/* Inline filters */}
             <div className="flex items-center gap-1">
@@ -932,6 +946,26 @@ export default function PickScreen({
         sortMode={sortMode}
         onSortChange={onSortChange}
       />
+
+      {/* Pod status overlay */}
+      <PodStatusOverlay
+        members={podMembers}
+        isOpen={showPodStatus}
+        onClose={() => setShowPodStatus(false)}
+      />
     </div>
+  );
+}
+
+function PodIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className={className}
+    >
+      <path d="M7 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM14.5 9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM1.615 16.428a1.224 1.224 0 0 1-.569-1.175 6.002 6.002 0 0 1 11.908 0c.058.467-.172.92-.57 1.174A9.953 9.953 0 0 1 7 18a9.953 9.953 0 0 1-5.385-1.572ZM14.5 16h-.106c.07-.297.088-.611.048-.933a7.47 7.47 0 0 0-1.588-3.755 4.502 4.502 0 0 1 5.874 2.636.818.818 0 0 1-.36.98A7.465 7.465 0 0 1 14.5 16Z" />
+    </svg>
   );
 }

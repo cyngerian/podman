@@ -1,6 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import { createServerSupabaseClient, getUser } from "@/lib/supabase-server";
-import type { Draft } from "@/lib/types";
+import type { Draft, PodMemberStatus } from "@/lib/types";
 import { hydrateSeat } from "@/lib/draft-engine";
 import { hydrateCardTypeLines } from "@/lib/scryfall";
 import PickClient from "./PickClient";
@@ -41,6 +41,20 @@ export default async function PickPage({
     ? await hydrateCardTypeLines(seat.currentPack.cards)
     : [];
 
+  // Build pod status for all other players (no sensitive data)
+  const podMembers: PodMemberStatus[] = draft.seats
+    .filter((s) => s.userId !== user.id)
+    .map((s) => {
+      const h = hydrateSeat(s);
+      return {
+        position: h.position,
+        displayName: h.displayName,
+        pickCount: h.picks.length,
+        isCurrentlyPicking: h.currentPack !== null,
+        queuedPacks: h.packQueue.length,
+      };
+    });
+
   return (
     <PickClient
       key={seat.packReceivedAt ?? "waiting"}
@@ -59,6 +73,7 @@ export default async function PickPage({
       deckBuildingEnabled={draft.deckBuildingEnabled}
       packReceivedAt={seat.packReceivedAt}
       packQueueLength={seat.packQueue.length}
+      podMembers={podMembers}
     />
   );
 }

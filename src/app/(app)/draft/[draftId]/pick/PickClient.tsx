@@ -8,6 +8,7 @@ import type {
   PickedCardSortMode,
   TimerPreset,
   PacingMode,
+  PodMemberStatus,
 } from "@/lib/types";
 import { getPickTimer, getPassDirection } from "@/lib/types";
 import PickScreen from "@/components/draft/PickScreen";
@@ -30,6 +31,7 @@ interface PickClientProps {
   deckBuildingEnabled: boolean;
   packReceivedAt: number | null;
   packQueueLength: number;
+  podMembers: PodMemberStatus[];
 }
 
 export default function PickClient({
@@ -48,6 +50,7 @@ export default function PickClient({
   deckBuildingEnabled,
   packReceivedAt,
   packQueueLength,
+  podMembers,
 }: PickClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -243,6 +246,7 @@ export default function PickClient({
       sortMode={sortMode}
       onSortChange={setSortMode}
       packQueueLength={packQueueLength}
+      podMembers={podMembers}
     />
   );
 }
