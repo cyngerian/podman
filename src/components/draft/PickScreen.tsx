@@ -165,6 +165,9 @@ export default function PickScreen({
 
     const onTouchEnd = () => {
       isTouching = false;
+      // Schedule snap in case no scroll events follow (user grabbed to stop)
+      clearTimeout(snapTimeoutRef.current);
+      snapTimeoutRef.current = setTimeout(snapToNearest, 100);
     };
 
     // Initial state
@@ -218,7 +221,7 @@ export default function PickScreen({
   const directionArrow = passDirection === "left" ? "\u2190" : "\u2192";
 
   return (
-    <div className="flex flex-col h-dvh bg-background overflow-hidden">
+    <div className="fixed inset-0 z-40 flex flex-col bg-background overflow-hidden">
       {/* Header bar */}
       <header className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
         <Timer
@@ -255,6 +258,33 @@ export default function PickScreen({
 
       {/* ==================== MOBILE: Carousel ==================== */}
       <div className="flex-1 flex flex-col min-h-0 sm:hidden">
+        {/* Inline filter pills */}
+        <div className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 overflow-x-auto no-scrollbar">
+          {FILTER_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => onFilterChange(opt.value)}
+              className={`
+                flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0
+                transition-colors
+                ${filterMode === opt.value
+                  ? "bg-accent text-white"
+                  : "bg-surface text-foreground/70"
+                }
+              `}
+            >
+              {opt.colorVar && (
+                <span
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: opt.colorVar }}
+                />
+              )}
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
         {filteredCards.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">
             <p className="text-foreground/40 text-sm">No cards match this filter</p>
@@ -267,7 +297,7 @@ export default function PickScreen({
               <div
                 ref={scrollRef}
                 className="flex overflow-x-auto w-full py-8 no-scrollbar items-center"
-                style={{ paddingLeft: `${(100 - CARD_WIDTH_VW) / 2}vw`, paddingRight: `${(100 - CARD_WIDTH_VW) / 2}vw`, touchAction: "pan-x" }}
+                style={{ paddingLeft: `${(100 - CARD_WIDTH_VW) / 2}vw`, paddingRight: `${(100 - CARD_WIDTH_VW) / 2}vw`, touchAction: "pan-x", scrollSnapType: "x mandatory", overscrollBehavior: "contain" }}
               >
                 {filteredCards.map((card, i) => (
                   <div
@@ -278,6 +308,8 @@ export default function PickScreen({
                       width: `${CARD_WIDTH_VW}vw`,
                       maxWidth: "400px",
                       marginLeft: i === 0 ? 0 : `${CARD_OVERLAP_PX}px`,
+                      scrollSnapAlign: "center",
+                      scrollSnapStop: "always",
                     }}
                   >
                     <div
@@ -336,63 +368,6 @@ export default function PickScreen({
           </>
         )}
 
-        {/* Mobile bottom bar with filter */}
-        <div className="flex items-center justify-end px-3 py-2 border-t border-border bg-surface shrink-0">
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowFilterMenu((prev) => !prev)}
-              className={`
-                px-3 py-2 rounded-lg text-sm font-medium transition-colors
-                ${filterMode !== "all"
-                  ? "bg-accent text-white"
-                  : "bg-background text-foreground hover:bg-surface-hover"
-                }
-              `}
-            >
-              Filter{filterMode !== "all" ? ` (${filterMode})` : ""}
-            </button>
-
-            {showFilterMenu && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setShowFilterMenu(false)}
-                />
-                <div className="absolute bottom-full right-0 mb-2 z-50 bg-surface border border-border rounded-xl p-2 shadow-lg min-w-[200px]">
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {FILTER_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => {
-                          onFilterChange(opt.value);
-                          setShowFilterMenu(false);
-                        }}
-                        className={`
-                          flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-xs font-semibold
-                          transition-colors
-                          ${filterMode === opt.value
-                            ? "bg-accent text-white"
-                            : "bg-background text-foreground/70 hover:bg-surface-hover"
-                          }
-                        `}
-                      >
-                        {opt.colorVar && (
-                          <span
-                            className="w-2.5 h-2.5 rounded-full shrink-0"
-                            style={{ backgroundColor: opt.colorVar }}
-                          />
-                        )}
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* ==================== DESKTOP: Grid ==================== */}
