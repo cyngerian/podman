@@ -29,18 +29,26 @@ function stripNonFoilBasicLands(packs: CardReference[][]): CardReference[][] {
   );
 }
 
+export interface GeneratePacksOptions {
+  productCode?: string;
+  keepBasicLands?: boolean;
+}
+
 /**
  * Generate all packs for a single set.
  * Tries sheet-based generation first, falls back to template system.
- * Non-foil basic lands are stripped from the output.
+ * Non-foil basic lands are stripped unless keepBasicLands is set.
  */
 export async function generatePacksForSet(
   setCode: string,
   playerCount: number,
-  packsPerPlayer: number
+  packsPerPlayer: number,
+  options?: GeneratePacksOptions
 ): Promise<CardReference[][]> {
+  const { productCode, keepBasicLands } = options ?? {};
+
   // Try sheet-based generation
-  const boosterData = await loadBoosterProductData(setCode);
+  const boosterData = await loadBoosterProductData(setCode, productCode);
 
   if (boosterData) {
     const cardMap = await fetchCardsByCollectorNumber(
@@ -53,7 +61,7 @@ export async function generatePacksForSet(
         playerCount,
         packsPerPlayer
       );
-      return stripNonFoilBasicLands(packs);
+      return keepBasicLands ? packs : stripNonFoilBasicLands(packs);
     }
   }
 
@@ -75,7 +83,7 @@ export async function generatePacksForSet(
   const era = getPackEra(setInfo.released_at);
   const template = getTemplateForSet(setCode, era);
   const packs = generateAllPacks(cardPool, template, playerCount, packsPerPlayer);
-  return stripNonFoilBasicLands(packs);
+  return keepBasicLands ? packs : stripNonFoilBasicLands(packs);
 }
 
 /**

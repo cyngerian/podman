@@ -31,6 +31,7 @@ interface PickScreenProps {
   initialDeck?: CardReference[] | null;
   initialSideboard?: CardReference[] | null;
   crackAPack?: boolean;
+  crackAPackLabel?: string;
   onCrackAnother?: () => void;
   onBackToSetPicker?: () => void;
   crackAPackLoading?: boolean;
@@ -189,6 +190,7 @@ export default function PickScreen({
   initialDeck,
   initialSideboard,
   crackAPack,
+  crackAPackLabel,
   onCrackAnother,
   onBackToSetPicker,
   crackAPackLoading,
@@ -520,7 +522,9 @@ export default function PickScreen({
               <span className="text-sm font-bold text-foreground truncate">{setName}</span>
             )}
           </div>
-          {draftDateStr ? (
+          {crackAPackLabel ? (
+            <span className="text-xs text-foreground/40 shrink-0 text-right">{crackAPackLabel}</span>
+          ) : draftDateStr ? (
             <span className="text-xs text-foreground/40 shrink-0 w-16 text-right">{draftDateStr}</span>
           ) : (
             <div className="w-16 shrink-0" />
@@ -584,7 +588,9 @@ export default function PickScreen({
                 <span className="text-xs text-foreground/40 ml-1">{draftDateStr}</span>
               )}
             </div>
-            {!crackAPack && (
+            {crackAPackLabel ? (
+              <span className="shrink-0 text-xs text-foreground/40">{crackAPackLabel}</span>
+            ) : !crackAPack ? (
               <div className="shrink-0 flex justify-end">
                 <Timer
                   seconds={timerSeconds}
@@ -592,7 +598,7 @@ export default function PickScreen({
                   paused={timerPaused}
                 />
               </div>
-            )}
+            ) : null}
           </div>
         </div>
         {/* Row 2: controls — pack info, filters, picks */}

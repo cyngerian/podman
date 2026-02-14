@@ -44,29 +44,41 @@ export interface BoosterProductData {
 
 /**
  * Load booster product data for a set code.
- * Tries product codes in order: {set}-play, {set}-draft, {set}
+ * When productCode is provided, queries by exact code.
+ * Otherwise tries product codes in order: {set}-play, {set}-draft, {set}
  * Returns null if no product found (triggers fallback to template system).
  */
 export async function loadBoosterProductData(
-  setCode: string
+  setCode: string,
+  productCode?: string
 ): Promise<BoosterProductData | null> {
   const supabase = createAdminClient();
   const code = setCode.toLowerCase();
 
-  // Try product codes in preference order
-  const candidates = [`${code}-play`, `${code}-draft`, code];
-
   let product: { id: number; code: string; set_code: string } | null = null;
-  for (const candidate of candidates) {
+
+  if (productCode) {
+    // Exact product code lookup
     const { data } = await supabase
       .from("booster_products")
       .select("id, code, set_code")
-      .eq("code", candidate)
+      .eq("code", productCode.toLowerCase())
       .single();
+    product = data;
+  } else {
+    // Try product codes in preference order
+    const candidates = [`${code}-play`, `${code}-draft`, code];
+    for (const candidate of candidates) {
+      const { data } = await supabase
+        .from("booster_products")
+        .select("id, code, set_code")
+        .eq("code", candidate)
+        .single();
 
-    if (data) {
-      product = data;
-      break;
+      if (data) {
+        product = data;
+        break;
+      }
     }
   }
 
