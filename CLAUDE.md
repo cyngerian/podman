@@ -44,7 +44,7 @@ All draft logic is pure functions that transform immutable `Draft` state objects
 
 ### Key Types (`src/lib/types.ts`)
 
-`Draft`, `DraftSeat`, `PackState`, `CardReference` (minimal card data cached in draft state — never store full Scryfall objects). `TimerPreset` controls pick speed via lookup table + multiplier. `PackFilterValue` for multi-select filters (`Set<PackFilterValue>`), `PickedCardSortMode` for UI sorting. `CardReference.typeLine` is optional — missing on drafts created before Feb 2026; hydrated at page load via Scryfall collection endpoint. `DraftSeat.deckName` is optional — persisted via auto-save and used in exports. `PodMemberStatus` includes `avatarUrl`, `favoriteColor`, `isCurrentUser` for the pod screen.
+`Draft`, `DraftSeat`, `PackState`, `CardReference` (minimal card data cached in draft state — never store full Scryfall objects). `TimerPreset` controls pick speed via lookup table + multiplier. `PackFilterValue` for multi-select filters (`Set<PackFilterValue>`), `PickedCardSortMode` for UI sorting. `CardReference.typeLine` is optional — missing on drafts created before Feb 2026; hydrated at page load via Scryfall collection endpoint. `CardReference.backImageUri`/`backSmallImageUri` are optional — present only on DFCs; older drafts without these fields simply don't show a flip button. `DraftSeat.deckName` is optional — persisted via auto-save and used in exports. `PodMemberStatus` includes `avatarUrl`, `favoriteColor`, `isCurrentUser` for the pod screen.
 
 ### Realtime Updates
 
@@ -56,7 +56,13 @@ Server actions return `{ error: string }` on failure or `void`/redirect on succe
 
 ### Card Images
 
-Remote from Scryfall (`cards.scryfall.io`), optimized via Next.js Image. `CardReference` stores both `imageUri` (normal) and `smallImageUri` (thumbnail). Rate-limited Scryfall client in `src/lib/scryfall.ts` (75ms interval, 10 req/s max).
+Remote from Scryfall (`cards.scryfall.io`), optimized via Next.js Image. `CardReference` stores both `imageUri` (normal) and `smallImageUri` (thumbnail). DFCs also have `backImageUri` and `backSmallImageUri` for the back face. Rate-limited Scryfall client in `src/lib/scryfall.ts` (75ms interval, 10 req/s max).
+
+### Double-Faced Cards (DFCs)
+
+`CardReference.backImageUri`/`backSmallImageUri` are populated from `card_faces[1]` by `scryfallCardToReference`. Colors are unioned from all faces via `dfcUnionColors()` so multi-color DFCs get gold borders. `CardThumbnail` shows a ↻ indicator; flip interaction available on carousel (tap ↻ button), desktop preview panel ("Flip" button), and deck builder preview modal ("Show Back"/"Show Front").
+
+**Collector number gotcha**: Booster distribution data (MTGJSON) uses `a`/`b` suffixes for DFC collector numbers (`51a`), but Scryfall expects `51`. `fetchCardsByCollectorNumber` strips the suffix before querying and maps results back to original keys. See `docs/collector-number-suffix-fix.md`.
 
 ## Groups
 
