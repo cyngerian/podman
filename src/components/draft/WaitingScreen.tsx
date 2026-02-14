@@ -2,24 +2,26 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { CardReference, PodMemberStatus, PickedCardSortMode } from "@/lib/types";
+import type { CardReference, PodMemberStatus, BasicLandCounts } from "@/lib/types";
 import PodMemberList from "./PodMemberList";
-import PickedCardsDrawer from "./PickedCardsDrawer";
+import DeckBuilderScreen from "@/components/deck-builder/DeckBuilderScreen";
 
 interface WaitingScreenProps {
   podMembers: PodMemberStatus[];
   picks: CardReference[];
-  sortMode: PickedCardSortMode;
-  onSortChange: (mode: PickedCardSortMode) => void;
+  onDeckChange?: (deck: CardReference[], sideboard: CardReference[], lands: BasicLandCounts) => void;
+  initialDeck?: CardReference[] | null;
+  initialSideboard?: CardReference[] | null;
 }
 
 export default function WaitingScreen({
   podMembers,
   picks,
-  sortMode,
-  onSortChange,
+  onDeckChange,
+  initialDeck,
+  initialSideboard,
 }: WaitingScreenProps) {
-  const [showPicks, setShowPicks] = useState(false);
+  const [showDeckBuilder, setShowDeckBuilder] = useState(false);
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background">
@@ -45,25 +47,30 @@ export default function WaitingScreen({
             <PodMemberList members={podMembers} />
           </div>
 
-          {/* View picks button */}
+          {/* View deck button */}
           <button
             type="button"
-            onClick={() => setShowPicks(true)}
+            onClick={() => setShowDeckBuilder(true)}
             className="w-full py-3 rounded-xl bg-surface text-sm font-medium text-foreground hover:bg-surface-hover transition-colors border border-border"
           >
-            View Picks ({picks.length})
+            My Deck
           </button>
         </div>
       </div>
 
-      {/* Picks drawer */}
-      <PickedCardsDrawer
-        picks={picks}
-        isOpen={showPicks}
-        onClose={() => setShowPicks(false)}
-        sortMode={sortMode}
-        onSortChange={onSortChange}
-      />
+      {/* Deck builder overlay */}
+      {showDeckBuilder && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-background">
+          <DeckBuilderScreen
+            mode="midDraft"
+            pool={picks}
+            initialDeck={initialDeck ?? undefined}
+            initialSideboard={initialSideboard ?? undefined}
+            onDeckChange={onDeckChange ? (deck, sideboard, lands) => onDeckChange(deck, sideboard, lands) : undefined}
+            onClose={() => setShowDeckBuilder(false)}
+          />
+        </div>
+      )}
     </div>
   );
 }

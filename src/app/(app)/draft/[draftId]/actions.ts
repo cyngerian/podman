@@ -734,8 +734,8 @@ export async function saveDeckAction(
   const result = await applyDraftMutation(
     draftId,
     (draft) => {
-      if (draft.status !== "deck_building") {
-        throw new Error("Draft is not in deck building phase");
+      if (draft.status !== "deck_building" && draft.status !== "active") {
+        throw new Error("Draft is not in an editable phase");
       }
       const seat = draft.seats.find((s) => s.userId === user.id);
       if (!seat) throw new Error("You are not in this draft");

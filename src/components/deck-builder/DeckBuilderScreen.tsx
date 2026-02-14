@@ -17,7 +17,8 @@ interface DeckBuilderScreenProps {
   initialSideboard?: CardReference[];
   initialLands?: BasicLandCounts;
   initialDeckName?: string;
-  onSubmitDeck: (
+  mode?: "full" | "midDraft";
+  onSubmitDeck?: (
     deck: CardReference[],
     sideboard: CardReference[],
     lands: BasicLandCounts,
@@ -30,6 +31,7 @@ interface DeckBuilderScreenProps {
     lands: BasicLandCounts,
     deckName?: string
   ) => void;
+  onClose?: () => void;
 }
 
 // --- Helpers ---
@@ -112,10 +114,13 @@ export default function DeckBuilderScreen({
   initialSideboard,
   initialLands,
   initialDeckName,
+  mode = "full",
   onSubmitDeck,
   onSkip,
   onDeckChange,
+  onClose,
 }: DeckBuilderScreenProps) {
+  const isMidDraft = mode === "midDraft";
   const [deck, setDeck] = useState<CardReference[]>(initialDeck ?? []);
   const [sideboard, setSideboard] = useState<CardReference[]>(
     initialSideboard ?? (initialDeck ? [] : [...pool])
@@ -259,6 +264,7 @@ export default function DeckBuilderScreen({
   }, [deck]);
 
   const handleSubmit = useCallback(() => {
+    if (!onSubmitDeck) return;
     if (mainCount < 40) {
       setError(
         `Deck needs at least 40 cards. Currently ${mainCount} (${deck.length} spells + ${totalLands} lands).`
@@ -292,39 +298,54 @@ export default function DeckBuilderScreen({
   // --- Render ---
 
   return (
-    <div className="flex flex-col min-h-dvh bg-background">
+    <div className={`flex flex-col bg-background ${isMidDraft ? "h-full" : "min-h-dvh"}`}>
       {/* ---- Header ---- */}
-      <header className="sticky top-12 z-20 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
+      <header className={`sticky ${isMidDraft ? "top-0" : "top-12"} z-20 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3`}>
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold text-foreground">
-              Build Your Deck
+              {isMidDraft ? "My Deck" : "Build Your Deck"}
             </h1>
-            <p className="text-xs text-foreground/50">40 card minimum</p>
+            {!isMidDraft && (
+              <p className="text-xs text-foreground/50">40 card minimum</p>
+            )}
           </div>
-          <div className="text-right">
-            <p
-              className={`text-sm font-mono font-semibold ${
-                mainCount >= 40 ? "text-success" : "text-warning"
-              }`}
-            >
-              Main: {mainCount}/40
-            </p>
+          <div className="flex items-center gap-3">
+            {!isMidDraft && (
+              <p
+                className={`text-sm font-mono font-semibold ${
+                  mainCount >= 40 ? "text-success" : "text-warning"
+                }`}
+              >
+                Main: {mainCount}/40
+              </p>
+            )}
+            {isMidDraft && onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-2.5 py-1.5 rounded-lg bg-surface text-xs font-medium text-foreground hover:bg-surface-hover transition-colors border border-border"
+              >
+                Close
+              </button>
+            )}
           </div>
         </div>
       </header>
 
       {/* ---- Scrollable body ---- */}
-      <main className="flex-1 overflow-y-auto px-4 pb-32 space-y-6 pt-4">
+      <main className={`flex-1 overflow-y-auto px-4 space-y-6 pt-4 ${isMidDraft ? "pb-4" : "pb-32"}`}>
         {/* Deck name + sort */}
         <div className="flex items-center gap-3">
-          <input
-            type="text"
-            value={deckName}
-            onChange={(e) => setDeckName(e.target.value)}
-            placeholder="Deck name (for exports)"
-            className="flex-1 bg-surface border border-border rounded-lg px-3 py-1.5 text-sm text-foreground placeholder:text-foreground/30 focus:outline-none focus:ring-1 focus:ring-accent"
-          />
+          {!isMidDraft && (
+            <input
+              type="text"
+              value={deckName}
+              onChange={(e) => setDeckName(e.target.value)}
+              placeholder="Deck name (for exports)"
+              className="flex-1 bg-surface border border-border rounded-lg px-3 py-1.5 text-sm text-foreground placeholder:text-foreground/30 focus:outline-none focus:ring-1 focus:ring-accent"
+            />
+          )}
           <select
             id="sort-select"
             value={sortMode}
@@ -452,64 +473,66 @@ export default function DeckBuilderScreen({
         )}
 
         {/* ---- Basic Lands Section ---- */}
-        <section>
-          <h2 className="text-xs font-bold uppercase tracking-wider text-foreground/60 mb-3">
-            Basic Lands ({totalLands})
-          </h2>
+        {!isMidDraft && (
+          <section>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-foreground/60 mb-3">
+              Basic Lands ({totalLands})
+            </h2>
 
-          <div className="space-y-2">
-            {MANA_COLORS.map((color) => (
-              <div
-                key={color}
-                className="flex items-center gap-3 bg-surface rounded-lg px-3 py-2"
-              >
-                {/* Mana symbol */}
-                <i
-                  className={MANA_ICON_CLASS[color]}
-                  style={{ fontSize: "18px" }}
-                  aria-hidden="true"
-                />
+            <div className="space-y-2">
+              {MANA_COLORS.map((color) => (
+                <div
+                  key={color}
+                  className="flex items-center gap-3 bg-surface rounded-lg px-3 py-2"
+                >
+                  {/* Mana symbol */}
+                  <i
+                    className={MANA_ICON_CLASS[color]}
+                    style={{ fontSize: "18px" }}
+                    aria-hidden="true"
+                  />
 
-                {/* Land name */}
-                <span className="text-sm text-foreground flex-1">
-                  {LAND_NAMES[color]}
-                </span>
-
-                {/* Stepper */}
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => adjustLand(color, -1)}
-                    disabled={lands[color] === 0}
-                    className="w-7 h-7 rounded-md bg-surface-hover text-foreground text-base font-bold flex items-center justify-center disabled:opacity-30 active:scale-90 transition-transform"
-                    aria-label={`Remove one ${LAND_NAMES[color]}`}
-                  >
-                    -
-                  </button>
-                  <span className="text-sm font-mono w-5 text-center text-foreground">
-                    {lands[color]}
+                  {/* Land name */}
+                  <span className="text-sm text-foreground flex-1">
+                    {LAND_NAMES[color]}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => adjustLand(color, 1)}
-                    className="w-7 h-7 rounded-md bg-surface-hover text-foreground text-base font-bold flex items-center justify-center active:scale-90 transition-transform"
-                    aria-label={`Add one ${LAND_NAMES[color]}`}
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
 
-          <button
-            type="button"
-            onClick={suggestLands}
-            className="mt-3 w-full py-2 rounded-lg border border-accent/40 text-accent text-sm font-medium hover:bg-accent/10 active:scale-[0.98] transition-all"
-          >
-            Suggest lands
-          </button>
-        </section>
+                  {/* Stepper */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => adjustLand(color, -1)}
+                      disabled={lands[color] === 0}
+                      className="w-7 h-7 rounded-md bg-surface-hover text-foreground text-base font-bold flex items-center justify-center disabled:opacity-30 active:scale-90 transition-transform"
+                      aria-label={`Remove one ${LAND_NAMES[color]}`}
+                    >
+                      -
+                    </button>
+                    <span className="text-sm font-mono w-5 text-center text-foreground">
+                      {lands[color]}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => adjustLand(color, 1)}
+                      className="w-7 h-7 rounded-md bg-surface-hover text-foreground text-base font-bold flex items-center justify-center active:scale-90 transition-transform"
+                      aria-label={`Add one ${LAND_NAMES[color]}`}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={suggestLands}
+              className="mt-3 w-full py-2 rounded-lg border border-accent/40 text-accent text-sm font-medium hover:bg-accent/10 active:scale-[0.98] transition-all"
+            >
+              Suggest lands
+            </button>
+          </section>
+        )}
 
         {/* ---- Card Types ---- */}
         <section>
@@ -535,29 +558,31 @@ export default function DeckBuilderScreen({
       </main>
 
       {/* ---- Sticky Action Buttons ---- */}
-      <footer className="fixed bottom-0 inset-x-0 z-20 bg-background/95 backdrop-blur-sm border-t border-border px-4 py-3 space-y-2">
-        {error && (
-          <p className="text-xs text-danger text-center mb-1">{error}</p>
-        )}
+      {!isMidDraft && (
+        <footer className="fixed bottom-0 inset-x-0 z-20 bg-background/95 backdrop-blur-sm border-t border-border px-4 py-3 space-y-2">
+          {error && (
+            <p className="text-xs text-danger text-center mb-1">{error}</p>
+          )}
 
-        <button
-          type="button"
-          onClick={handleSubmit}
-          className="w-full py-3.5 rounded-xl bg-accent text-white font-bold text-base tracking-wide active:scale-[0.97] transition-all hover:bg-accent-hover"
-        >
-          SUBMIT DECK
-        </button>
-
-        {onSkip && (
           <button
             type="button"
-            onClick={onSkip}
-            className="w-full py-2.5 rounded-xl bg-surface border border-border text-foreground/60 text-sm font-medium active:scale-[0.97] transition-all hover:bg-surface-hover"
+            onClick={handleSubmit}
+            className="w-full py-3.5 rounded-xl bg-accent text-white font-bold text-base tracking-wide active:scale-[0.97] transition-all hover:bg-accent-hover"
           >
-            Skip
+            SUBMIT DECK
           </button>
-        )}
-      </footer>
+
+          {onSkip && (
+            <button
+              type="button"
+              onClick={onSkip}
+              className="w-full py-2.5 rounded-xl bg-surface border border-border text-foreground/60 text-sm font-medium active:scale-[0.97] transition-all hover:bg-surface-hover"
+            >
+              Skip
+            </button>
+          )}
+        </footer>
+      )}
 
       {/* ---- Card Preview Modal ---- */}
       {previewState && (

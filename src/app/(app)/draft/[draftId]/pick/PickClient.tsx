@@ -5,17 +5,16 @@ import { useRouter } from "next/navigation";
 import type {
   CardReference,
   PackFilterValue,
-  PickedCardSortMode,
   TimerPreset,
   PacingMode,
   PodMemberStatus,
+  BasicLandCounts,
 } from "@/lib/types";
 import { getPickTimer, getPassDirection } from "@/lib/types";
 import PickScreen from "@/components/draft/PickScreen";
-import PickedCardsDrawer from "@/components/draft/PickedCardsDrawer";
 import WaitingScreen from "@/components/draft/WaitingScreen";
 import { useRealtimeChannel } from "@/hooks/useRealtimeChannel";
-import { makePickAction, autoPickAction } from "../actions";
+import { makePickAction, autoPickAction, saveDeckAction } from "../actions";
 
 interface PickClientProps {
   draftId: string;
@@ -34,6 +33,8 @@ interface PickClientProps {
   packReceivedAt: number | null;
   packQueueLength: number;
   podMembers: PodMemberStatus[];
+  initialDeck: CardReference[] | null;
+  initialSideboard: CardReference[] | null;
 }
 
 export default function PickClient({
@@ -53,6 +54,8 @@ export default function PickClient({
   packReceivedAt,
   packQueueLength,
   podMembers,
+  initialDeck,
+  initialSideboard,
 }: PickClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -61,7 +64,6 @@ export default function PickClient({
   const [packCards, setPackCards] = useState(initialPackCards);
   const [picks, setPicks] = useState(initialPicks);
   const [filterSet, setFilterSet] = useState<Set<PackFilterValue>>(new Set());
-  const [sortMode, setSortMode] = useState<PickedCardSortMode>("draft_order");
 
   // Timer based on packReceivedAt
   const timerDuration =
@@ -213,6 +215,15 @@ export default function PickClient({
     }
   }, []);
 
+  const handleDeckChange = useCallback(
+    (deck: CardReference[], sideboard: CardReference[], lands: BasicLandCounts) => {
+      saveDeckAction(draftId, deck, sideboard, lands).catch(() => {
+        // Ignore save errors during draft
+      });
+    },
+    [draftId]
+  );
+
   const passDirection = getPassDirection(initialPackNumber);
 
   // Waiting for pack
@@ -221,8 +232,9 @@ export default function PickClient({
       <WaitingScreen
         podMembers={podMembers}
         picks={picks}
-        sortMode={sortMode}
-        onSortChange={setSortMode}
+        onDeckChange={handleDeckChange}
+        initialDeck={initialDeck}
+        initialSideboard={initialSideboard}
       />
     );
   }
@@ -244,10 +256,11 @@ export default function PickClient({
       onPick={handlePick}
       filterSet={filterSet}
       onFilterToggle={handleFilterToggle}
-      sortMode={sortMode}
-      onSortChange={setSortMode}
       packQueueLength={packQueueLength}
       podMembers={podMembers}
+      onDeckChange={handleDeckChange}
+      initialDeck={initialDeck}
+      initialSideboard={initialSideboard}
     />
   );
 }

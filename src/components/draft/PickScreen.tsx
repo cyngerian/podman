@@ -2,10 +2,10 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
-import type { CardReference, PickedCardSortMode, ManaColor, PackFilterValue, PodMemberStatus } from "@/lib/types";
+import type { CardReference, ManaColor, PackFilterValue, PodMemberStatus, BasicLandCounts } from "@/lib/types";
 import CardThumbnail from "@/components/ui/CardThumbnail";
 import Timer from "@/components/ui/Timer";
-import PickedCardsDrawer from "./PickedCardsDrawer";
+import DeckBuilderScreen from "@/components/deck-builder/DeckBuilderScreen";
 import PodStatusOverlay from "./PodStatusOverlay";
 import Image from "next/image";
 
@@ -25,10 +25,11 @@ interface PickScreenProps {
   onPick: (cardId: string) => void;
   filterSet: Set<PackFilterValue>;
   onFilterToggle: (value: PackFilterValue | "all") => void;
-  sortMode: PickedCardSortMode;
-  onSortChange: (mode: PickedCardSortMode) => void;
   packQueueLength?: number;
   podMembers: PodMemberStatus[];
+  onDeckChange?: (deck: CardReference[], sideboard: CardReference[], lands: BasicLandCounts) => void;
+  initialDeck?: CardReference[] | null;
+  initialSideboard?: CardReference[] | null;
 }
 
 // Row 1: color filters
@@ -171,13 +172,14 @@ export default function PickScreen({
   onPick,
   filterSet,
   onFilterToggle,
-  sortMode,
-  onSortChange,
   packQueueLength,
   podMembers,
+  onDeckChange,
+  initialDeck,
+  initialSideboard,
 }: PickScreenProps) {
   const [selectedCard, setSelectedCard] = useState<CardReference | null>(null);
-  const [showPickedDrawer, setShowPickedDrawer] = useState(false);
+  const [showDeckBuilder, setShowDeckBuilder] = useState(false);
   const [showGridView, setShowGridView] = useState(false);
   const [showPodStatus, setShowPodStatus] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -519,10 +521,10 @@ export default function PickScreen({
           </button>
           <button
             type="button"
-            onClick={() => setShowPickedDrawer(true)}
+            onClick={() => setShowDeckBuilder(true)}
             className="px-2.5 py-1.5 rounded-lg bg-surface text-xs font-medium text-foreground hover:bg-surface-hover transition-colors border border-border"
           >
-            Picks ({picks.length})
+            My Deck
           </button>
         </div>
       </header>
@@ -629,10 +631,10 @@ export default function PickScreen({
 
             <button
               type="button"
-              onClick={() => setShowPickedDrawer(true)}
+              onClick={() => setShowDeckBuilder(true)}
               className="px-2.5 py-1.5 rounded-lg bg-surface text-xs font-medium text-foreground hover:bg-surface-hover transition-colors border border-border"
             >
-              Picks ({picks.length})
+              My Deck
             </button>
           </div>
         </div>
@@ -938,14 +940,19 @@ export default function PickScreen({
         </div>
       )}
 
-      {/* Picked cards drawer */}
-      <PickedCardsDrawer
-        picks={picks}
-        isOpen={showPickedDrawer}
-        onClose={() => setShowPickedDrawer(false)}
-        sortMode={sortMode}
-        onSortChange={onSortChange}
-      />
+      {/* Deck builder overlay */}
+      {showDeckBuilder && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-background">
+          <DeckBuilderScreen
+            mode="midDraft"
+            pool={picks}
+            initialDeck={initialDeck ?? undefined}
+            initialSideboard={initialSideboard ?? undefined}
+            onDeckChange={onDeckChange ? (deck, sideboard, lands) => onDeckChange(deck, sideboard, lands) : undefined}
+            onClose={() => setShowDeckBuilder(false)}
+          />
+        </div>
+      )}
 
       {/* Pod status overlay */}
       <PodStatusOverlay

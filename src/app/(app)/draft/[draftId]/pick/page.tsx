@@ -74,6 +74,8 @@ export default async function PickPage({
       packReceivedAt={seat.packReceivedAt}
       packQueueLength={seat.packQueue.length}
       podMembers={podMembers}
+      initialDeck={seat.deck}
+      initialSideboard={seat.sideboard}
     />
   );
 }
