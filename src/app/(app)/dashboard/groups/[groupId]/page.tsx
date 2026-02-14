@@ -106,56 +106,6 @@ export default async function GroupDetailPage({
         )}
       </div>
 
-      {/* Invite Links (admin only) */}
-      {isAdmin && (
-        <InviteLinksSection
-          groupId={groupId}
-          invites={invites ?? []}
-          now={now}
-        />
-      )}
-
-      {/* Members */}
-      <section>
-        <h2 className="text-sm font-medium text-foreground/70 uppercase tracking-wide mb-3">
-          Members ({memberList.length})
-        </h2>
-        <div className="space-y-2">
-          {memberList.map((member) => (
-            <div
-              key={member.userId}
-              className={`flex items-center gap-3 rounded-lg border px-4 py-3 ${
-                member.userId === user.id
-                  ? "border-accent/40 bg-accent/5"
-                  : "border-border bg-surface"
-              }`}
-            >
-              <span className="flex-1 text-sm font-medium truncate">
-                {member.displayName}
-                {member.userId === user.id && (
-                  <span className="text-foreground/40 ml-1">(you)</span>
-                )}
-              </span>
-              {member.role === "admin" && (
-                <span className="text-xs text-warning font-medium uppercase tracking-wide">
-                  Admin
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Propose Draft */}
-      <div>
-        <Link
-          href={`/dashboard/groups/${groupId}/propose`}
-          className="inline-block rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover transition-colors"
-        >
-          Propose Draft
-        </Link>
-      </div>
-
       {/* Active Drafts */}
       {draftDisplayData.length > 0 && (
         <section>
@@ -225,6 +175,14 @@ export default async function GroupDetailPage({
         </section>
       )}
 
+      {/* Propose Draft */}
+      <Link
+        href={`/dashboard/groups/${groupId}/propose`}
+        className="block w-full text-center rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover transition-colors"
+      >
+        Propose Draft
+      </Link>
+
       {/* Proposals */}
       <section>
         <h2 className="text-sm font-medium text-foreground/70 uppercase tracking-wide mb-3">
@@ -256,6 +214,46 @@ export default async function GroupDetailPage({
           </div>
         )}
       </section>
+
+      {/* Members */}
+      <section>
+        <h2 className="text-sm font-medium text-foreground/70 uppercase tracking-wide mb-3">
+          Members ({memberList.length})
+        </h2>
+        <div className="space-y-2">
+          {memberList.map((member) => (
+            <div
+              key={member.userId}
+              className={`flex items-center gap-3 rounded-lg border px-4 py-3 ${
+                member.userId === user.id
+                  ? "border-accent/40 bg-accent/5"
+                  : "border-border bg-surface"
+              }`}
+            >
+              <span className="flex-1 text-sm font-medium truncate">
+                {member.displayName}
+                {member.userId === user.id && (
+                  <span className="text-foreground/40 ml-1">(you)</span>
+                )}
+              </span>
+              {member.role === "admin" && (
+                <span className="text-xs text-warning font-medium uppercase tracking-wide">
+                  Admin
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Invite Links (admin only) */}
+      {isAdmin && (
+        <InviteLinksSection
+          groupId={groupId}
+          invites={invites ?? []}
+          now={now}
+        />
+      )}
 
       {/* Actions */}
       <div className="border-t border-border pt-6">
