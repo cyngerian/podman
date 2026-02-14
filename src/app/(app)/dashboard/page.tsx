@@ -19,7 +19,7 @@ export default async function DashboardPage() {
       .single(),
     supabase
       .from("group_members")
-      .select("role, group_id, groups(id, name, description, created_at)")
+      .select("role, group_id, groups(id, name, description, emoji, created_at)")
       .eq("user_id", user.id)
       .order("joined_at", { ascending: false }),
     supabase
@@ -32,7 +32,7 @@ export default async function DashboardPage() {
       .limit(10),
     supabase
       .from("draft_players")
-      .select("draft_id, drafts!inner(id, format, set_code, set_name, status, created_at, is_simulated, groups(name))")
+      .select("draft_id, drafts!inner(id, format, set_code, set_name, status, created_at, is_simulated, groups(name, emoji))")
       .eq("user_id", user.id)
       .eq("drafts.is_simulated", false)
       .in("drafts.status", ["lobby", "active", "deck_building"])
@@ -103,7 +103,7 @@ export default async function DashboardPage() {
                   </span>
                   {draft.groups?.name && (
                     <span className="ml-2 text-xs text-foreground/40">
-                      {draft.groups.name}
+                      {draft.groups.name}{draft.groups.emoji ? ` ${draft.groups.emoji}` : ""}
                     </span>
                   )}
                 </div>
@@ -144,7 +144,7 @@ export default async function DashboardPage() {
               className="block rounded-xl border border-border bg-surface p-4 hover:border-border-light transition-colors"
             >
               <div className="flex items-center justify-between">
-                <h2 className="text-base font-semibold">{group.name}</h2>
+                <h2 className="text-base font-semibold">{group.name}{group.emoji ? ` ${group.emoji}` : ""}</h2>
                 <span className="text-xs text-foreground/40 uppercase tracking-wide">
                   {group.role}
                 </span>

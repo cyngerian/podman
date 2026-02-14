@@ -42,6 +42,21 @@ export default function CreateGroupForm() {
         </div>
 
         <div>
+          <label htmlFor="emoji" className="block text-sm font-medium text-foreground/70 mb-1">
+            Emoji
+            <span className="text-foreground/40 font-normal ml-1">(optional)</span>
+          </label>
+          <input
+            id="emoji"
+            name="emoji"
+            type="text"
+            maxLength={8}
+            placeholder="🎲"
+            className="w-20 rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-center placeholder:text-foreground/30 focus:border-accent focus:outline-none"
+          />
+        </div>
+
+        <div>
           <label htmlFor="description" className="block text-sm font-medium text-foreground/70 mb-1">
             Description
             <span className="text-foreground/40 font-normal ml-1">(optional)</span>

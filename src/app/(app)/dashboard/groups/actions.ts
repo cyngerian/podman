@@ -5,6 +5,7 @@ import { createServerSupabaseClient } from "@/lib/supabase-server";
 
 export async function createGroup(formData: FormData): Promise<{ error: string } | void> {
   const name = (formData.get("name") as string)?.trim();
+  const emoji = (formData.get("emoji") as string)?.trim() || null;
   const description = (formData.get("description") as string)?.trim() || null;
 
   if (!name) {
@@ -22,6 +23,7 @@ export async function createGroup(formData: FormData): Promise<{ error: string }
     .from("groups")
     .insert({
       name,
+      emoji,
       description,
       created_by: user.id,
     })

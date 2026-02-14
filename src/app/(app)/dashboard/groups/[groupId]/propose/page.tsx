@@ -21,7 +21,7 @@ export default async function ProposeDraftPage({
   // Verify group exists and user is a member
   const { data: group } = await supabase
     .from("groups")
-    .select("id, name")
+    .select("id, name, emoji")
     .eq("id", groupId)
     .single();
 
@@ -32,7 +32,7 @@ export default async function ProposeDraftPage({
       <div>
         <h1 className="text-xl font-bold">Propose Draft</h1>
         <p className="text-sm text-foreground/50 mt-1">
-          in {group.name}
+          in {group.name}{group.emoji ? ` ${group.emoji}` : ""}
         </p>
       </div>
 

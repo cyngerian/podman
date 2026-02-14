@@ -198,6 +198,43 @@ export async function convertProposalToDraft(formData: FormData) {
   redirect(`/draft/${draft.id}`);
 }
 
+export async function updateGroupEmoji(
+  groupId: string,
+  emoji: string | null
+): Promise<{ error: string } | void> {
+  const supabase = await createServerSupabaseClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/auth/login");
+
+  // Verify user is admin of this group
+  const { data: membership } = await supabase
+    .from("group_members")
+    .select("role")
+    .eq("group_id", groupId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (membership?.role !== "admin") {
+    return { error: "Only admins can update the group emoji" };
+  }
+
+  const { error } = await supabase
+    .from("groups")
+    .update({ emoji: emoji || null })
+    .eq("id", groupId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath(`/dashboard/groups/${groupId}`);
+  revalidatePath("/dashboard");
+}
+
 export async function createInviteLinkAction(groupId: string): Promise<{ error: string } | void> {
   const supabase = await createServerSupabaseClient();
 

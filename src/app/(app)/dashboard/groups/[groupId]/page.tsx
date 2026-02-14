@@ -3,6 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import { createServerSupabaseClient, getUser } from "@/lib/supabase-server";
 import { leaveGroup } from "../actions";
 import InviteLinksSection from "./InviteLinksSection";
+import GroupEmojiEditor from "./GroupEmojiEditor";
 import UserAvatar from "@/components/ui/UserAvatar";
 
 function formatElapsed(startedAt: number, now: number) {
@@ -100,7 +101,10 @@ export default async function GroupDetailPage({
     <div className="mx-auto max-w-2xl px-4 py-6 space-y-8">
       {/* Group Header */}
       <div>
-        <h1 className="text-xl font-bold">{group.name}</h1>
+        <h1 className="text-xl font-bold flex items-center gap-2">
+          {group.name}
+          <GroupEmojiEditor groupId={groupId} currentEmoji={group.emoji} isAdmin={isAdmin} />
+        </h1>
         {group.description && (
           <p className="mt-1 text-sm text-foreground/50">{group.description}</p>
         )}

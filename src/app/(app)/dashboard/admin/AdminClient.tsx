@@ -20,6 +20,7 @@ interface User {
 interface Group {
   id: string;
   name: string;
+  emoji: string | null;
   memberCount: number;
   createdAt: string;
 }
@@ -258,7 +259,7 @@ function GroupRow({ group }: { group: Group }) {
     <div className="rounded-xl border border-border bg-surface p-3 space-y-2">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-sm font-medium truncate">{group.name}</div>
+          <div className="text-sm font-medium truncate">{group.name}{group.emoji ? ` ${group.emoji}` : ""}</div>
           <div className="text-xs text-foreground/40">
             {group.memberCount} member{group.memberCount !== 1 && "s"} · Created{" "}
             {new Date(group.createdAt).toLocaleDateString()}

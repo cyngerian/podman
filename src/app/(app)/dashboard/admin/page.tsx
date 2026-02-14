@@ -14,7 +14,7 @@ export default async function AdminPage() {
       admin.from("profiles").select("id, display_name, avatar_url, is_site_admin"),
       admin
         .from("groups")
-        .select("id, name, created_at, group_members(count)")
+        .select("id, name, emoji, created_at, group_members(count)")
         .order("created_at", { ascending: false }),
       admin
         .from("drafts")
@@ -41,6 +41,7 @@ export default async function AdminPage() {
   const groupList = (groups ?? []).map((g) => ({
     id: g.id,
     name: g.name,
+    emoji: g.emoji,
     memberCount:
       (g.group_members as unknown as { count: number }[])?.[0]?.count ?? 0,
     createdAt: g.created_at,
