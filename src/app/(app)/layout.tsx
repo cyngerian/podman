@@ -14,14 +14,16 @@ export default async function AppLayout({
 
   let displayName = "User";
   let avatarUrl: string | null = null;
+  let favoriteColor: string | null = null;
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("display_name, avatar_url")
+      .select("display_name, avatar_url, favorite_color")
       .eq("id", user.id)
       .single();
     displayName = profile?.display_name ?? user.email ?? "User";
     avatarUrl = profile?.avatar_url ?? null;
+    favoriteColor = profile?.favorite_color ?? null;
   }
 
   return (
@@ -34,7 +36,7 @@ export default async function AppLayout({
           </Link>
           <div className="flex items-center gap-3">
             <Link href="/dashboard/profile" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-              <UserAvatar avatarUrl={avatarUrl} displayName={displayName} size="md" />
+              <UserAvatar avatarUrl={avatarUrl} displayName={displayName} size="md" favoriteColor={favoriteColor} />
               <span className="text-sm text-foreground/60">{displayName}</span>
             </Link>
             <form action="/auth/signout" method="post">

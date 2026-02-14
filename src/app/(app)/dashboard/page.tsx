@@ -14,7 +14,7 @@ export default async function DashboardPage() {
   const [{ data: profile }, { data: memberships }, { data: simDrafts }, { data: activeDraftPlayers }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("display_name, avatar_url, is_site_admin")
+      .select("display_name, avatar_url, is_site_admin, favorite_color")
       .eq("id", user.id)
       .single(),
     supabase
@@ -27,7 +27,7 @@ export default async function DashboardPage() {
       .select("id, format, set_name, status, created_at")
       .eq("host_id", user.id)
       .eq("is_simulated", true)
-      .in("status", ["active", "deck_building", "completed"])
+      .in("status", ["active", "deck_building", "complete"])
       .order("created_at", { ascending: false })
       .limit(10),
     supabase
@@ -44,8 +44,8 @@ export default async function DashboardPage() {
     .map((dp) => dp.drafts)
     .filter((d): d is NonNullable<typeof d> => d !== null);
 
-  const activeSimDrafts = (simDrafts ?? []).filter((d) => d.status !== "completed");
-  const completedSimDrafts = (simDrafts ?? []).filter((d) => d.status === "completed");
+  const activeSimDrafts = (simDrafts ?? []).filter((d) => d.status !== "complete");
+  const completedSimDrafts = (simDrafts ?? []).filter((d) => d.status === "complete");
 
   const groups = (memberships ?? []).map((m) => ({
     ...m.groups!,
@@ -60,6 +60,7 @@ export default async function DashboardPage() {
           avatarUrl={profile?.avatar_url ?? null}
           displayName={profile?.display_name ?? "User"}
           size="md"
+          favoriteColor={profile?.favorite_color ?? null}
         />
         <span className="text-sm font-medium text-foreground">
           {profile?.display_name ?? "User"}

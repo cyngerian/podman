@@ -53,7 +53,7 @@ export default async function GroupDetailPage({
       .order("created_at", { ascending: false }),
     supabase
       .from("drafts")
-      .select("id, format, set_code, set_name, status, created_at, state, draft_players(user_id, profiles(display_name, avatar_url))")
+      .select("id, format, set_code, set_name, status, created_at, state, draft_players(user_id, profiles(display_name, avatar_url, favorite_color))")
       .eq("group_id", groupId)
       .in("status", ["lobby", "active", "deck_building"])
       .order("created_at", { ascending: false }),
@@ -195,6 +195,7 @@ export default async function GroupDetailPage({
                           avatarUrl={p.profiles?.avatar_url ?? null}
                           displayName={p.profiles?.display_name ?? "?"}
                           size="sm"
+                          favoriteColor={p.profiles?.favorite_color ?? null}
                         />
                       </div>
                     ))}

@@ -104,6 +104,7 @@ export default function ProfileForm({
           avatarUrl={avatarUrl}
           displayName={displayName || "?"}
           size="lg"
+          favoriteColor={favoriteColor}
         />
         <div className="flex-1 space-y-2">
           <div className="flex gap-2">

@@ -5,7 +5,16 @@ interface UserAvatarProps {
   displayName: string;
   size?: "sm" | "md" | "lg";
   className?: string;
+  favoriteColor?: string | null;
 }
+
+const COLOR_BORDER: Record<string, string> = {
+  W: "ring-amber-200",
+  U: "ring-blue-500",
+  B: "ring-violet-700",
+  R: "ring-red-500",
+  G: "ring-green-500",
+};
 
 const SIZES = {
   sm: 24,
@@ -33,10 +42,14 @@ export default function UserAvatar({
   displayName,
   size = "md",
   className = "",
+  favoriteColor,
 }: UserAvatarProps) {
   const px = SIZES[size];
 
-  const baseClasses = `inline-flex items-center justify-center rounded-full shrink-0 overflow-hidden ${className}`;
+  const ringClass = favoriteColor && COLOR_BORDER[favoriteColor]
+    ? `ring-2 ${COLOR_BORDER[favoriteColor]}`
+    : "";
+  const baseClasses = `inline-flex items-center justify-center rounded-full shrink-0 overflow-hidden ${ringClass} ${className}`;
 
   // URL avatar — render image
   if (avatarUrl && isUrl(avatarUrl)) {
