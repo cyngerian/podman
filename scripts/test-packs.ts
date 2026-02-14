@@ -2,16 +2,17 @@
 /**
  * Pack Generation Validation Script
  *
- * Validates booster pack generation across all sets with booster data.
+ * Validates booster pack generation across all user-relevant products
+ * (play, draft, set, collector boosters) for every set with booster data.
  * Phase 1: DB integrity checks (fast, no Scryfall)
  * Phase 2: Scryfall resolution + pack generation tests (slow)
  *
  * Usage:
- *   npm run test-packs                    # all sets, both phases
- *   npm run test-packs -- --set fin       # single set
+ *   npm run test-packs                    # all products, both phases
+ *   npm run test-packs -- --set fin       # all products for a set
  *   npm run test-packs -- --db-only       # skip Scryfall
  *   npm run test-packs -- --packs 6       # 6 packs instead of 24
- *   npm run test-packs -- --verbose       # show all sets in summary
+ *   npm run test-packs -- --verbose       # show all products in summary
  */
 
 import chalk from "chalk";
@@ -330,7 +331,7 @@ function printSummary(results: SetResult[], args: Args, totalElapsed: number) {
       chalk.white("Issues"),
     ],
     style: { head: [], border: [] },
-    colWidths: [8, 14, 8, 10, 10, 30],
+    colWidths: [8, 18, 8, 10, 10, 30],
   });
 
   let passCount = 0;
@@ -342,7 +343,7 @@ function printSummary(results: SetResult[], args: Args, totalElapsed: number) {
     else if (r.severity === "warn") warnCount++;
     else failCount++;
 
-    // Skip passing sets unless verbose
+    // Skip passing products unless verbose
     if (r.severity === "pass" && !args.verbose) continue;
 
     const sevColor =
@@ -414,6 +415,15 @@ function formatDuration(ms: number): string {
   return `${minutes}m ${remainingSeconds}s`;
 }
 
+// --- Product Filtering ---
+
+const ALLOWED_SUFFIXES = new Set(["", "-play", "-draft", "-set", "-collector"]);
+
+function isUserRelevantProduct(code: string, setCode: string): boolean {
+  const suffix = code.startsWith(setCode) ? code.slice(setCode.length) : null;
+  return suffix !== null && ALLOWED_SUFFIXES.has(suffix);
+}
+
 // --- Main ---
 
 async function main() {
@@ -424,35 +434,38 @@ async function main() {
   console.log(chalk.bold("=== Phase 1: Database Integrity ==="));
   console.log();
 
-  // Fetch all unique set codes from booster_products
+  // Fetch all products with code + set_code
   const supabase = createAdminClient();
   const spinner = ora("Fetching product data...").start();
 
-  const { data: products, error: productsError } = await supabase
+  const { data: rawProducts, error: productsError } = await supabase
     .from("booster_products")
-    .select("set_code")
-    .order("set_code");
+    .select("code, set_code")
+    .order("set_code")
+    .order("code");
 
-  if (productsError || !products) {
+  if (productsError || !rawProducts) {
     spinner.fail(`Failed to fetch products: ${productsError?.message}`);
     process.exit(1);
   }
 
-  const allSetCodes = [...new Set(products.map((p) => p.set_code))];
-  const setCodes = args.set
-    ? allSetCodes.filter((s) => s === args.set)
-    : allSetCodes;
+  // Filter to user-relevant product types
+  const allProducts = rawProducts.filter((p) => isUserRelevantProduct(p.code, p.set_code));
+  const productList = args.set
+    ? allProducts.filter((p) => p.set_code === args.set)
+    : allProducts;
 
-  if (setCodes.length === 0) {
+  if (productList.length === 0) {
     spinner.fail(
       args.set
-        ? `Set "${args.set}" not found in booster_products`
-        : "No set codes found in booster_products"
+        ? `No user-relevant products found for set "${args.set}"`
+        : "No user-relevant products found in booster_products"
     );
     process.exit(1);
   }
 
-  spinner.succeed(`${allSetCodes.length} unique set codes found${args.set ? `, filtering to: ${args.set}` : ""}`);
+  const uniqueSetCount = new Set(allProducts.map((p) => p.set_code)).size;
+  spinner.succeed(`${allProducts.length} products across ${uniqueSetCount} sets${args.set ? `, filtering to: ${args.set}` : ""}`);
   console.log();
 
   // Load all product data and run Phase 1 checks
@@ -461,19 +474,19 @@ async function main() {
   let phase1Issues = 0;
   let loadFailures = 0;
 
-  for (let i = 0; i < setCodes.length; i++) {
-    const setCode = setCodes[i];
+  for (let i = 0; i < productList.length; i++) {
+    const { code: productCode, set_code: setCode } = productList[i];
     process.stdout.write(
-      `\r  [${String(i + 1).padStart(String(setCodes.length).length)}/${setCodes.length}] Checking structural integrity...`
+      `\r  [${String(i + 1).padStart(String(productList.length).length)}/${productList.length}] Checking structural integrity...`
     );
 
-    const data = await loadBoosterProductData(setCode);
+    const data = await loadBoosterProductData(setCode, productCode);
     if (!data) {
       loadFailures++;
       continue;
     }
 
-    productDataMap.set(setCode, data);
+    productDataMap.set(productCode, data);
     const result = checkPhase1(data);
     phase1Results.push(result);
     if (result.issues.length > 0) phase1Issues++;
@@ -483,12 +496,12 @@ async function main() {
   process.stdout.write("\r" + " ".repeat(80) + "\r");
 
   if (loadFailures > 0) {
-    console.log(chalk.dim(`  ${loadFailures} sets skipped (no matching product found)`));
+    console.log(chalk.dim(`  ${loadFailures} products skipped (failed to load)`));
   }
 
   if (phase1Issues > 0) {
     console.log();
-    console.log(`  ${chalk.yellow(`${phase1Issues} sets with issues:`)}`);
+    console.log(`  ${chalk.yellow(`${phase1Issues} products with issues:`)}`);
     for (const r of phase1Results) {
       if (r.issues.length === 0) continue;
       for (const issue of r.issues) {
@@ -496,7 +509,7 @@ async function main() {
       }
     }
   } else {
-    console.log(chalk.green(`  All ${phase1Results.length} sets passed structural checks`));
+    console.log(chalk.green(`  All ${phase1Results.length} products passed structural checks`));
   }
 
   // Build results array (Phase 1 only so far)
@@ -514,17 +527,18 @@ async function main() {
     console.log(chalk.bold("=== Phase 2: Pack Generation ==="));
     console.log();
 
-    const setsToTest = Array.from(productDataMap.entries());
-    const estimatedMinutes = Math.ceil(setsToTest.length * 0.5 / 60);
+    const productsToTest = Array.from(productDataMap.entries());
+    const estimatedMinutes = Math.ceil(productsToTest.length * 0.5 / 60);
     console.log(
-      `  Testing ${setsToTest.length} sets (${args.packs} packs each${setsToTest.length > 10 ? `, ~${estimatedMinutes} min estimated` : ""})`
+      `  Testing ${productsToTest.length} products (${args.packs} packs each${productsToTest.length > 10 ? `, ~${estimatedMinutes} min estimated` : ""})`
     );
     console.log();
 
-    for (let i = 0; i < setsToTest.length; i++) {
-      const [setCode, data] = setsToTest[i];
-      const prefix = `  [${String(i + 1).padStart(String(setsToTest.length).length)}/${setsToTest.length}] ${setCode.padEnd(5)}`;
-      const setSpinner = ora({
+    for (let i = 0; i < productsToTest.length; i++) {
+      const [productCode, data] = productsToTest[i];
+      const label = productCode.padEnd(16);
+      const prefix = `  [${String(i + 1).padStart(String(productsToTest.length).length)}/${productsToTest.length}] ${label}`;
+      const productSpinner = ora({
         text: `${prefix} Fetching cards...`,
         prefixText: "",
       }).start();
@@ -547,7 +561,7 @@ async function main() {
 
         console.warn = origWarn;
       } catch (err) {
-        setSpinner.fail(
+        productSpinner.fail(
           `${prefix} ${chalk.red("ERROR")}: ${err instanceof Error ? err.message : String(err)}`
         );
         continue;
@@ -574,9 +588,9 @@ async function main() {
       const line = `${prefix} ${String(phase2.totalIdentifiers).padStart(5)} cards  ${statusColor(statusIcon)} ${resolveColor(`${resolvePercent}%`)}  ${packsStr}  ${chalk.dim(elapsed)}`;
 
       if (statusIcon === "✓") {
-        setSpinner.succeed(line);
+        productSpinner.succeed(line);
       } else {
-        setSpinner.warn(line);
+        productSpinner.warn(line);
       }
 
       // Show unresolved details
@@ -599,14 +613,14 @@ async function main() {
       }
 
       // Update results
-      const existingResult = results.find((r) => r.setCode === setCode);
+      const existingResult = results.find((r) => r.productCode === productCode);
       if (existingResult) {
         existingResult.phase2 = phase2;
         existingResult.severity = computeSeverity(existingResult.phase1, phase2);
       } else {
         results.push({
-          setCode,
-          productCode: data.code,
+          setCode: data.setCode,
+          productCode,
           severity: computeSeverity(null, phase2),
           phase1: null,
           phase2,

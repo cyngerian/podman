@@ -28,7 +28,9 @@ MTG (Magic: The Gathering) draft web app. Players open packs, pick cards in time
 - `/(app)/dashboard/*` — group management, draft proposals (auth-protected via middleware)
 - `/(app)/dashboard/profile` — user profile edit page (avatar, bio, favorite color)
 - `/(app)/draft/[draftId]/*` — draft flow: lobby → pick → deck-build → results
+- `/(app)/crack-a-pack` — standalone pack opening (any booster type)
 - `/api/sets` — public API (cached 24h)
+- `/api/boosters?set={code}` — booster products for a set (cached 24h)
 - `/api/avatar` — POST avatar image upload via `@vercel/blob`
 
 The `(app)` layout adds a sticky header (`z-30`, `h-12`) with user avatar, display name, and sign out. Content constrained to `max-w-5xl`. The pick screen uses `fixed inset-0 z-40` to overlay this header.
@@ -121,6 +123,14 @@ Accessed via "My Deck" button on both `PickScreen` and `WaitingScreen` (replaced
 ## Pod Screen (`src/components/draft/PodMemberList.tsx`)
 
 Shows all draft players sorted by seat position with real profile avatars (`UserAvatar`), pick counts, and picking status. Current user highlighted with accent ring + "(you)" label. Actively picking players get a green ring outline. SVG direction arrows between each player row indicate pack flow: `↓` for left pass (packs 1/3), `↑` for right pass (pack 2). Wrap-around indicator at bottom. Profile data (`avatar_url`, `favorite_color`) fetched in `pick/page.tsx` via parallel query alongside card hydration. Bots fall back to first-letter avatar (no profile row). Displayed directly on `WaitingScreen` and via `PodStatusOverlay` modal (triggered by clicking Pack:Pick in header).
+
+## Crack a Pack (`src/app/(app)/crack-a-pack/`)
+
+Standalone pack opening feature. Pick a set, choose a booster type (play, draft, set, collector), and browse the cards using `PickScreen` in `crackAPack` mode. Basic lands are kept (not stripped like in drafts).
+
+`/api/boosters?set={code}` returns available products filtered to user-relevant types (suffixes: base, `-play`, `-draft`, `-set`, `-collector`). `CrackAPackClient` fetches products on set selection and shows pill buttons when multiple types exist. `crackAPackLabel` prop on `PickScreen` displays the booster type in the header top-right.
+
+`generatePacksForSet` accepts optional `options: { productCode?, keepBasicLands? }`. `loadBoosterProductData` accepts optional `productCode` for exact code lookup (bypasses candidate list). Draft flow is unchanged (options default to existing behavior).
 
 ## Results Screen (`src/components/draft/PostDraftScreen.tsx`)
 
