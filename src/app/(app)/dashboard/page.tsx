@@ -117,7 +117,7 @@ export default async function DashboardPage() {
         <h1 className="text-xl font-bold">Groups</h1>
         <Link
           href="/dashboard/groups/new"
-          className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover transition-colors"
+          className="w-32 text-center rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover transition-colors"
         >
           Create Group
         </Link>
@@ -161,7 +161,7 @@ export default async function DashboardPage() {
         <h2 className="text-xl font-bold">Bot Drafts</h2>
         <Link
           href="/dashboard/simulate"
-          className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover transition-colors"
+          className="w-32 text-center rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover transition-colors"
         >
           Simulate Draft
         </Link>
