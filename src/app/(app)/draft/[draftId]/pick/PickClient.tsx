@@ -231,6 +231,7 @@ export default function PickClient({
     return (
       <WaitingScreen
         podMembers={podMembers}
+        passDirection={passDirection}
         picks={picks}
         onDeckChange={handleDeckChange}
         initialDeck={initialDeck}

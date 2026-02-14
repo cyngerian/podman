@@ -957,6 +957,7 @@ export default function PickScreen({
       {/* Pod status overlay */}
       <PodStatusOverlay
         members={podMembers}
+        passDirection={passDirection}
         isOpen={showPodStatus}
         onClose={() => setShowPodStatus(false)}
       />

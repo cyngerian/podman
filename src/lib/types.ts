@@ -153,6 +153,9 @@ export interface PodMemberStatus {
   pickCount: number;
   isCurrentlyPicking: boolean;
   queuedPacks: number;
+  avatarUrl: string | null;
+  favoriteColor: string | null;
+  isCurrentUser: boolean;
 }
 
 // --- Winston State ---

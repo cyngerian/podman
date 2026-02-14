@@ -1,16 +1,18 @@
 "use client";
 
-import type { PodMemberStatus } from "@/lib/types";
+import type { PodMemberStatus, PassDirection } from "@/lib/types";
 import PodMemberList from "./PodMemberList";
 
 interface PodStatusOverlayProps {
   members: PodMemberStatus[];
+  passDirection: PassDirection;
   isOpen: boolean;
   onClose: () => void;
 }
 
 export default function PodStatusOverlay({
   members,
+  passDirection,
   isOpen,
   onClose,
 }: PodStatusOverlayProps) {
@@ -29,7 +31,7 @@ export default function PodStatusOverlay({
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
           <h2 className="text-lg font-bold text-foreground">
-            Pod ({members.length + 1})
+            Pod ({members.length})
           </h2>
           <button
             type="button"
@@ -43,7 +45,7 @@ export default function PodStatusOverlay({
 
         {/* Player list */}
         <div className="flex-1 overflow-y-auto p-4">
-          <PodMemberList members={members} />
+          <PodMemberList members={members} passDirection={passDirection} />
         </div>
       </div>
     </div>

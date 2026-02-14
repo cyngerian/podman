@@ -3,6 +3,7 @@ import { createServerSupabaseClient, getUser } from "@/lib/supabase-server";
 import type { Draft, PodMemberStatus } from "@/lib/types";
 import { hydrateSeat } from "@/lib/draft-engine";
 import { hydrateCardTypeLines } from "@/lib/scryfall";
+import { isBotUserId } from "@/lib/bot-drafter";
 import PickClient from "./PickClient";
 
 export default async function PickPage({
@@ -36,24 +37,47 @@ export default async function PickPage({
 
   const seat = hydrateSeat(rawSeat);
 
-  // Hydrate missing typeLine for creature/non-creature filtering
-  const packCards = seat.currentPack?.cards
-    ? await hydrateCardTypeLines(seat.currentPack.cards)
-    : [];
+  // Fetch profile avatars for real (non-bot) users
+  const humanUserIds = draft.seats
+    .map((s) => s.userId)
+    .filter((id) => !isBotUserId(id));
 
-  // Build pod status for all other players (no sensitive data)
-  const podMembers: PodMemberStatus[] = draft.seats
-    .filter((s) => s.userId !== user.id)
-    .map((s) => {
-      const h = hydrateSeat(s);
-      return {
-        position: h.position,
-        displayName: h.displayName,
-        pickCount: h.picks.length,
-        isCurrentlyPicking: h.currentPack !== null,
-        queuedPacks: h.packQueue.length,
-      };
-    });
+  // Hydrate card type lines + fetch profiles in parallel
+  const [packCards, profileRows] = await Promise.all([
+    seat.currentPack?.cards
+      ? hydrateCardTypeLines(seat.currentPack.cards)
+      : Promise.resolve([]),
+    humanUserIds.length > 0
+      ? supabase
+          .from("profiles")
+          .select("id, avatar_url, favorite_color")
+          .in("id", humanUserIds)
+          .then((r) => r.data ?? [])
+      : Promise.resolve([]),
+  ]);
+
+  const profileMap = new Map(
+    profileRows.map((p) => [p.id, {
+      avatarUrl: p.avatar_url as string | null,
+      favoriteColor: p.favorite_color as string | null,
+    }])
+  );
+
+  // Build pod status for all players (including current user)
+  const podMembers: PodMemberStatus[] = draft.seats.map((s) => {
+    const h = hydrateSeat(s);
+    const profile = profileMap.get(s.userId);
+    return {
+      position: h.position,
+      displayName: h.displayName,
+      pickCount: h.picks.length,
+      isCurrentlyPicking: h.currentPack !== null,
+      queuedPacks: h.packQueue.length,
+      avatarUrl: profile?.avatarUrl ?? null,
+      favoriteColor: profile?.favoriteColor ?? null,
+      isCurrentUser: s.userId === user.id,
+    };
+  });
 
   return (
     <PickClient

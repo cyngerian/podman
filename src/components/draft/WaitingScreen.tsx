@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { CardReference, PodMemberStatus, BasicLandCounts } from "@/lib/types";
+import type { CardReference, PodMemberStatus, BasicLandCounts, PassDirection } from "@/lib/types";
 import PodMemberList from "./PodMemberList";
 import DeckBuilderScreen from "@/components/deck-builder/DeckBuilderScreen";
 
 interface WaitingScreenProps {
   podMembers: PodMemberStatus[];
+  passDirection: PassDirection;
   picks: CardReference[];
   onDeckChange?: (deck: CardReference[], sideboard: CardReference[], lands: BasicLandCounts) => void;
   initialDeck?: CardReference[] | null;
@@ -16,6 +17,7 @@ interface WaitingScreenProps {
 
 export default function WaitingScreen({
   podMembers,
+  passDirection,
   picks,
   onDeckChange,
   initialDeck,
@@ -44,7 +46,7 @@ export default function WaitingScreen({
             <h2 className="text-sm font-semibold text-foreground/50 uppercase tracking-wide mb-3">
               Pod
             </h2>
-            <PodMemberList members={podMembers} />
+            <PodMemberList members={podMembers} passDirection={passDirection} />
           </div>
 
           {/* View deck button */}
