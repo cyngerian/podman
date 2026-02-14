@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "load-booster-data": "npx tsx scripts/load-booster-data.ts"
+    "load-booster-data": "npx tsx scripts/load-booster-data.ts",
+    "test-packs": "npx tsx --env-file-if-exists=.env.prod scripts/test-packs.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
@@ -24,8 +25,11 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "chalk": "^5.6.2",
+    "cli-table3": "^0.6.5",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "ora": "^8.2.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

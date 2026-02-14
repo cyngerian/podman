@@ -489,7 +489,7 @@ export async function hydrateCardTypeLines(
  * 3. "The List" SET-NUM format: set "plst" + CN "DOM-130" → set "dom" + CN "130"
  *    (also handles suffixes on the number part, e.g. "HOU-149a" → "149")
  */
-function normalizeForScryfall(id: {
+export function normalizeForScryfall(id: {
   set: string;
   collector_number: string;
 }): { set: string; collector_number: string } {
@@ -546,13 +546,21 @@ export async function fetchCardsByCollectorNumber(
   const result = new Map<string, CardReference>();
   if (unique.length === 0) return result;
 
-  // Deduplicate identifiers sent to Scryfall after normalization
+  // Deduplicate identifiers sent to Scryfall after normalization.
+  // Send both normalized AND original collector numbers so that both
+  // DFC suffixes (isd:51a → 51) and old-set art variants (fem:10a → 10a)
+  // resolve correctly — whichever Scryfall recognizes wins.
   const scryfallIdMap = new Map<string, { set: string; collector_number: string }>();
   for (const id of unique) {
     const norm = normalizeForScryfall(id);
-    const key = `${norm.set}:${norm.collector_number}`;
-    if (!scryfallIdMap.has(key)) {
-      scryfallIdMap.set(key, norm);
+    const normKey = `${norm.set}:${norm.collector_number}`;
+    if (!scryfallIdMap.has(normKey)) {
+      scryfallIdMap.set(normKey, norm);
+    }
+    // Also send the original if it differs (art variants like fem:10a)
+    const origKey = `${id.set}:${id.collector_number}`;
+    if (!scryfallIdMap.has(origKey)) {
+      scryfallIdMap.set(origKey, id);
     }
   }
   const scryfallIds = Array.from(scryfallIdMap.values());

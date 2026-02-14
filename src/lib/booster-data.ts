@@ -92,21 +92,25 @@ export async function loadBoosterProductData(
   const configIds = configs.map((c) => c.id);
   const sheetIds = sheets.map((s) => s.id);
 
-  // Parallel fetch: config_slots + sheet_cards
-  const [slotsResult, cardsResult] = await Promise.all([
+  // Fetch config_slots + sheet_cards per-sheet in parallel.
+  // Sheet cards are fetched per-sheet to avoid PostgREST's server-side
+  // max-rows cap (1000). A single bulk query with .limit(5000) gets silently
+  // truncated for products with >1000 total sheet_cards (44 products affected).
+  const [slotsResult, ...sheetCardsResults] = await Promise.all([
     supabase
       .from("booster_config_slots")
       .select("config_id, sheet_id, count")
       .in("config_id", configIds),
-    supabase
-      .from("sheet_cards")
-      .select("sheet_id, set_code, collector_number, weight, is_foil")
-      .in("sheet_id", sheetIds)
-      .limit(5000),
+    ...sheetIds.map((sheetId) =>
+      supabase
+        .from("sheet_cards")
+        .select("sheet_id, set_code, collector_number, weight, is_foil")
+        .eq("sheet_id", sheetId)
+    ),
   ]);
 
   const slots = slotsResult.data ?? [];
-  const cards = cardsResult.data ?? [];
+  const cards = sheetCardsResults.flatMap((r) => r.data ?? []);
 
   // Build sheet map
   const sheetMap = new Map<number, BoosterSheet>();
