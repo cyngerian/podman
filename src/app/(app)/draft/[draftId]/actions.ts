@@ -433,8 +433,8 @@ export async function makePickAction(draftId: string, cardId: string) {
         }
       }
 
-      // Run bot picks if this is a simulated draft
-      if (updated.status === "active" && updated.seats.some((s) => isBotUserId(s.userId))) {
+      // Run bot picks (or auto-submit bot decks) if this is a simulated draft
+      if ((updated.status === "active" || updated.status === "deck_building") && updated.seats.some((s) => isBotUserId(s.userId))) {
         updated = runBotPicks(updated, allPacks);
       }
 
@@ -487,8 +487,8 @@ export async function autoPickAction(draftId: string) {
         }
       }
 
-      // Run bot picks if this is a simulated draft
-      if (updated.status === "active" && updated.seats.some((s) => isBotUserId(s.userId))) {
+      // Run bot picks (or auto-submit bot decks) if this is a simulated draft
+      if ((updated.status === "active" || updated.status === "deck_building") && updated.seats.some((s) => isBotUserId(s.userId))) {
         updated = runBotPicks(updated, allPacks);
       }
 
