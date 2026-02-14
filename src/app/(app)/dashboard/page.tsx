@@ -103,7 +103,7 @@ export default async function DashboardPage() {
                   </span>
                   {draft.groups?.name && (
                     <span className="ml-2 text-xs text-foreground/40">
-                      {draft.groups.name}{draft.groups.emoji ? ` ${draft.groups.emoji}` : ""}
+                      {draft.groups.emoji && <span className="text-sm mr-0.5">{draft.groups.emoji}</span>}{draft.groups.name}
                     </span>
                   )}
                 </div>
@@ -144,7 +144,7 @@ export default async function DashboardPage() {
               className="block rounded-xl border border-border bg-surface p-4 hover:border-border-light transition-colors"
             >
               <div className="flex items-center justify-between">
-                <h2 className="text-base font-semibold">{group.name}{group.emoji ? ` ${group.emoji}` : ""}</h2>
+                <h2 className="text-base font-semibold">{group.emoji && <span className="text-xl mr-1.5">{group.emoji}</span>}{group.name}</h2>
                 <span className="text-xs text-foreground/40 uppercase tracking-wide">
                   {group.role}
                 </span>

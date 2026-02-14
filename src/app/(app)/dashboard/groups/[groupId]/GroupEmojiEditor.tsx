@@ -17,7 +17,7 @@ export default function GroupEmojiEditor({
   const [pending, startTransition] = useTransition();
 
   if (!isAdmin) {
-    return currentEmoji ? <span>{currentEmoji}</span> : null;
+    return currentEmoji ? <span className="text-2xl">{currentEmoji}</span> : null;
   }
 
   if (!editing) {
@@ -27,10 +27,10 @@ export default function GroupEmojiEditor({
           setValue(currentEmoji ?? "");
           setEditing(true);
         }}
-        className="text-foreground/30 hover:text-foreground/60 transition-colors text-sm"
+        className="text-foreground/30 hover:text-foreground/60 transition-colors text-xs"
         title="Edit emoji"
       >
-        {currentEmoji || "+ emoji"}
+        {currentEmoji ? <span className="text-2xl">{currentEmoji}</span> : "+ emoji"}
       </button>
     );
   }

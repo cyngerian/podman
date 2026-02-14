@@ -102,8 +102,8 @@ export default async function GroupDetailPage({
       {/* Group Header */}
       <div>
         <h1 className="text-xl font-bold flex items-center gap-2">
-          {group.name}
           <GroupEmojiEditor groupId={groupId} currentEmoji={group.emoji} isAdmin={isAdmin} />
+          {group.name}
         </h1>
         {group.description && (
           <p className="mt-1 text-sm text-foreground/50">{group.description}</p>

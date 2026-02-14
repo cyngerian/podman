@@ -32,7 +32,7 @@ export default async function ProposeDraftPage({
       <div>
         <h1 className="text-xl font-bold">Propose Draft</h1>
         <p className="text-sm text-foreground/50 mt-1">
-          in {group.name}{group.emoji ? ` ${group.emoji}` : ""}
+          in {group.emoji && <span className="text-base mr-0.5">{group.emoji}</span>}{group.name}
         </p>
       </div>
 
