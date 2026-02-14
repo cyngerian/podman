@@ -66,16 +66,15 @@ export default function DraftLobby({
           <h1 className="text-xl font-bold">
             {FORMAT_LABELS[draft.format] ?? draft.format}
             {draft.format === "standard" && draft.setName && (
-              <span className="text-foreground/50 font-normal">
-                {" "}&mdash; {draft.setName}
+              <span className="text-foreground/50 font-normal inline-flex items-center gap-1.5 ml-2">
+                &mdash;
+                {draft.setCode && (
+                  <i className={`ss ss-${draft.setCode.toLowerCase()} text-foreground/50`} />
+                )}
+                {draft.setName}
               </span>
             )}
           </h1>
-          {draft.format === "standard" && draft.setCode && (
-            <p className="text-sm text-foreground/40 mt-0.5 uppercase tracking-wide">
-              {draft.setCode}
-            </p>
-          )}
         </div>
         <span
           className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium uppercase tracking-wide ${

@@ -44,7 +44,7 @@ All draft logic is pure functions that transform immutable `Draft` state objects
 
 ### Key Types (`src/lib/types.ts`)
 
-`Draft`, `DraftSeat`, `PackState`, `CardReference` (minimal card data cached in draft state — never store full Scryfall objects). `TimerPreset` controls pick speed via lookup table + multiplier. `PackFilterValue` for multi-select filters (`Set<PackFilterValue>`), `PickedCardSortMode` for UI sorting. `CardReference.typeLine` is optional — missing on drafts created before Feb 2026; hydrated at page load via Scryfall collection endpoint. `DraftSeat.deckName` is optional — persisted via auto-save and used in exports.
+`Draft`, `DraftSeat`, `PackState`, `CardReference` (minimal card data cached in draft state — never store full Scryfall objects). `TimerPreset` controls pick speed via lookup table + multiplier. `PackFilterValue` for multi-select filters (`Set<PackFilterValue>`), `PickedCardSortMode` for UI sorting. `CardReference.typeLine` is optional — missing on drafts created before Feb 2026; hydrated at page load via Scryfall collection endpoint. `DraftSeat.deckName` is optional — persisted via auto-save and used in exports. `PodMemberStatus` includes `avatarUrl`, `favoriteColor`, `isCurrentUser` for the pod screen.
 
 ### Realtime Updates
 
@@ -102,6 +102,10 @@ Sections: Color Breakdown (mana-font icons, `justify-between`), Basic Lands (man
 `DeckBuilderScreen` has a `mode` prop: `"full"` (default, deck building phase) or `"midDraft"` (during active draft). In `midDraft` mode: hides lands section, submit/skip footer, deck name input. Header shows "My Deck" with Close button, `sticky top-0`. Root constrained to `max-w-5xl mx-auto` on desktop. New cards default to deck (not sideboard). A `useEffect` + `knownPoolIdsRef` detects newly picked cards and auto-adds them to deck. On mount, reconciles `initialDeck` with `pool` so cards picked between sessions appear.
 
 Accessed via "My Deck" button on both `PickScreen` and `WaitingScreen` (replaced old `PickedCardsDrawer`). Overlay uses `fixed inset-0 z-50`. `saveDeckAction` allows saves during both `active` and `deck_building` draft status. Deck/sideboard state persists to `DraftSeat.deck`/`DraftSeat.sideboard` via auto-save, carried forward to the deck building phase.
+
+## Pod Screen (`src/components/draft/PodMemberList.tsx`)
+
+Shows all draft players sorted by seat position with real profile avatars (`UserAvatar`), pick counts, and picking status. Current user highlighted with accent ring + "(you)" label. Actively picking players get a green ring outline. SVG direction arrows between each player row indicate pack flow: `↓` for left pass (packs 1/3), `↑` for right pass (pack 2). Wrap-around indicator at bottom. Profile data (`avatar_url`, `favorite_color`) fetched in `pick/page.tsx` via parallel query alongside card hydration. Bots fall back to first-letter avatar (no profile row). Displayed directly on `WaitingScreen` and via `PodStatusOverlay` modal (triggered by clicking Pack:Pick in header).
 
 ## Results Screen (`src/components/draft/PostDraftScreen.tsx`)
 

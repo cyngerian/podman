@@ -24,7 +24,7 @@ export default async function DashboardPage() {
       .order("joined_at", { ascending: false }),
     supabase
       .from("drafts")
-      .select("id, format, set_name, status, created_at")
+      .select("id, format, set_code, set_name, status, created_at")
       .eq("host_id", user.id)
       .eq("is_simulated", true)
       .in("status", ["active", "deck_building", "complete"])
@@ -32,7 +32,7 @@ export default async function DashboardPage() {
       .limit(10),
     supabase
       .from("draft_players")
-      .select("draft_id, drafts!inner(id, format, set_name, status, created_at, is_simulated, groups(name))")
+      .select("draft_id, drafts!inner(id, format, set_code, set_name, status, created_at, is_simulated, groups(name))")
       .eq("user_id", user.id)
       .eq("drafts.is_simulated", false)
       .in("drafts.status", ["lobby", "active", "deck_building"])
@@ -95,7 +95,10 @@ export default async function DashboardPage() {
                 }`}
               >
                 <div>
-                  <span className="text-sm font-medium">
+                  <span className="text-sm font-medium inline-flex items-center gap-1.5">
+                    {draft.set_code && (
+                      <i className={`ss ss-${draft.set_code.toLowerCase()} text-foreground`} />
+                    )}
                     {draft.set_name ?? draft.format}
                   </span>
                   {draft.groups?.name && (
@@ -178,7 +181,10 @@ export default async function DashboardPage() {
               }`}
             >
               <div>
-                <span className="text-sm font-medium">
+                <span className="text-sm font-medium inline-flex items-center gap-1.5">
+                  {draft.set_code && (
+                    <i className={`ss ss-${draft.set_code.toLowerCase()} text-foreground`} />
+                  )}
                   {draft.set_name ?? draft.format} Simulation
                 </span>
               </div>
@@ -207,7 +213,10 @@ export default async function DashboardPage() {
                 className="flex items-center justify-between rounded-xl border border-border bg-surface p-3 hover:border-border-light transition-colors"
               >
                 <div>
-                  <span className="text-sm font-medium">
+                  <span className="text-sm font-medium inline-flex items-center gap-1.5">
+                    {draft.set_code && (
+                      <i className={`ss ss-${draft.set_code.toLowerCase()} text-foreground`} />
+                    )}
                     {draft.set_name ?? draft.format} Simulation
                   </span>
                   <span className="ml-2 text-xs text-foreground/40">

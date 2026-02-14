@@ -27,6 +27,7 @@ interface Group {
 interface Draft {
   id: string;
   format: string;
+  setCode: string | null;
   setName: string | null;
   status: string;
   hostName: string;
@@ -346,7 +347,10 @@ function DraftRow({ draft }: { draft: Draft }) {
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">
+            <span className="text-sm font-medium inline-flex items-center gap-1.5">
+              {draft.setCode && (
+                <i className={`ss ss-${draft.setCode.toLowerCase()} text-foreground`} />
+              )}
               {draft.setName ?? draft.format}
             </span>
             <span

@@ -172,7 +172,10 @@ export default async function GroupDetailPage({
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">
+                  <span className="text-sm font-medium inline-flex items-center gap-1.5">
+                    {draft.format === "standard" && draft.set_code && (
+                      <i className={`ss ss-${draft.set_code.toLowerCase()} text-foreground`} />
+                    )}
                     {draft.format === "standard"
                       ? draft.set_name ?? draft.set_code ?? "Standard"
                       : draft.format === "winston"

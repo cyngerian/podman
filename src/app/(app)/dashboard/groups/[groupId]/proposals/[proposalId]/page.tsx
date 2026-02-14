@@ -88,13 +88,10 @@ export default async function ProposalDetailPage({
           <ConfigItem label="Packs" value={`${config.packsPerPlayer} per player`} />
         )}
         {proposal.set_name && !config.packSets && (
-          <ConfigItem label="Set" value={proposal.set_name} />
+          <SetConfigItem label="Set" setCode={proposal.set_code} setName={proposal.set_name} />
         )}
         {config.packSets && config.packSets.length > 0 && (
-          <ConfigItem
-            label="Sets"
-            value={config.packSets.map((s) => s.name).join(", ")}
-          />
+          <PackSetsConfigItem label="Sets" packSets={config.packSets} />
         )}
         {config.pacingMode && (
           <ConfigItem
@@ -165,6 +162,35 @@ function ConfigItem({ label, value }: { label: string; value: string }) {
     <div className="rounded-lg border border-border bg-surface px-3 py-2">
       <span className="block text-xs text-foreground/40">{label}</span>
       <span className="block text-sm font-medium">{value}</span>
+    </div>
+  );
+}
+
+function SetConfigItem({ label, setCode, setName }: { label: string; setCode: string | null; setName: string }) {
+  return (
+    <div className="rounded-lg border border-border bg-surface px-3 py-2">
+      <span className="block text-xs text-foreground/40">{label}</span>
+      <span className="flex items-center gap-1.5 text-sm font-medium">
+        {setCode && <i className={`ss ss-${setCode.toLowerCase()} text-foreground`} />}
+        {setName}
+      </span>
+    </div>
+  );
+}
+
+function PackSetsConfigItem({ label, packSets }: { label: string; packSets: { code: string; name: string }[] }) {
+  return (
+    <div className="rounded-lg border border-border bg-surface px-3 py-2">
+      <span className="block text-xs text-foreground/40">{label}</span>
+      <span className="flex items-center gap-2 text-sm font-medium flex-wrap">
+        {packSets.map((s, i) => (
+          <span key={s.code} className="inline-flex items-center gap-1">
+            <i className={`ss ss-${s.code.toLowerCase()} text-foreground`} />
+            <span className="uppercase">{s.code}</span>
+            {i < packSets.length - 1 && <span className="text-foreground/30 ml-1">/</span>}
+          </span>
+        ))}
+      </span>
     </div>
   );
 }

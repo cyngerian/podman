@@ -18,7 +18,7 @@ export default async function AdminPage() {
         .order("created_at", { ascending: false }),
       admin
         .from("drafts")
-        .select("id, format, set_name, status, created_at, host_id, is_simulated, group_id")
+        .select("id, format, set_code, set_name, status, created_at, host_id, is_simulated, group_id")
         .order("created_at", { ascending: false })
         .limit(100),
     ]);
@@ -50,6 +50,7 @@ export default async function AdminPage() {
   const draftList = (drafts ?? []).map((d) => ({
     id: d.id,
     format: d.format,
+    setCode: d.set_code,
     setName: d.set_name,
     status: d.status,
     hostName: profileMap.get(d.host_id)?.display_name ?? "Unknown",
