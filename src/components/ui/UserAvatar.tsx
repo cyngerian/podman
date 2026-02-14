@@ -47,7 +47,7 @@ export default function UserAvatar({
   const px = SIZES[size];
 
   const ringClass = favoriteColor && COLOR_BORDER[favoriteColor]
-    ? `ring-2 ${COLOR_BORDER[favoriteColor]}`
+    ? `ring-1 ${COLOR_BORDER[favoriteColor]}`
     : "";
   const baseClasses = `inline-flex items-center justify-center rounded-full shrink-0 overflow-hidden ${ringClass} ${className}`;
 
