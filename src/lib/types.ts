@@ -226,6 +226,7 @@ export interface ScryfallCard {
   };
   card_faces?: Array<{
     name: string;
+    colors?: string[];
     image_uris?: {
       small: string;
       normal: string;

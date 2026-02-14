@@ -169,6 +169,22 @@ function mapColors(colors: string[] | undefined | null): ManaColor[] {
   return colors.filter((c) => VALID_COLORS.has(c)) as ManaColor[];
 }
 
+/**
+ * For DFCs, union colors from all faces so border reflects full color identity.
+ * Falls back to top-level colors for single-faced cards.
+ */
+function dfcUnionColors(card: ScryfallCard): string[] | undefined | null {
+  if (!card.card_faces || card.card_faces.length < 2) return card.colors;
+  const colorSet = new Set<string>();
+  for (const face of card.card_faces) {
+    if (face.colors) {
+      for (const c of face.colors) colorSet.add(c);
+    }
+  }
+  // If no face had colors, fall back to top-level
+  return colorSet.size > 0 ? Array.from(colorSet) : card.colors;
+}
+
 // --- Image URL Helpers ---
 
 /**
@@ -254,7 +270,7 @@ export function scryfallCardToReference(
     imageUri: images.large,
     smallImageUri: images.normal,
     rarity: mapRarity(card.rarity),
-    colors: mapColors(card.colors),
+    colors: mapColors(dfcUnionColors(card)),
     cmc: card.cmc ?? 0,
     typeLine: card.type_line,
     isFoil,
