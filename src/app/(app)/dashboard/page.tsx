@@ -113,75 +113,8 @@ export default async function DashboardPage() {
         </>
       )}
 
-      {/* Solo Practice */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold">Solo Practice</h2>
-        <Link
-          href="/dashboard/simulate"
-          className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover transition-colors"
-        >
-          Simulate Draft
-        </Link>
-      </div>
-
-      {activeSimDrafts.length > 0 ? (
-        <div className="space-y-2">
-          {activeSimDrafts.map((draft) => (
-            <Link
-              key={draft.id}
-              href={`/draft/${draft.id}`}
-              className={`flex items-center justify-between rounded-xl border bg-surface p-3 hover:border-border-light transition-colors ${
-                draft.status === "active" ? "border-green-500" : "border-border"
-              }`}
-            >
-              <div>
-                <span className="text-sm font-medium">
-                  {draft.set_name ?? draft.format} Simulation
-                </span>
-              </div>
-              <span className="text-xs text-foreground/40">
-                Resume
-              </span>
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <p className="text-sm text-foreground/40">
-          No active simulations. Start one to practice drafting against bots.
-        </p>
-      )}
-
-      {completedSimDrafts.length > 0 && (
-        <details open>
-          <summary className="text-sm font-medium text-foreground/50 cursor-pointer mb-2">
-            Completed ({completedSimDrafts.length})
-          </summary>
-          <div className="space-y-2">
-            {completedSimDrafts.map((draft) => (
-              <Link
-                key={draft.id}
-                href={`/draft/${draft.id}`}
-                className="flex items-center justify-between rounded-xl border border-border bg-surface p-3 hover:border-border-light transition-colors"
-              >
-                <div>
-                  <span className="text-sm font-medium">
-                    {draft.set_name ?? draft.format} Simulation
-                  </span>
-                  <span className="ml-2 text-xs text-foreground/40">
-                    Complete
-                  </span>
-                </div>
-                <span className="text-xs text-foreground/40">
-                  View
-                </span>
-              </Link>
-            ))}
-          </div>
-        </details>
-      )}
-
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Your Groups</h1>
+        <h1 className="text-xl font-bold">Groups</h1>
         <Link
           href="/dashboard/groups/new"
           className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover transition-colors"
@@ -221,6 +154,73 @@ export default async function DashboardPage() {
             </Link>
           ))}
         </div>
+      )}
+
+      {/* Bot Drafts */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold">Bot Drafts</h2>
+        <Link
+          href="/dashboard/simulate"
+          className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover transition-colors"
+        >
+          Simulate Draft
+        </Link>
+      </div>
+
+      {activeSimDrafts.length > 0 ? (
+        <div className="space-y-2">
+          {activeSimDrafts.map((draft) => (
+            <Link
+              key={draft.id}
+              href={`/draft/${draft.id}`}
+              className={`flex items-center justify-between rounded-xl border bg-surface p-3 hover:border-border-light transition-colors ${
+                draft.status === "active" ? "border-green-500" : "border-border"
+              }`}
+            >
+              <div>
+                <span className="text-sm font-medium">
+                  {draft.set_name ?? draft.format} Simulation
+                </span>
+              </div>
+              <span className="text-xs text-foreground/40">
+                Resume
+              </span>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-foreground/40">
+          No active simulations. Start one to practice drafting against bots.
+        </p>
+      )}
+
+      {completedSimDrafts.length > 0 && (
+        <details>
+          <summary className="text-sm font-medium text-foreground/50 cursor-pointer mb-2">
+            Completed ({completedSimDrafts.length})
+          </summary>
+          <div className="space-y-2">
+            {completedSimDrafts.map((draft) => (
+              <Link
+                key={draft.id}
+                href={`/draft/${draft.id}`}
+                className="flex items-center justify-between rounded-xl border border-border bg-surface p-3 hover:border-border-light transition-colors"
+              >
+                <div>
+                  <span className="text-sm font-medium">
+                    {draft.set_name ?? draft.format} Simulation
+                  </span>
+                  <span className="ml-2 text-xs text-foreground/40">
+                    Complete
+                  </span>
+                </div>
+                <span className="text-xs text-foreground/40">
+                  View
+                </span>
+              </Link>
+            ))}
+          </div>
+        </details>
       )}
     </div>
   );
