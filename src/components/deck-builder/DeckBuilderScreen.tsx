@@ -121,11 +121,18 @@ export default function DeckBuilderScreen({
   onClose,
 }: DeckBuilderScreenProps) {
   const isMidDraft = mode === "midDraft";
-  const [deck, setDeck] = useState<CardReference[]>(
-    initialDeck ?? (isMidDraft ? [...pool] : [])
-  );
+  const [deck, setDeck] = useState<CardReference[]>(() => {
+    if (isMidDraft) {
+      const base = initialDeck ?? [];
+      const baseIds = new Set(base.map((c) => c.scryfallId));
+      const sbIds = new Set((initialSideboard ?? []).map((c) => c.scryfallId));
+      const missing = pool.filter((c) => !baseIds.has(c.scryfallId) && !sbIds.has(c.scryfallId));
+      return [...base, ...missing];
+    }
+    return initialDeck ?? [];
+  });
   const [sideboard, setSideboard] = useState<CardReference[]>(
-    initialSideboard ?? (isMidDraft || initialDeck ? [] : [...pool])
+    isMidDraft ? (initialSideboard ?? []) : (initialSideboard ?? (initialDeck ? [] : [...pool]))
   );
   const [lands, setLands] = useState<BasicLandCounts>(
     initialLands ?? { ...EMPTY_LANDS }
@@ -311,7 +318,7 @@ export default function DeckBuilderScreen({
   // --- Render ---
 
   return (
-    <div className={`flex flex-col bg-background ${isMidDraft ? "h-full" : "min-h-dvh"}`}>
+    <div className={`flex flex-col bg-background ${isMidDraft ? "h-full max-w-5xl mx-auto w-full" : "min-h-dvh"}`}>
       {/* ---- Header ---- */}
       <header className={`sticky ${isMidDraft ? "top-0" : "top-12"} z-20 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3`}>
         <div className="flex items-center justify-between">
