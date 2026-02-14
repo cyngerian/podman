@@ -30,7 +30,9 @@ export default function PodMemberList({ members, passDirection }: PodMemberListP
             className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${
               member.isCurrentUser
                 ? "bg-accent/10 ring-1 ring-accent/30"
-                : "bg-background"
+                : member.isCurrentlyPicking
+                  ? "bg-background ring-1 ring-green-500/40"
+                  : "bg-background"
             }`}
           >
             {/* Avatar */}
