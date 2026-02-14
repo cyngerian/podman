@@ -97,6 +97,12 @@ Desktop has a two-row header: row 1 mirrors the app layout (podman + set info + 
 
 Sections: Color Breakdown (mana-font icons, `justify-between`), Basic Lands (mana symbol steppers + "Suggest lands" button computing 17 lands from deck color proportions), Card Types (creatures/other), Mana Curve.
 
+### Mid-Draft Mode
+
+`DeckBuilderScreen` has a `mode` prop: `"full"` (default, deck building phase) or `"midDraft"` (during active draft). In `midDraft` mode: hides lands section, submit/skip footer, deck name input. Header shows "My Deck" with Close button, `sticky top-0`. Root constrained to `max-w-5xl mx-auto` on desktop. New cards default to deck (not sideboard). A `useEffect` + `knownPoolIdsRef` detects newly picked cards and auto-adds them to deck. On mount, reconciles `initialDeck` with `pool` so cards picked between sessions appear.
+
+Accessed via "My Deck" button on both `PickScreen` and `WaitingScreen` (replaced old `PickedCardsDrawer`). Overlay uses `fixed inset-0 z-50`. `saveDeckAction` allows saves during both `active` and `deck_building` draft status. Deck/sideboard state persists to `DraftSeat.deck`/`DraftSeat.sideboard` via auto-save, carried forward to the deck building phase.
+
 ## Results Screen (`src/components/draft/PostDraftScreen.tsx`)
 
 Shows deck/sideboard/pool grids, creature stats, pick history (collapsible), per-player picks (accordion, all collapsed by default). Export: clipboard, Cockatrice (.cod), plain text (.txt) — all use `deckName` in content and filenames. "Edit Deck" button calls `editDeckAction` → `unsubmitDeck()` → redirects back to deck builder with state intact.
