@@ -58,6 +58,12 @@ Server actions return `{ error: string }` on failure or `void`/redirect on succe
 
 Remote from Scryfall (`cards.scryfall.io`), optimized via Next.js Image. `CardReference` stores both `imageUri` (normal) and `smallImageUri` (thumbnail). Rate-limited Scryfall client in `src/lib/scryfall.ts` (75ms interval, 10 req/s max).
 
+## Groups
+
+`groups` table: `name`, `emoji` (optional text), `description`, `created_by`. Emoji displays to the **left** of the group name everywhere (dashboard, group detail, propose page, admin) at a larger size than surrounding text. On the group detail page, admins can inline-edit the emoji via `GroupEmojiEditor` client component. Emoji is also settable at group creation in `CreateGroupForm`. `updateGroupEmoji` server action checks admin role before updating.
+
+Dashboard and group detail pages use faint `border-border/40` dividers between major sections.
+
 ## Database
 
 Supabase Postgres with RLS. Key tables: `profiles`, `groups`, `group_members`, `group_invites`, `draft_proposals`, `draft_players`, `drafts`.
