@@ -30,6 +30,10 @@ interface PickScreenProps {
   onDeckChange?: (deck: CardReference[], sideboard: CardReference[], lands: BasicLandCounts) => void;
   initialDeck?: CardReference[] | null;
   initialSideboard?: CardReference[] | null;
+  crackAPack?: boolean;
+  onCrackAnother?: () => void;
+  onBackToSetPicker?: () => void;
+  crackAPackLoading?: boolean;
 }
 
 // Row 1: color filters
@@ -184,6 +188,10 @@ export default function PickScreen({
   onDeckChange,
   initialDeck,
   initialSideboard,
+  crackAPack,
+  onCrackAnother,
+  onBackToSetPicker,
+  crackAPackLoading,
 }: PickScreenProps) {
   const [selectedCard, setSelectedCard] = useState<CardReference | null>(null);
   const [showDeckBuilder, setShowDeckBuilder] = useState(false);
@@ -519,40 +527,42 @@ export default function PickScreen({
           )}
         </div>
         {/* Row 2: timer | Pack N: Pick N | picks button */}
-        <div className="flex items-center justify-between px-4 pt-1 pb-1.5 border-b border-border">
-          <Timer
-            seconds={timerSeconds}
-            maxSeconds={timerMaxSeconds}
-            paused={timerPaused}
-          />
-          <button
-            type="button"
-            onClick={() => setShowPodStatus(true)}
-            className="flex flex-col items-center"
-          >
-            <span className="text-base text-foreground">
-              <span className="font-bold">Pack {packNumber}:</span>{" "}
-              <span className="font-medium">Pick {pickInPack}</span>
-              <PodIcon className="inline-block ml-1 w-3.5 h-3.5 text-foreground/40 align-[-2px]" />
-            </span>
-            <span className="text-xs text-foreground/40">
-              {packCards.length}/{totalCardsInPack} cards
-              {!!packQueueLength && packQueueLength > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 rounded-full bg-accent text-white text-[10px] font-medium">
-                  +{packQueueLength}
-                </span>
-              )}
-              <span className="ml-1.5">{directionArrow} {passDirection}</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowDeckBuilder(true)}
-            className="px-2.5 py-1.5 rounded-lg bg-surface text-xs font-medium text-foreground hover:bg-surface-hover transition-colors border border-border"
-          >
-            My Deck
-          </button>
-        </div>
+        {!crackAPack && (
+          <div className="flex items-center justify-between px-4 pt-1 pb-1.5 border-b border-border">
+            <Timer
+              seconds={timerSeconds}
+              maxSeconds={timerMaxSeconds}
+              paused={timerPaused}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPodStatus(true)}
+              className="flex flex-col items-center"
+            >
+              <span className="text-base text-foreground">
+                <span className="font-bold">Pack {packNumber}:</span>{" "}
+                <span className="font-medium">Pick {pickInPack}</span>
+                <PodIcon className="inline-block ml-1 w-3.5 h-3.5 text-foreground/40 align-[-2px]" />
+              </span>
+              <span className="text-xs text-foreground/40">
+                {packCards.length}/{totalCardsInPack} cards
+                {!!packQueueLength && packQueueLength > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-accent text-white text-[10px] font-medium">
+                    +{packQueueLength}
+                  </span>
+                )}
+                <span className="ml-1.5">{directionArrow} {passDirection}</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowDeckBuilder(true)}
+              className="px-2.5 py-1.5 rounded-lg bg-surface text-xs font-medium text-foreground hover:bg-surface-hover transition-colors border border-border"
+            >
+              My Deck
+            </button>
+          </div>
+        )}
       </header>
 
       {/* ===== DESKTOP HEADER (two rows) ===== */}
@@ -574,79 +584,148 @@ export default function PickScreen({
                 <span className="text-xs text-foreground/40 ml-1">{draftDateStr}</span>
               )}
             </div>
-            <div className="shrink-0 flex justify-end">
-              <Timer
-                seconds={timerSeconds}
-                maxSeconds={timerMaxSeconds}
-                paused={timerPaused}
-              />
-            </div>
+            {!crackAPack && (
+              <div className="shrink-0 flex justify-end">
+                <Timer
+                  seconds={timerSeconds}
+                  maxSeconds={timerMaxSeconds}
+                  paused={timerPaused}
+                />
+              </div>
+            )}
           </div>
         </div>
         {/* Row 2: controls — pack info, filters, picks */}
-        <div className="border-b border-border">
-          <div className="max-w-5xl mx-auto w-full flex items-center justify-between px-4 py-1.5">
-            <button
-              type="button"
-              onClick={() => setShowPodStatus(true)}
-              className="flex flex-col text-left hover:bg-surface rounded-lg px-2 py-1 -mx-2 -my-1 transition-colors"
-            >
-              <span className="text-sm font-semibold text-foreground">
-                Pack {packNumber} Pick {pickInPack}
-                <span className="text-foreground/40 font-normal ml-1.5">
-                  {packCards.length}/{totalCardsInPack}
-                </span>
-                {!!packQueueLength && packQueueLength > 0 && (
-                  <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-accent text-white text-xs font-medium">
-                    +{packQueueLength} queued
+        {!crackAPack && (
+          <div className="border-b border-border">
+            <div className="max-w-5xl mx-auto w-full flex items-center justify-between px-4 py-1.5">
+              <button
+                type="button"
+                onClick={() => setShowPodStatus(true)}
+                className="flex flex-col text-left hover:bg-surface rounded-lg px-2 py-1 -mx-2 -my-1 transition-colors"
+              >
+                <span className="text-sm font-semibold text-foreground">
+                  Pack {packNumber} Pick {pickInPack}
+                  <span className="text-foreground/40 font-normal ml-1.5">
+                    {packCards.length}/{totalCardsInPack}
                   </span>
-                )}
-                <PodIcon className="inline-block ml-1.5 w-3.5 h-3.5 text-foreground/40 align-[-2px]" />
-              </span>
-              <span className="text-xs text-foreground/50">
-                {directionArrow} Pass {passDirection}
-              </span>
-            </button>
+                  {!!packQueueLength && packQueueLength > 0 && (
+                    <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-accent text-white text-xs font-medium">
+                      +{packQueueLength} queued
+                    </span>
+                  )}
+                  <PodIcon className="inline-block ml-1.5 w-3.5 h-3.5 text-foreground/40 align-[-2px]" />
+                </span>
+                <span className="text-xs text-foreground/50">
+                  {directionArrow} Pass {passDirection}
+                </span>
+              </button>
 
-            {/* Inline filters */}
-            <div className="flex items-center gap-1">
+              {/* Inline filters */}
+              <div className="flex items-center gap-1">
+                {COLOR_FILTERS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => onFilterToggle(opt.value)}
+                    className={`
+                      flex items-center justify-center gap-1 px-2 py-1 rounded-full text-xs font-semibold
+                      transition-colors
+                      ${isFilterActive(opt.value)
+                        ? "bg-accent text-white"
+                        : "bg-surface text-foreground/70 hover:bg-surface-hover"
+                      }
+                    `}
+                  >
+                    {opt.manaClass ? (
+                      <i className={opt.manaClass} style={{ fontSize: "13px" }} />
+                    ) : opt.value === "multicolor" ? (
+                      <span
+                        className="w-3 h-3 rounded-full inline-block"
+                        style={{ backgroundColor: "var(--mana-gold)" }}
+                      />
+                    ) : null}
+                    {opt.value === "all" ? "All" : null}
+                  </button>
+                ))}
+                <span className="w-px h-4 bg-border mx-1" />
+                {TYPE_FILTERS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => onFilterToggle(opt.value)}
+                    className={`
+                      px-2 py-1 rounded-full text-xs font-semibold
+                      transition-colors
+                      ${isFilterActive(opt.value)
+                        ? "bg-accent text-white"
+                        : "bg-surface text-foreground/70 hover:bg-surface-hover"
+                      }
+                    `}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowDeckBuilder(true)}
+                className="px-2.5 py-1.5 rounded-lg bg-surface text-xs font-medium text-foreground hover:bg-surface-hover transition-colors border border-border"
+              >
+                My Deck
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ==================== MOBILE: Carousel ==================== */}
+      <div className="flex-1 flex flex-col min-h-0 sm:hidden">
+        {/* Filter pills — two centered rows */}
+        {!crackAPack && (
+          <div className="shrink-0 flex flex-col items-center gap-1 px-3 py-1">
+            {/* Row 1: color filters */}
+            <div className="flex items-center justify-center gap-1.5 flex-nowrap">
               {COLOR_FILTERS.map((opt) => (
                 <button
                   key={opt.value}
                   type="button"
                   onClick={() => onFilterToggle(opt.value)}
                   className={`
-                    flex items-center justify-center gap-1 px-2 py-1 rounded-full text-xs font-semibold
+                    flex items-center justify-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0
                     transition-colors
                     ${isFilterActive(opt.value)
                       ? "bg-accent text-white"
-                      : "bg-surface text-foreground/70 hover:bg-surface-hover"
+                      : "bg-surface text-foreground/70"
                     }
                   `}
                 >
                   {opt.manaClass ? (
-                    <i className={opt.manaClass} style={{ fontSize: "13px" }} />
+                    <i className={opt.manaClass} style={{ fontSize: "14px" }} />
                   ) : opt.value === "multicolor" ? (
                     <span
-                      className="w-3 h-3 rounded-full inline-block"
+                      className="w-3.5 h-3.5 rounded-full inline-block"
                       style={{ backgroundColor: "var(--mana-gold)" }}
                     />
                   ) : null}
                   {opt.value === "all" ? "All" : null}
                 </button>
               ))}
-              <span className="w-px h-4 bg-border mx-1" />
+            </div>
+            {/* Row 2: type filters */}
+            <div className="flex items-center justify-center gap-1.5">
               {TYPE_FILTERS.map((opt) => (
                 <button
                   key={opt.value}
                   type="button"
                   onClick={() => onFilterToggle(opt.value)}
                   className={`
-                    px-2 py-1 rounded-full text-xs font-semibold
+                    px-2.5 py-1 rounded-full text-xs font-semibold shrink-0
                     transition-colors
                     ${isFilterActive(opt.value)
                       ? "bg-accent text-white"
-                      : "bg-surface text-foreground/70 hover:bg-surface-hover"
+                      : "bg-surface text-foreground/70"
                     }
                   `}
                 >
@@ -654,71 +733,8 @@ export default function PickScreen({
                 </button>
               ))}
             </div>
-
-            <button
-              type="button"
-              onClick={() => setShowDeckBuilder(true)}
-              className="px-2.5 py-1.5 rounded-lg bg-surface text-xs font-medium text-foreground hover:bg-surface-hover transition-colors border border-border"
-            >
-              My Deck
-            </button>
           </div>
-        </div>
-      </div>
-
-      {/* ==================== MOBILE: Carousel ==================== */}
-      <div className="flex-1 flex flex-col min-h-0 sm:hidden">
-        {/* Filter pills — two centered rows */}
-        <div className="shrink-0 flex flex-col items-center gap-1 px-3 py-1">
-          {/* Row 1: color filters */}
-          <div className="flex items-center justify-center gap-1.5 flex-nowrap">
-            {COLOR_FILTERS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => onFilterToggle(opt.value)}
-                className={`
-                  flex items-center justify-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0
-                  transition-colors
-                  ${isFilterActive(opt.value)
-                    ? "bg-accent text-white"
-                    : "bg-surface text-foreground/70"
-                  }
-                `}
-              >
-                {opt.manaClass ? (
-                  <i className={opt.manaClass} style={{ fontSize: "14px" }} />
-                ) : opt.value === "multicolor" ? (
-                  <span
-                    className="w-3.5 h-3.5 rounded-full inline-block"
-                    style={{ backgroundColor: "var(--mana-gold)" }}
-                  />
-                ) : null}
-                {opt.value === "all" ? "All" : null}
-              </button>
-            ))}
-          </div>
-          {/* Row 2: type filters */}
-          <div className="flex items-center justify-center gap-1.5">
-            {TYPE_FILTERS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => onFilterToggle(opt.value)}
-                className={`
-                  px-2.5 py-1 rounded-full text-xs font-semibold shrink-0
-                  transition-colors
-                  ${isFilterActive(opt.value)
-                    ? "bg-accent text-white"
-                    : "bg-surface text-foreground/70"
-                  }
-                `}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        )}
 
         {filteredCards.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">
@@ -856,8 +872,28 @@ export default function PickScreen({
                 {filteredCards[0] ? getCardFaceName(filteredCards[0], flippedCards.has(filteredCards[0].scryfallId)) : ""}
               </p>
 
-              {/* Pick button — long-press to confirm */}
-              <LongPressPickButton onPick={handleCarouselPick} />
+              {crackAPack ? (
+                <div className="flex items-center gap-2 w-full max-w-[320px]">
+                  <button
+                    type="button"
+                    onClick={onBackToSetPicker}
+                    className="flex-1 py-3 rounded-xl bg-surface text-foreground font-bold text-sm tracking-wide border border-border"
+                  >
+                    Change Set
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onCrackAnother}
+                    disabled={crackAPackLoading}
+                    className="flex-1 py-3 rounded-xl bg-accent text-white font-bold text-sm tracking-wide hover:bg-accent-hover transition-colors disabled:opacity-40"
+                  >
+                    {crackAPackLoading ? "Opening..." : "Crack Another"}
+                  </button>
+                </div>
+              ) : (
+                /* Pick button — long-press to confirm */
+                <LongPressPickButton onPick={handleCarouselPick} />
+              )}
             </div>
           </>
         )}
@@ -875,7 +911,7 @@ export default function PickScreen({
                 card={card}
                 selected={selectedCard?.scryfallId === card.scryfallId}
                 onClick={() => handleCardClick(card)}
-                onDoubleClick={() => handleQuickPick(card)}
+                onDoubleClick={crackAPack ? undefined : () => handleQuickPick(card)}
               />
             ))}
           </div>
@@ -915,21 +951,41 @@ export default function PickScreen({
                     Flip
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={handlePick}
-                  className="
-                    px-6 py-2.5 rounded-xl shrink-0
-                    bg-accent text-white font-bold text-sm tracking-wide
-                    hover:bg-accent-hover active:scale-[0.97] transition-all duration-100
-                  "
-                >
-                  PICK
-                </button>
+                {crackAPack ? (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={onBackToSetPicker}
+                      className="px-4 py-2.5 rounded-xl bg-surface text-foreground font-bold text-sm tracking-wide border border-border"
+                    >
+                      Change Set
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onCrackAnother}
+                      disabled={crackAPackLoading}
+                      className="px-4 py-2.5 rounded-xl bg-accent text-white font-bold text-sm tracking-wide hover:bg-accent-hover transition-colors disabled:opacity-40"
+                    >
+                      {crackAPackLoading ? "Opening..." : "Crack Another"}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handlePick}
+                    className="
+                      px-6 py-2.5 rounded-xl shrink-0
+                      bg-accent text-white font-bold text-sm tracking-wide
+                      hover:bg-accent-hover active:scale-[0.97] transition-all duration-100
+                    "
+                  >
+                    PICK
+                  </button>
+                )}
               </>
             ) : (
               <p className="text-sm text-foreground/40 w-full text-center py-2">
-                Click a card to select it, double-click to pick immediately
+                {crackAPack ? "Click a card to view it" : "Click a card to select it, double-click to pick immediately"}
               </p>
             )}
           </div>
@@ -991,7 +1047,7 @@ export default function PickScreen({
       )}
 
       {/* Deck builder overlay */}
-      {showDeckBuilder && (
+      {!crackAPack && showDeckBuilder && (
         <div className="fixed inset-0 z-50 flex flex-col bg-background">
           <DeckBuilderScreen
             mode="midDraft"
@@ -1005,12 +1061,14 @@ export default function PickScreen({
       )}
 
       {/* Pod status overlay */}
-      <PodStatusOverlay
-        members={podMembers}
-        passDirection={passDirection}
-        isOpen={showPodStatus}
-        onClose={() => setShowPodStatus(false)}
-      />
+      {!crackAPack && (
+        <PodStatusOverlay
+          members={podMembers}
+          passDirection={passDirection}
+          isOpen={showPodStatus}
+          onClose={() => setShowPodStatus(false)}
+        />
+      )}
     </div>
   );
 }

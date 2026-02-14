@@ -236,6 +236,15 @@ export default async function DashboardPage() {
           </div>
         </details>
       )}
+
+      <hr className="border-border/40" />
+
+      <Link
+        href="/crack-a-pack"
+        className="block w-full text-center rounded-lg bg-accent px-3 py-3 text-sm font-bold text-white hover:bg-accent-hover transition-colors"
+      >
+        Crack a Pack
+      </Link>
     </div>
   );
 }
