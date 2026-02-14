@@ -18,8 +18,21 @@ import {
 import { getTemplateForSet, generateAllPacks } from "./pack-generator";
 
 /**
+ * Remove non-foil basic lands from packs (not useful draft picks).
+ * Foil basics are kept — they're interesting pulls.
+ */
+function stripNonFoilBasicLands(packs: CardReference[][]): CardReference[][] {
+  return packs.map((pack) =>
+    pack.filter(
+      (card) => card.isFoil || !card.typeLine?.startsWith("Basic Land")
+    )
+  );
+}
+
+/**
  * Generate all packs for a single set.
  * Tries sheet-based generation first, falls back to template system.
+ * Non-foil basic lands are stripped from the output.
  */
 export async function generatePacksForSet(
   setCode: string,
@@ -34,12 +47,13 @@ export async function generatePacksForSet(
       boosterData.allCardIdentifiers
     );
     if (cardMap.size > 0) {
-      return generateAllSheetPacks(
+      const packs = generateAllSheetPacks(
         boosterData,
         cardMap,
         playerCount,
         packsPerPlayer
       );
+      return stripNonFoilBasicLands(packs);
     }
   }
 
@@ -60,7 +74,8 @@ export async function generatePacksForSet(
 
   const era = getPackEra(setInfo.released_at);
   const template = getTemplateForSet(setCode, era);
-  return generateAllPacks(cardPool, template, playerCount, packsPerPlayer);
+  const packs = generateAllPacks(cardPool, template, playerCount, packsPerPlayer);
+  return stripNonFoilBasicLands(packs);
 }
 
 /**
