@@ -73,7 +73,10 @@ export function generateSheetPack(
       usedKeys.add(key);
 
       const cardRef = cardMap.get(key);
-      if (!cardRef) continue;
+      if (!cardRef) {
+        console.warn(`[sheet-pack-gen] Card not found in cardMap: ${key}`);
+        continue;
+      }
 
       if (drawn.is_foil) {
         pack.push({ ...cardRef, isFoil: true });

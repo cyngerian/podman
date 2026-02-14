@@ -101,7 +101,8 @@ export async function loadBoosterProductData(
     supabase
       .from("sheet_cards")
       .select("sheet_id, set_code, collector_number, weight, is_foil")
-      .in("sheet_id", sheetIds),
+      .in("sheet_id", sheetIds)
+      .limit(5000),
   ]);
 
   const slots = slotsResult.data ?? [];

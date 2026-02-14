@@ -478,6 +478,40 @@ export async function hydrateCardTypeLines(
   });
 }
 
+// --- Collector Number Normalization ---
+
+/**
+ * Normalize a set + collector_number pair for Scryfall lookup.
+ * Handles three formats from taw/MTGJSON booster data:
+ *
+ * 1. DFC a/b suffix: "51a" → "51" (same set)
+ * 2. Star ★ suffix: "254★" → "254" (old core set foils)
+ * 3. "The List" SET-NUM format: set "plst" + CN "DOM-130" → set "dom" + CN "130"
+ *    (also handles suffixes on the number part, e.g. "HOU-149a" → "149")
+ */
+function normalizeForScryfall(id: {
+  set: string;
+  collector_number: string;
+}): { set: string; collector_number: string } {
+  // Handle "The List" SET-NUM format (e.g., plst:DOM-130 → dom:130)
+  const listMatch = id.collector_number.match(
+    /^([A-Za-z0-9]+)-(\d+[a-zA-Z★]*)$/
+  );
+  if (listMatch) {
+    const realSet = listMatch[1].toLowerCase();
+    const rawNum = listMatch[2];
+    return {
+      set: realSet,
+      collector_number: rawNum.replace(/[ab★]$/, ""),
+    };
+  }
+  // Strip DFC a/b and star ★ suffixes
+  return {
+    set: id.set,
+    collector_number: id.collector_number.replace(/[ab★]$/, ""),
+  };
+}
+
 // --- Collection Fetch by Collector Number ---
 
 /**
@@ -489,35 +523,36 @@ export async function hydrateCardTypeLines(
 export async function fetchCardsByCollectorNumber(
   identifiers: Array<{ set: string; collector_number: string }>
 ): Promise<Map<string, CardReference>> {
-  // Deduplicate and track original keys
-  // Booster data may use "51a"/"51b" suffixes for DFC faces, but Scryfall
-  // uses just "51". We strip the suffix for the API call and map results
-  // back to the original keys.
+  // Deduplicate and track original keys.
+  // Booster data uses several non-standard collector number formats that
+  // Scryfall doesn't recognize. We normalize for the API call and map
+  // results back to original keys.
   const uniqueMap = new Map<string, { set: string; collector_number: string }>();
-  // Map from normalized key (without a/b suffix) → original keys
+  // Map from normalized key → original keys
   const normalizedToOriginal = new Map<string, string[]>();
   for (const id of identifiers) {
     const key = `${id.set}:${id.collector_number}`;
     if (uniqueMap.has(key)) continue;
     uniqueMap.set(key, id);
 
-    const normalized = `${id.set}:${id.collector_number.replace(/[ab]$/, "")}`;
-    const existing = normalizedToOriginal.get(normalized) ?? [];
+    const norm = normalizeForScryfall(id);
+    const normalizedKey = `${norm.set}:${norm.collector_number}`;
+    const existing = normalizedToOriginal.get(normalizedKey) ?? [];
     existing.push(key);
-    normalizedToOriginal.set(normalized, existing);
+    normalizedToOriginal.set(normalizedKey, existing);
   }
   const unique = Array.from(uniqueMap.values());
 
   const result = new Map<string, CardReference>();
   if (unique.length === 0) return result;
 
-  // Deduplicate identifiers sent to Scryfall (strip a/b suffix)
+  // Deduplicate identifiers sent to Scryfall after normalization
   const scryfallIdMap = new Map<string, { set: string; collector_number: string }>();
   for (const id of unique) {
-    const stripped = id.collector_number.replace(/[ab]$/, "");
-    const key = `${id.set}:${stripped}`;
+    const norm = normalizeForScryfall(id);
+    const key = `${norm.set}:${norm.collector_number}`;
     if (!scryfallIdMap.has(key)) {
-      scryfallIdMap.set(key, { set: id.set, collector_number: stripped });
+      scryfallIdMap.set(key, norm);
     }
   }
   const scryfallIds = Array.from(scryfallIdMap.values());

@@ -62,7 +62,9 @@ Remote from Scryfall (`cards.scryfall.io`), optimized via Next.js Image. `CardRe
 
 `CardReference.backImageUri`/`backSmallImageUri` are populated from `card_faces[1]` by `scryfallCardToReference`. Colors are unioned from all faces via `dfcUnionColors()` so multi-color DFCs get gold borders. `CardThumbnail` shows a ↻ indicator; flip interaction available on carousel (tap ↻ button), desktop preview panel ("Flip" button), and deck builder preview modal ("Show Back"/"Show Front").
 
-**Collector number gotcha**: Booster distribution data (MTGJSON) uses `a`/`b` suffixes for DFC collector numbers (`51a`), but Scryfall expects `51`. `fetchCardsByCollectorNumber` strips the suffix before querying and maps results back to original keys. See `docs/collector-number-suffix-fix.md`.
+**Collector number normalization**: Booster distribution data (MTGJSON) uses several non-standard collector number formats that Scryfall doesn't recognize. `normalizeForScryfall()` in `scryfall.ts` handles: (1) DFC `a`/`b` suffixes (`51a` → `51`), (2) star `★` suffixes for old core set foils (`254★` → `254`), (3) "The List" `SET-NUM` format (`plst:DOM-130` → `dom:130`). Results are mapped back to original keys. See `docs/collector-number-suffix-fix.md`.
+
+**Sheet cards query limit**: The `sheet_cards` query in `booster-data.ts` uses `.limit(5000)` to override the Supabase JS client's default 1000-row cap. Modern play boosters can have 1200+ sheet_cards (e.g., FIN has 1,285). Without the limit, cards are silently truncated.
 
 ## Groups
 
