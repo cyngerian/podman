@@ -473,23 +473,43 @@ export async function hydrateCardTypeLines(
 export async function fetchCardsByCollectorNumber(
   identifiers: Array<{ set: string; collector_number: string }>
 ): Promise<Map<string, CardReference>> {
-  // Deduplicate
+  // Deduplicate and track original keys
+  // Booster data may use "51a"/"51b" suffixes for DFC faces, but Scryfall
+  // uses just "51". We strip the suffix for the API call and map results
+  // back to the original keys.
   const uniqueMap = new Map<string, { set: string; collector_number: string }>();
+  // Map from normalized key (without a/b suffix) → original keys
+  const normalizedToOriginal = new Map<string, string[]>();
   for (const id of identifiers) {
     const key = `${id.set}:${id.collector_number}`;
-    if (!uniqueMap.has(key)) {
-      uniqueMap.set(key, id);
-    }
+    if (uniqueMap.has(key)) continue;
+    uniqueMap.set(key, id);
+
+    const normalized = `${id.set}:${id.collector_number.replace(/[ab]$/, "")}`;
+    const existing = normalizedToOriginal.get(normalized) ?? [];
+    existing.push(key);
+    normalizedToOriginal.set(normalized, existing);
   }
   const unique = Array.from(uniqueMap.values());
 
   const result = new Map<string, CardReference>();
   if (unique.length === 0) return result;
 
+  // Deduplicate identifiers sent to Scryfall (strip a/b suffix)
+  const scryfallIdMap = new Map<string, { set: string; collector_number: string }>();
+  for (const id of unique) {
+    const stripped = id.collector_number.replace(/[ab]$/, "");
+    const key = `${id.set}:${stripped}`;
+    if (!scryfallIdMap.has(key)) {
+      scryfallIdMap.set(key, { set: id.set, collector_number: stripped });
+    }
+  }
+  const scryfallIds = Array.from(scryfallIdMap.values());
+
   // Batch into groups of 75 (Scryfall collection limit)
   const BATCH_SIZE = 75;
-  for (let i = 0; i < unique.length; i += BATCH_SIZE) {
-    const batch = unique.slice(i, i + BATCH_SIZE);
+  for (let i = 0; i < scryfallIds.length; i += BATCH_SIZE) {
+    const batch = scryfallIds.slice(i, i + BATCH_SIZE);
 
     await rateLimiter.acquire();
     try {
@@ -513,8 +533,15 @@ export async function fetchCardsByCollectorNumber(
         const cards: ScryfallCard[] = json.data ?? [];
         for (const card of cards) {
           if (card.collector_number) {
-            const key = `${card.set}:${card.collector_number}`;
-            result.set(key, scryfallCardToReference(card));
+            const cardRef = scryfallCardToReference(card);
+            const normalizedKey = `${card.set}:${card.collector_number}`;
+            // Store under the normalized key
+            result.set(normalizedKey, cardRef);
+            // Also store under all original keys that map to this normalized key
+            const originals = normalizedToOriginal.get(normalizedKey) ?? [];
+            for (const origKey of originals) {
+              result.set(origKey, cardRef);
+            }
           }
         }
       }
