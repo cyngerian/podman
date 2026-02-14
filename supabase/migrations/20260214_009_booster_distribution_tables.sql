@@ -34,7 +34,7 @@ CREATE TABLE public.booster_sheets (
   id serial PRIMARY KEY,
   product_id integer NOT NULL REFERENCES public.booster_products(id) ON DELETE CASCADE,
   name text NOT NULL,                -- e.g. "common", "rare_mythic", "foil_common"
-  total_weight integer NOT NULL,     -- sum of all card weights in this sheet
+  total_weight bigint NOT NULL,       -- sum of all card weights in this sheet
   UNIQUE (product_id, name)
 );
 
@@ -49,7 +49,7 @@ CREATE TABLE public.sheet_cards (
   sheet_id integer NOT NULL REFERENCES public.booster_sheets(id) ON DELETE CASCADE,
   set_code text NOT NULL,            -- e.g. "mkm"
   collector_number text NOT NULL,    -- e.g. "42", "42a"
-  weight integer NOT NULL DEFAULT 1, -- relative weight within the sheet
+  weight bigint NOT NULL DEFAULT 1,   -- relative weight within the sheet
   is_foil boolean NOT NULL DEFAULT false
 );
 
