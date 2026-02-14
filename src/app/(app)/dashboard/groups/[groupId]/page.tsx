@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { createServerSupabaseClient, getUser } from "@/lib/supabase-server";
 import { leaveGroup } from "../actions";
-import CopyInviteCode from "./CopyInviteCode";
+import InviteLinksSection from "./InviteLinksSection";
 import UserAvatar from "@/components/ui/UserAvatar";
 
 function formatElapsed(startedAt: number, now: number) {
@@ -38,6 +38,7 @@ export default async function GroupDetailPage({
     { data: members },
     { data: proposals },
     { data: drafts },
+    { data: invites },
   ] = await Promise.all([
     supabase.from("groups").select("*").eq("id", groupId).single(),
     supabase
@@ -56,6 +57,11 @@ export default async function GroupDetailPage({
       .select("id, format, set_code, set_name, status, created_at, state, draft_players(user_id, profiles(display_name, avatar_url, favorite_color))")
       .eq("group_id", groupId)
       .in("status", ["lobby", "active", "deck_building"])
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("group_invites")
+      .select("id, token, expires_at, use_count")
+      .eq("group_id", groupId)
       .order("created_at", { ascending: false }),
   ]);
 
@@ -100,13 +106,14 @@ export default async function GroupDetailPage({
         )}
       </div>
 
-      {/* Invite Code */}
-      <section>
-        <h2 className="text-sm font-medium text-foreground/70 uppercase tracking-wide mb-2">
-          Invite Code
-        </h2>
-        <CopyInviteCode code={group.invite_code} />
-      </section>
+      {/* Invite Links (admin only) */}
+      {isAdmin && (
+        <InviteLinksSection
+          groupId={groupId}
+          invites={invites ?? []}
+          now={now}
+        />
+      )}
 
       {/* Members */}
       <section>

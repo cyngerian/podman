@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import type { Json } from "@/lib/database.types";
@@ -195,4 +196,43 @@ export async function convertProposalToDraft(formData: FormData) {
     .eq("id", proposalId);
 
   redirect(`/draft/${draft.id}`);
+}
+
+export async function createInviteLinkAction(groupId: string): Promise<{ error: string } | void> {
+  const supabase = await createServerSupabaseClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/auth/login");
+
+  const { error } = await supabase.from("group_invites").insert({
+    group_id: groupId,
+    created_by: user.id,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath(`/dashboard/groups/${groupId}`);
+}
+
+export async function revokeInviteLinkAction(inviteId: string, groupId: string): Promise<{ error: string } | void> {
+  const supabase = await createServerSupabaseClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/auth/login");
+
+  const { error } = await supabase.from("group_invites").delete().eq("id", inviteId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath(`/dashboard/groups/${groupId}`);
 }

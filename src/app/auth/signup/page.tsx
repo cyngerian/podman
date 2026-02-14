@@ -3,9 +3,9 @@ import SignupForm from "./SignupForm";
 export default async function SignupPage({
   searchParams,
 }: {
-  searchParams: Promise<{ code?: string }>;
+  searchParams: Promise<{ redirect?: string }>;
 }) {
-  const { code } = await searchParams;
+  const { redirect } = await searchParams;
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
@@ -20,12 +20,12 @@ export default async function SignupPage({
         </div>
 
         <div className="rounded-xl border border-border bg-surface p-6">
-          <SignupForm defaultCode={code} />
+          <SignupForm redirect={redirect} />
 
           <p className="mt-4 text-center text-sm text-foreground/50">
             Already have an account?{" "}
             <a
-              href="/auth/login"
+              href={`/auth/login${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ""}`}
               className="text-accent hover:text-accent-hover"
             >
               Sign in

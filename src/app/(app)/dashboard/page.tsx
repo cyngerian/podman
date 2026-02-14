@@ -19,7 +19,7 @@ export default async function DashboardPage() {
       .single(),
     supabase
       .from("group_members")
-      .select("role, group_id, groups(id, name, description, invite_code, created_at)")
+      .select("role, group_id, groups(id, name, description, created_at)")
       .eq("user_id", user.id)
       .order("joined_at", { ascending: false }),
     supabase
@@ -182,20 +182,12 @@ export default async function DashboardPage() {
 
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Your Groups</h1>
-        <div className="flex gap-2">
-          <Link
-            href="/dashboard/groups/join"
-            className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground/70 hover:border-border-light hover:text-foreground transition-colors"
-          >
-            Join Group
-          </Link>
-          <Link
-            href="/dashboard/groups/new"
-            className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover transition-colors"
-          >
-            Create Group
-          </Link>
-        </div>
+        <Link
+          href="/dashboard/groups/new"
+          className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover transition-colors"
+        >
+          Create Group
+        </Link>
       </div>
 
       {groups.length === 0 ? (
@@ -204,7 +196,7 @@ export default async function DashboardPage() {
             You&apos;re not in any groups yet.
           </p>
           <p className="text-foreground/40 text-xs mt-1">
-            Create a group or join one with an invite code.
+            Create a group or join one with an invite link.
           </p>
         </div>
       ) : (

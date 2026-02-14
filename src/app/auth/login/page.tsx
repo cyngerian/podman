@@ -1,6 +1,12 @@
 import LoginForm from "./LoginForm";
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ redirect?: string }>;
+}) {
+  const { redirect } = await searchParams;
+
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm">
@@ -14,12 +20,12 @@ export default function LoginPage() {
         </div>
 
         <div className="rounded-xl border border-border bg-surface p-6">
-          <LoginForm />
+          <LoginForm redirect={redirect} />
 
           <p className="mt-4 text-center text-sm text-foreground/50">
-            Have an invite?{" "}
+            Don&apos;t have an account?{" "}
             <a
-              href="/auth/signup"
+              href={`/auth/signup${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ""}`}
               className="text-accent hover:text-accent-hover"
             >
               Create an account

@@ -192,6 +192,44 @@ export type Database = {
           },
         ]
       }
+      group_invites: {
+        Row: {
+          created_at: string
+          created_by: string
+          expires_at: string
+          group_id: string
+          id: string
+          token: string
+          use_count: number
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          expires_at?: string
+          group_id: string
+          id?: string
+          token?: string
+          use_count?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          expires_at?: string
+          group_id?: string
+          id?: string
+          token?: string
+          use_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_invites_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       group_members: {
         Row: {
           group_id: string
@@ -234,7 +272,6 @@ export type Database = {
           created_by: string
           description: string | null
           id: string
-          invite_code: string
           name: string
           updated_at: string
         }
@@ -243,7 +280,6 @@ export type Database = {
           created_by: string
           description?: string | null
           id?: string
-          invite_code: string
           name: string
           updated_at?: string
         }
@@ -252,7 +288,6 @@ export type Database = {
           created_by?: string
           description?: string | null
           id?: string
-          invite_code?: string
           name?: string
           updated_at?: string
         }
@@ -266,52 +301,10 @@ export type Database = {
           },
         ]
       }
-      invites: {
-        Row: {
-          claimed_by: string | null
-          code: string
-          created_at: string
-          created_by: string
-          expires_at: string | null
-          id: string
-        }
-        Insert: {
-          claimed_by?: string | null
-          code: string
-          created_at?: string
-          created_by: string
-          expires_at?: string | null
-          id?: string
-        }
-        Update: {
-          claimed_by?: string | null
-          code?: string
-          created_at?: string
-          created_by?: string
-          expires_at?: string | null
-          id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "invites_claimed_by_fkey"
-            columns: ["claimed_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "invites_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       profiles: {
         Row: {
           avatar_url: string | null
-          bio: string
+          bio: string | null
           created_at: string
           display_name: string
           favorite_color: string | null
@@ -321,7 +314,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
-          bio?: string
+          bio?: string | null
           created_at?: string
           display_name: string
           favorite_color?: string | null
@@ -331,7 +324,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
-          bio?: string
+          bio?: string | null
           created_at?: string
           display_name?: string
           favorite_color?: string | null
@@ -382,10 +375,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      join_group_by_invite_code: {
-        Args: { p_invite_code: string }
-        Returns: string
+      accept_group_invite: { Args: { p_token: string }; Returns: string }
+      get_invite_info: {
+        Args: { p_token: string }
+        Returns: {
+          expires_at: string
+          group_description: string
+          group_name: string
+          is_expired: boolean
+        }[]
       }
+      is_group_admin: {
+        Args: { p_group_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      user_draft_ids: { Args: { p_user_id: string }; Returns: string[] }
+      user_group_ids: { Args: { p_user_id: string }; Returns: string[] }
     }
     Enums: {
       [_ in never]: never
@@ -512,3 +517,9 @@ export type CompositeTypes<
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const

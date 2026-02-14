@@ -3,7 +3,7 @@
 import { useTransition, useState } from "react";
 import { signup } from "../actions";
 
-export default function SignupForm({ defaultCode }: { defaultCode?: string }) {
+export default function SignupForm({ redirect }: { redirect?: string }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -26,23 +26,7 @@ export default function SignupForm({ defaultCode }: { defaultCode?: string }) {
       )}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div>
-          <label
-            htmlFor="invite_code"
-            className="mb-1.5 block text-sm font-medium text-foreground/80"
-          >
-            Invite code
-          </label>
-          <input
-            id="invite_code"
-            name="invite_code"
-            type="text"
-            required
-            defaultValue={defaultCode ?? ""}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder-foreground/40 outline-none transition-colors focus:border-accent font-mono"
-            placeholder="PODMAN-XXXX-XXXX"
-          />
-        </div>
+        {redirect && <input type="hidden" name="redirect" value={redirect} />}
 
         <div>
           <label

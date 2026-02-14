@@ -60,7 +60,7 @@ Remote from Scryfall (`cards.scryfall.io`), optimized via Next.js Image. `CardRe
 
 ## Database
 
-Supabase Postgres with RLS. Key tables: `profiles`, `groups`, `group_members`, `draft_proposals`, `draft_players`, `drafts`, `invites`.
+Supabase Postgres with RLS. Key tables: `profiles`, `groups`, `group_members`, `group_invites`, `draft_proposals`, `draft_players`, `drafts`.
 
 **RLS gotcha**: Policies on `group_members`/`draft_players` that reference their own table cause infinite recursion. Use SECURITY DEFINER helper functions (`user_group_ids()`, `user_draft_ids()`, `is_group_admin()`) that bypass RLS instead.
 
