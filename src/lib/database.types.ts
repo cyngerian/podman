@@ -14,6 +14,124 @@ export type Database = {
   }
   public: {
     Tables: {
+      booster_config_slots: {
+        Row: {
+          config_id: number
+          count: number
+          id: number
+          sheet_id: number
+        }
+        Insert: {
+          config_id: number
+          count?: number
+          id?: number
+          sheet_id: number
+        }
+        Update: {
+          config_id?: number
+          count?: number
+          id?: number
+          sheet_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booster_config_slots_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "booster_configs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booster_config_slots_sheet_id_fkey"
+            columns: ["sheet_id"]
+            isOneToOne: false
+            referencedRelation: "booster_sheets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      booster_configs: {
+        Row: {
+          id: number
+          product_id: number
+          weight: number
+        }
+        Insert: {
+          id?: number
+          product_id: number
+          weight?: number
+        }
+        Update: {
+          id?: number
+          product_id?: number
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booster_configs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "booster_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      booster_products: {
+        Row: {
+          code: string
+          created_at: string
+          id: number
+          name: string
+          set_code: string
+          set_name: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: number
+          name: string
+          set_code: string
+          set_name: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: number
+          name?: string
+          set_code?: string
+          set_name?: string
+        }
+        Relationships: []
+      }
+      booster_sheets: {
+        Row: {
+          id: number
+          name: string
+          product_id: number
+          total_weight: number
+        }
+        Insert: {
+          id?: number
+          name: string
+          product_id: number
+          total_weight: number
+        }
+        Update: {
+          id?: number
+          name?: string
+          product_id?: number
+          total_weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booster_sheets_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "booster_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       draft_players: {
         Row: {
           draft_id: string
@@ -369,6 +487,41 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sheet_cards: {
+        Row: {
+          collector_number: string
+          id: number
+          is_foil: boolean
+          set_code: string
+          sheet_id: number
+          weight: number
+        }
+        Insert: {
+          collector_number: string
+          id?: number
+          is_foil?: boolean
+          set_code: string
+          sheet_id: number
+          weight?: number
+        }
+        Update: {
+          collector_number?: string
+          id?: number
+          is_foil?: boolean
+          set_code?: string
+          sheet_id?: number
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sheet_cards_sheet_id_fkey"
+            columns: ["sheet_id"]
+            isOneToOne: false
+            referencedRelation: "booster_sheets"
             referencedColumns: ["id"]
           },
         ]

@@ -14,16 +14,10 @@ import {
 } from "@/lib/draft-engine";
 import {
   fetchBoosterCards,
-  fetchSetInfo,
-  getPackEra,
   scryfallCardToReference,
-  groupCardsByRarity,
 } from "@/lib/scryfall";
-import {
-  generateAllPacks,
-  generateCubePacks,
-  getTemplateForSet,
-} from "@/lib/pack-generator";
+import { generateCubePacks } from "@/lib/pack-generator";
+import { generatePacksForSet, generateMixedPacks } from "@/lib/generate-packs";
 import { botUserId, botDisplayName } from "@/lib/bot-drafter";
 
 interface SimulateConfig {
@@ -129,69 +123,18 @@ export async function createSimulatedDraftAction(config: SimulateConfig) {
 
   if (config.format === "standard") {
     if (config.mixedPacks && config.packSets && config.packSets.length === config.packsPerPlayer) {
-      // Mixed packs: different set per round
-      const uniqueCodes = [...new Set(config.packSets.map((s) => s.code))];
-      const fetchResults = await Promise.all(
-        uniqueCodes.map(async (code) => {
-          const [cards, info] = await Promise.all([
-            fetchBoosterCards(code),
-            fetchSetInfo(code),
-          ]);
-          return { code, cards, info };
-        })
-      );
-
-      const dataBySet = new Map(
-        fetchResults.map((r) => {
-          const grouped = groupCardsByRarity(r.cards);
-          const cardPool: Record<string, CardReference[]> = {
-            common: grouped.common.map((c) => scryfallCardToReference(c)),
-            uncommon: grouped.uncommon.map((c) => scryfallCardToReference(c)),
-            rare: grouped.rare.map((c) => scryfallCardToReference(c)),
-            mythic: grouped.mythic.map((c) => scryfallCardToReference(c)),
-            land: grouped.land.map((c) => scryfallCardToReference(c)),
-          };
-          const era = getPackEra(r.info.released_at);
-          const template = getTemplateForSet(r.code, era);
-          return [r.code, { cardPool, template }] as const;
-        })
-      );
-
-      for (let round = 0; round < config.packsPerPlayer; round++) {
-        const setCode = config.packSets[round].code;
-        const { cardPool, template } = dataBySet.get(setCode)!;
-        const roundPacks = generateAllPacks(cardPool, template, config.playerCount, 1);
-        allPacks.push(...roundPacks);
-      }
+      allPacks = await generateMixedPacks(config.packSets, config.playerCount);
     } else {
-      // Single set for all packs
       const setCode = config.setCode;
       if (!setCode) {
         redirect("/dashboard/simulate?error=" + encodeURIComponent("No set selected"));
       }
+      allPacks = await generatePacksForSet(setCode, config.playerCount, config.packsPerPlayer);
+    }
 
-      const [scryfallCards, setInfo] = await Promise.all([
-        fetchBoosterCards(setCode),
-        fetchSetInfo(setCode),
-      ]);
-      const grouped = groupCardsByRarity(scryfallCards);
-
-      const cardPool: Record<string, CardReference[]> = {
-        common: grouped.common.map((c) => scryfallCardToReference(c)),
-        uncommon: grouped.uncommon.map((c) => scryfallCardToReference(c)),
-        rare: grouped.rare.map((c) => scryfallCardToReference(c)),
-        mythic: grouped.mythic.map((c) => scryfallCardToReference(c)),
-        land: grouped.land.map((c) => scryfallCardToReference(c)),
-      };
-
-      const era = getPackEra(setInfo.released_at);
-      const template = getTemplateForSet(setCode, era);
-      allPacks = generateAllPacks(
-        cardPool,
-        template,
-        config.playerCount,
-        config.packsPerPlayer
-      );
+    // Set cardsPerPack from actual pack size (sheet-based packs may differ from template)
+    if (allPacks.length > 0) {
+      draftObj = { ...draftObj, cardsPerPack: allPacks[0].length };
     }
   } else if (config.format === "cube") {
     const cubeList = config.cubeList;

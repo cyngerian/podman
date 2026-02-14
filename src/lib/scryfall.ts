@@ -448,6 +448,70 @@ export async function hydrateCardTypeLines(
   });
 }
 
+// --- Collection Fetch by Collector Number ---
+
+/**
+ * Fetch cards from Scryfall by set_code + collector_number pairs.
+ * Returns a Map keyed by "set:collector_number" → CardReference.
+ * Used to bridge booster distribution data (which uses collector numbers)
+ * to the CardReference format used by the draft system.
+ */
+export async function fetchCardsByCollectorNumber(
+  identifiers: Array<{ set: string; collector_number: string }>
+): Promise<Map<string, CardReference>> {
+  // Deduplicate
+  const uniqueMap = new Map<string, { set: string; collector_number: string }>();
+  for (const id of identifiers) {
+    const key = `${id.set}:${id.collector_number}`;
+    if (!uniqueMap.has(key)) {
+      uniqueMap.set(key, id);
+    }
+  }
+  const unique = Array.from(uniqueMap.values());
+
+  const result = new Map<string, CardReference>();
+  if (unique.length === 0) return result;
+
+  // Batch into groups of 75 (Scryfall collection limit)
+  const BATCH_SIZE = 75;
+  for (let i = 0; i < unique.length; i += BATCH_SIZE) {
+    const batch = unique.slice(i, i + BATCH_SIZE);
+
+    await rateLimiter.acquire();
+    try {
+      const response = await fetch(`${SCRYFALL_API_BASE}/cards/collection`, {
+        method: "POST",
+        headers: {
+          "User-Agent": USER_AGENT,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          identifiers: batch.map((id) => ({
+            set: id.set,
+            collector_number: id.collector_number,
+          })),
+        }),
+      });
+
+      if (response.ok) {
+        const json = await response.json();
+        const cards: ScryfallCard[] = json.data ?? [];
+        for (const card of cards) {
+          if (card.collector_number) {
+            const key = `${card.set}:${card.collector_number}`;
+            result.set(key, scryfallCardToReference(card));
+          }
+        }
+      }
+    } catch {
+      // Non-critical — cards not found will be skipped during pack generation
+    }
+  }
+
+  return result;
+}
+
 // --- CubeCobra Integration ---
 
 /**

@@ -212,6 +212,7 @@ export interface ScryfallCard {
   id: string;
   name: string;
   set: string;
+  collector_number?: string;
   rarity: string;
   colors: string[];
   cmc: number;
