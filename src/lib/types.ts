@@ -76,6 +76,8 @@ export interface CardReference {
   cmc: number;
   typeLine?: string; // e.g. "Creature — Human Wizard", absent in older drafts
   isFoil: boolean;
+  backImageUri?: string; // back face normal image (DFCs only)
+  backSmallImageUri?: string; // back face small image (DFCs only)
 }
 
 // --- Pack Generation ---

@@ -97,6 +97,13 @@ function getBorderClass(colors: string[]): string {
   return `card-border-${colors[0]}`;
 }
 
+/** Get front or back face name from a DFC's "Front // Back" name */
+function getCardFaceName(card: CardReference, showBack: boolean): string {
+  if (!showBack) return card.name;
+  const parts = card.name.split(" // ");
+  return parts.length > 1 ? parts[1] : card.name;
+}
+
 const LONG_PRESS_MS = 500;
 
 function LongPressPickButton({ onPick }: { onPick: () => void }) {
@@ -182,6 +189,10 @@ export default function PickScreen({
   const [showDeckBuilder, setShowDeckBuilder] = useState(false);
   const [showGridView, setShowGridView] = useState(false);
   const [showPodStatus, setShowPodStatus] = useState(false);
+  // Track which cards are showing back face (by scryfallId)
+  const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set());
+  const flippedCardsRef = useRef<Set<string>>(flippedCards);
+  useEffect(() => { flippedCardsRef.current = flippedCards; }, [flippedCards]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -300,7 +311,11 @@ export default function PickScreen({
           if (cardEl) cardEl.style.zIndex = `${100 - Math.abs(i - closestIdx) * 10}`;
         }
         if (counterRef.current) counterRef.current.textContent = `${closestIdx + 1} / ${filteredCards.length}`;
-        if (nameRef.current) nameRef.current.textContent = filteredCards[closestIdx]?.name ?? "";
+        if (nameRef.current) {
+          const card = filteredCards[closestIdx];
+          const isFlipped = card ? flippedCardsRef.current.has(card.scryfallId) : false;
+          nameRef.current.textContent = card ? getCardFaceName(card, isFlipped) : "";
+        }
       }
 
       // Scrub bar — position thumb by center, clamped to track bounds
@@ -435,8 +450,19 @@ export default function PickScreen({
     activeIndexRef.current = 0;
   }, [filterKey]);
 
+  const toggleFlip = useCallback((scryfallId: string) => {
+    setFlippedCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(scryfallId)) next.delete(scryfallId);
+      else next.add(scryfallId);
+      return next;
+    });
+  }, []);
+
   const handleCardClick = useCallback((card: CardReference) => {
     setSelectedCard(card);
+    // Reset flip when selecting a different card
+    setFlippedCards(new Set());
   }, []);
 
   const handleQuickPick = useCallback(
@@ -731,8 +757,8 @@ export default function PickScreen({
                           className={`relative card-aspect rounded-xl overflow-hidden border-2 shadow-lg ${getBorderClass(card.colors)}`}
                         >
                           <Image
-                            src={card.imageUri}
-                            alt={card.name}
+                            src={flippedCards.has(card.scryfallId) && card.backImageUri ? card.backImageUri : card.imageUri}
+                            alt={getCardFaceName(card, flippedCards.has(card.scryfallId))}
                             fill
                             sizes="72vw"
                             className="object-cover"
@@ -742,6 +768,16 @@ export default function PickScreen({
                             <span className="absolute top-1 right-1 text-sm drop-shadow-md">
                               ✦
                             </span>
+                          )}
+                          {card.backImageUri && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); toggleFlip(card.scryfallId); }}
+                              className="absolute bottom-1.5 right-1.5 w-7 h-7 rounded-full bg-black/50 text-white/90 flex items-center justify-center text-base drop-shadow-md active:scale-90 transition-transform"
+                              aria-label="Flip card"
+                            >
+                              ↻
+                            </button>
                           )}
                         </div>
                       </div>
@@ -817,7 +853,7 @@ export default function PickScreen({
             {/* Card name + Pick button */}
             <div className="shrink-0 px-4 pt-2 flex flex-col items-center gap-2" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 6px)" }}>
               <p ref={nameRef} className="text-base font-semibold text-foreground text-center leading-tight truncate max-w-full">
-                {filteredCards[0]?.name ?? ""}
+                {filteredCards[0] ? getCardFaceName(filteredCards[0], flippedCards.has(filteredCards[0].scryfallId)) : ""}
               </p>
 
               {/* Pick button — long-press to confirm */}
@@ -858,8 +894,8 @@ export default function PickScreen({
               <>
                 <div className="relative w-20 card-aspect rounded-lg overflow-hidden shrink-0">
                   <Image
-                    src={selectedCard.imageUri}
-                    alt={selectedCard.name}
+                    src={flippedCards.has(selectedCard.scryfallId) && selectedCard.backImageUri ? selectedCard.backImageUri : selectedCard.imageUri}
+                    alt={getCardFaceName(selectedCard, flippedCards.has(selectedCard.scryfallId))}
                     fill
                     sizes="80px"
                     className="object-cover"
@@ -867,9 +903,18 @@ export default function PickScreen({
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="text-sm font-semibold text-foreground truncate">
-                    {selectedCard.name}
+                    {getCardFaceName(selectedCard, flippedCards.has(selectedCard.scryfallId))}
                   </h3>
                 </div>
+                {selectedCard.backImageUri && (
+                  <button
+                    type="button"
+                    onClick={() => toggleFlip(selectedCard.scryfallId)}
+                    className="px-3 py-2 rounded-lg shrink-0 bg-surface text-foreground/70 text-xs font-medium hover:bg-surface-hover transition-colors border border-border"
+                  >
+                    Flip
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={handlePick}
@@ -930,6 +975,11 @@ export default function PickScreen({
                     {card.isFoil && (
                       <span className="absolute top-0.5 right-0.5 text-xs drop-shadow-md">
                         ✦
+                      </span>
+                    )}
+                    {card.backImageUri && (
+                      <span className="absolute bottom-0.5 right-0.5 text-xs leading-none drop-shadow-md text-white/80">
+                        ↻
                       </span>
                     )}
                   </div>

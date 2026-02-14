@@ -56,6 +56,15 @@ export default function CardThumbnail({
           ✦
         </span>
       )}
+
+      {card.backImageUri && (
+        <span
+          className="absolute bottom-0.5 right-0.5 text-xs leading-none drop-shadow-md text-white/80"
+          aria-label="Double-faced card"
+        >
+          ↻
+        </span>
+      )}
     </button>
   );
 }

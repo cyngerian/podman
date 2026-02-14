@@ -198,6 +198,9 @@ function extractImageUris(card: ScryfallCard): {
   large: string;
   normal: string;
   small: string;
+  backLarge?: string;
+  backNormal?: string;
+  backSmall?: string;
 } {
   if (card.image_uris) {
     return {
@@ -210,11 +213,20 @@ function extractImageUris(card: ScryfallCard): {
   // Double-faced cards store images on card_faces
   if (card.card_faces && card.card_faces.length > 0) {
     const frontFace = card.card_faces[0];
-    if (frontFace.image_uris) {
+    const backFace = card.card_faces[1];
+    const front = frontFace?.image_uris;
+    const back = backFace?.image_uris;
+
+    if (front) {
       return {
-        large: frontFace.image_uris.large ?? frontFace.image_uris.normal,
-        normal: frontFace.image_uris.normal,
-        small: frontFace.image_uris.small,
+        large: front.large ?? front.normal,
+        normal: front.normal,
+        small: front.small,
+        ...(back ? {
+          backLarge: back.large ?? back.normal,
+          backNormal: back.normal,
+          backSmall: back.small,
+        } : {}),
       };
     }
   }
@@ -246,6 +258,8 @@ export function scryfallCardToReference(
     cmc: card.cmc ?? 0,
     typeLine: card.type_line,
     isFoil,
+    ...(images.backLarge ? { backImageUri: images.backLarge } : {}),
+    ...(images.backNormal ? { backSmallImageUri: images.backNormal } : {}),
   };
 }
 

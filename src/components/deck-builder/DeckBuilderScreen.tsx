@@ -142,6 +142,7 @@ export default function DeckBuilderScreen({
     card: CardReference;
     zone: "deck" | "sideboard";
   } | null>(null);
+  const [previewFlipped, setPreviewFlipped] = useState(false);
   const [deckName, setDeckName] = useState(initialDeckName ?? "");
   const [error, setError] = useState<string | null>(null);
   const [sideboardOpen, setSideboardOpen] = useState(false);
@@ -395,7 +396,7 @@ export default function DeckBuilderScreen({
                   card={card}
                   size="medium"
                   onClick={() =>
-                    setPreviewState({ card, zone: "deck" })
+                    { setPreviewState({ card, zone: "deck" }); setPreviewFlipped(false); }
                   }
                 />
               ))}
@@ -465,7 +466,7 @@ export default function DeckBuilderScreen({
                       card={card}
                       size="medium"
                       onClick={() =>
-                        setPreviewState({ card, zone: "sideboard" })
+                        { setPreviewState({ card, zone: "sideboard" }); setPreviewFlipped(false); }
                       }
                     />
                   ))}
@@ -608,9 +609,9 @@ export default function DeckBuilderScreen({
       {previewState && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
-          onClick={() => setPreviewState(null)}
+          onClick={() => { setPreviewState(null); setPreviewFlipped(false); }}
           onKeyDown={(e) => {
-            if (e.key === "Escape") setPreviewState(null);
+            if (e.key === "Escape") { setPreviewState(null); setPreviewFlipped(false); }
           }}
           role="dialog"
           aria-modal="true"
@@ -625,7 +626,7 @@ export default function DeckBuilderScreen({
             {/* Close hint */}
             <button
               type="button"
-              onClick={() => setPreviewState(null)}
+              onClick={() => { setPreviewState(null); setPreviewFlipped(false); }}
               className="w-10 h-1 rounded-full bg-foreground/30 shrink-0 cursor-pointer"
               aria-label="Close preview"
             />
@@ -633,7 +634,7 @@ export default function DeckBuilderScreen({
             {/* Large card image */}
             <div className="relative w-[85vw] max-w-[400px] card-aspect rounded-xl overflow-hidden">
               <Image
-                src={previewState.card.imageUri}
+                src={previewFlipped && previewState.card.backImageUri ? previewState.card.backImageUri : previewState.card.imageUri}
                 alt={previewState.card.name}
                 fill
                 sizes="(max-width: 768px) 85vw, 400px"
@@ -642,16 +643,27 @@ export default function DeckBuilderScreen({
               />
             </div>
 
-            {/* Move button */}
-            <button
-              type="button"
-              onClick={handlePreviewMove}
-              className="w-full max-w-[400px] py-3 rounded-xl bg-surface border border-border text-foreground font-medium text-sm active:scale-[0.97] transition-all hover:bg-surface-hover"
-            >
-              {previewState.zone === "deck"
-                ? "Move to Sideboard"
-                : "Move to Deck"}
-            </button>
+            {/* Action buttons */}
+            <div className="w-full max-w-[400px] flex flex-col gap-2">
+              {previewState.card.backImageUri && (
+                <button
+                  type="button"
+                  onClick={() => setPreviewFlipped((v) => !v)}
+                  className="w-full py-3 rounded-xl bg-surface border border-border text-foreground font-medium text-sm active:scale-[0.97] transition-all hover:bg-surface-hover"
+                >
+                  {previewFlipped ? "Show Front" : "Show Back"}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handlePreviewMove}
+                className="w-full py-3 rounded-xl bg-surface border border-border text-foreground font-medium text-sm active:scale-[0.97] transition-all hover:bg-surface-hover"
+              >
+                {previewState.zone === "deck"
+                  ? "Move to Sideboard"
+                  : "Move to Deck"}
+              </button>
+            </div>
           </div>
         </div>
       )}
