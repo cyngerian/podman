@@ -84,6 +84,7 @@ export default async function DashboardPage() {
       {/* Active Drafts */}
       {activeGroupDrafts.length > 0 && (
         <>
+          <hr className="border-border/40" />
           <h2 className="text-xl font-bold">Active Drafts</h2>
           <div className="space-y-2">
             {activeGroupDrafts.map((draft) => (
@@ -115,6 +116,8 @@ export default async function DashboardPage() {
           </div>
         </>
       )}
+
+      <hr className="border-border/40" />
 
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Groups</h1>
@@ -160,6 +163,8 @@ export default async function DashboardPage() {
       )}
 
       {/* Bot Drafts */}
+      <hr className="border-border/40" />
+
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold">Bot Drafts</h2>
         <Link

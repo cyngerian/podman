@@ -112,7 +112,7 @@ export default async function GroupDetailPage({
 
       {/* Active Drafts */}
       {draftDisplayData.length > 0 && (
-        <section>
+        <section className="border-t border-border/40 pt-6">
           <h2 className="text-sm font-medium text-foreground/70 uppercase tracking-wide mb-3">
             Active Drafts
           </h2>
@@ -180,6 +180,7 @@ export default async function GroupDetailPage({
       )}
 
       {/* Propose Draft */}
+      <hr className="border-border/40" />
       <Link
         href={`/dashboard/groups/${groupId}/propose`}
         className="block w-full text-center rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover transition-colors"
@@ -188,7 +189,7 @@ export default async function GroupDetailPage({
       </Link>
 
       {/* Proposals */}
-      <section>
+      <section className="border-t border-border/40 pt-6">
         <h2 className="text-sm font-medium text-foreground/70 uppercase tracking-wide mb-3">
           Proposals
         </h2>
@@ -220,7 +221,7 @@ export default async function GroupDetailPage({
       </section>
 
       {/* Members */}
-      <section>
+      <section className="border-t border-border/40 pt-6">
         <h2 className="text-sm font-medium text-foreground/70 uppercase tracking-wide mb-3">
           Members ({memberList.length})
         </h2>
@@ -252,15 +253,17 @@ export default async function GroupDetailPage({
 
       {/* Invite Links (admin only) */}
       {isAdmin && (
+        <div className="border-t border-border/40 pt-6">
         <InviteLinksSection
           groupId={groupId}
           invites={invites ?? []}
           now={now}
         />
+        </div>
       )}
 
       {/* Actions */}
-      <div className="border-t border-border pt-6">
+      <div className="border-t border-border/40 pt-6">
         <form action={leaveGroup}>
           <input type="hidden" name="group_id" value={groupId} />
           <button
