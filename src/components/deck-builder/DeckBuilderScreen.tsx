@@ -140,6 +140,17 @@ export default function DeckBuilderScreen({
   const [sideboardOpen, setSideboardOpen] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
 
+  // In midDraft mode, add newly picked cards to deck automatically
+  const knownPoolIdsRef = useRef(new Set(pool.map((c) => c.scryfallId)));
+  useEffect(() => {
+    if (!isMidDraft) return;
+    const newCards = pool.filter((c) => !knownPoolIdsRef.current.has(c.scryfallId));
+    knownPoolIdsRef.current = new Set(pool.map((c) => c.scryfallId));
+    if (newCards.length > 0) {
+      setDeck((prev) => [...prev, ...newCards]);
+    }
+  }, [pool, isMidDraft]);
+
   // --- Derived ---
 
   const totalLands = totalLandCount(lands);
