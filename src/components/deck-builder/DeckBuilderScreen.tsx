@@ -121,9 +121,11 @@ export default function DeckBuilderScreen({
   onClose,
 }: DeckBuilderScreenProps) {
   const isMidDraft = mode === "midDraft";
-  const [deck, setDeck] = useState<CardReference[]>(initialDeck ?? []);
+  const [deck, setDeck] = useState<CardReference[]>(
+    initialDeck ?? (isMidDraft ? [...pool] : [])
+  );
   const [sideboard, setSideboard] = useState<CardReference[]>(
-    initialSideboard ?? (initialDeck ? [] : [...pool])
+    initialSideboard ?? (isMidDraft || initialDeck ? [] : [...pool])
   );
   const [lands, setLands] = useState<BasicLandCounts>(
     initialLands ?? { ...EMPTY_LANDS }
