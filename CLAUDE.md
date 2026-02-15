@@ -34,13 +34,15 @@ All changes go through PRs so CI validates before merge. **NEVER commit or push 
 2. Make changes, commit to the branch
 3. Push and open a PR: `git push -u origin branch-name` → `gh pr create`
 4. Wait for CI (lint + build + test) to pass
-5. **Run `npm run backup-prod`** before merging
-6. Merge the PR: `gh pr merge`
-7. Verify Vercel production deploy
-8. Switch back and pull: `git checkout main && git pull`
-9. Delete the branch: `git branch -d branch-name && git push origin --delete branch-name`
+5. **Deploy to staging for testing**: `git push origin branch-name:staging -f`
+6. Test on `test.podman.app` (staging uses the staging Supabase project)
+7. **Run `npm run backup-prod`** before merging
+8. Merge the PR: `gh pr merge`
+9. Verify Vercel production deploy on `www.podman.app`
+10. Switch back and pull: `git checkout main && git pull`
+11. Delete the branch: `git branch -d branch-name && git push origin --delete branch-name`
 
-Vercel auto-deploys to production on merge to `main`. Preview deploys run on every PR.
+**Branches**: `main` = production (`www.podman.app`), `staging` = pre-production testing (`test.podman.app`). Vercel auto-deploys on push. Preview deploys with staging env vars also run on every PR.
 
 ## Architecture
 
