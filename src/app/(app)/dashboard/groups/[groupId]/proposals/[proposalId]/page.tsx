@@ -2,6 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { createServerSupabaseClient, getUser } from "@/lib/supabase-server";
 import ProposalVotesLive from "./ProposalVotesLive";
 import ProposalActions from "./ProposalActions";
+import UserAvatar from "@/components/ui/UserAvatar";
 
 const FORMAT_LABELS: Record<string, string> = {
   standard: "Standard Booster",
@@ -25,7 +26,7 @@ export default async function ProposalDetailPage({
   // Fetch proposal
   const { data: proposal } = await supabase
     .from("draft_proposals")
-    .select("*, profiles!draft_proposals_proposed_by_fkey(display_name)")
+    .select("*, profiles!draft_proposals_proposed_by_fkey(display_name, avatar_url, favorite_color)")
     .eq("id", proposalId)
     .single();
 
@@ -34,7 +35,7 @@ export default async function ProposalDetailPage({
   // Fetch votes with profile names
   const { data: votes } = await supabase
     .from("proposal_votes")
-    .select("user_id, vote, profiles!proposal_votes_user_id_fkey(display_name)")
+    .select("user_id, vote, profiles!proposal_votes_user_id_fkey(display_name, avatar_url, favorite_color)")
     .eq("proposal_id", proposalId)
     .order("voted_at", { ascending: true });
 
@@ -42,6 +43,8 @@ export default async function ProposalDetailPage({
     userId: v.user_id,
     vote: v.vote,
     displayName: v.profiles?.display_name ?? "Unknown",
+    avatarUrl: v.profiles?.avatar_url ?? null,
+    favoriteColor: v.profiles?.favorite_color ?? null,
   }));
 
   const userVote = voteList.find((v) => v.userId === user.id)?.vote ?? null;
@@ -64,8 +67,15 @@ export default async function ProposalDetailPage({
       {/* Header */}
       <div>
         <h1 className="text-xl font-bold">{proposal.title}</h1>
-        <p className="text-sm text-foreground/50 mt-1">
-          Proposed by {proposal.profiles?.display_name ?? "Unknown"}
+        <p className="text-sm text-foreground/50 mt-1 flex items-center gap-1.5">
+          Proposed by
+          <UserAvatar
+            avatarUrl={proposal.profiles?.avatar_url ?? null}
+            displayName={proposal.profiles?.display_name ?? "Unknown"}
+            size="sm"
+            favoriteColor={proposal.profiles?.favorite_color ?? null}
+          />
+          {proposal.profiles?.display_name ?? "Unknown"}
         </p>
       </div>
 
@@ -121,9 +131,15 @@ export default async function ProposalDetailPage({
             {voteList.map((v) => (
               <div
                 key={v.userId}
-                className="flex items-center justify-between rounded-lg border border-border bg-surface px-4 py-2.5"
+                className="flex items-center gap-2.5 rounded-lg border border-border bg-surface px-4 py-2.5"
               >
-                <span className="text-sm font-medium">
+                <UserAvatar
+                  avatarUrl={v.avatarUrl}
+                  displayName={v.displayName}
+                  size="sm"
+                  favoriteColor={v.favoriteColor}
+                />
+                <span className="text-sm font-medium flex-1">
                   {v.displayName}
                   {v.userId === user.id && (
                     <span className="text-foreground/40 ml-1">(you)</span>

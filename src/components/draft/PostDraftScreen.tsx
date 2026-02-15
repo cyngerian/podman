@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, type ChangeEvent } from "react";
 import Image from "next/image";
 import type { CardReference, BasicLandCounts, DraftPick } from "@/lib/types";
+import UserAvatar from "@/components/ui/UserAvatar";
 import {
   formatDeckListText,
   formatPoolText,
@@ -22,6 +23,8 @@ interface PostDraftScreenProps {
   allPlayersHistory?: Array<{
     playerName: string;
     picks: DraftPick[];
+    avatarUrl?: string | null;
+    favoriteColor?: string | null;
   }>;
   onEditDeck?: () => void;
   editingDeck?: boolean;
@@ -307,6 +310,12 @@ export default function PostDraftScreen({
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                     </svg>
+                    <UserAvatar
+                      avatarUrl={player.avatarUrl ?? null}
+                      displayName={player.playerName}
+                      size="sm"
+                      favoriteColor={player.favoriteColor ?? null}
+                    />
                     <span className="flex-1 text-left">{player.playerName}</span>
                     <span className="text-foreground/40 text-xs">
                       {player.picks.length} picks

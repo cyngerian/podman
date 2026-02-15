@@ -17,6 +17,8 @@ interface ResultsClientProps {
   allPlayersHistory?: Array<{
     playerName: string;
     picks: DraftPick[];
+    avatarUrl?: string | null;
+    favoriteColor?: string | null;
   }>;
 }
 

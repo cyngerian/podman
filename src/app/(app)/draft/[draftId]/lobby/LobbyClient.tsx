@@ -12,6 +12,7 @@ interface LobbyClientProps {
   draftId: string;
   currentUserId: string;
   isHost: boolean;
+  playerProfiles?: Record<string, { avatarUrl: string | null; favoriteColor: string | null }>;
 }
 
 export default function LobbyClient({
@@ -19,6 +20,7 @@ export default function LobbyClient({
   draftId,
   currentUserId,
   isHost,
+  playerProfiles,
 }: LobbyClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -97,6 +99,7 @@ export default function LobbyClient({
         isHost={isHost}
         onStartDraft={handleStartDraft}
         onLeaveDraft={handleLeaveDraft}
+        playerProfiles={playerProfiles}
       />
     </div>
   );

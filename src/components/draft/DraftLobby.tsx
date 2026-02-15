@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Draft } from "@/lib/types";
+import UserAvatar from "@/components/ui/UserAvatar";
 
 interface DraftLobbyProps {
   draft: Draft;
@@ -9,6 +10,7 @@ interface DraftLobbyProps {
   isHost: boolean;
   onStartDraft: () => void;
   onLeaveDraft: () => void;
+  playerProfiles?: Record<string, { avatarUrl: string | null; favoriteColor: string | null }>;
 }
 
 const FORMAT_LABELS: Record<string, string> = {
@@ -43,6 +45,7 @@ export default function DraftLobby({
   isHost,
   onStartDraft,
   onLeaveDraft,
+  playerProfiles,
 }: DraftLobbyProps) {
   const [copied, setCopied] = useState(false);
 
@@ -123,9 +126,12 @@ export default function DraftLobby({
                       : "border-border bg-surface"
                   }`}
                 >
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-border text-xs font-bold tabular-nums">
-                    {i + 1}
-                  </span>
+                  <UserAvatar
+                    avatarUrl={playerProfiles?.[seat.userId]?.avatarUrl ?? null}
+                    displayName={seat.displayName}
+                    size="sm"
+                    favoriteColor={playerProfiles?.[seat.userId]?.favoriteColor ?? null}
+                  />
                   <span className="flex-1 text-sm font-medium truncate">
                     {seat.displayName}
                     {seat.userId === currentUserId && (
