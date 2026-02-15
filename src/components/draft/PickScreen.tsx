@@ -247,7 +247,7 @@ export default function PickScreen({
     if (card) {
       onPick(card.scryfallId);
     }
-  }, [filteredCards, onPick]);
+  }, [filteredCards, onPick, activeIndexRef]);
 
   const directionArrow = passDirection === "left" ? "\u2190" : "\u2192";
 
