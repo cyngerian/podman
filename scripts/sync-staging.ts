@@ -138,10 +138,7 @@ async function exportProdData(
   const authUsers = (await executeSql(
     prodRef,
     accessToken,
-    `SELECT id, email, encrypted_password, email_confirmed_at,
-            raw_user_meta_data, created_at, updated_at, last_sign_in_at,
-            role, aud, confirmation_token, recovery_token
-     FROM auth.users ORDER BY created_at`
+    `SELECT * FROM auth.users ORDER BY created_at`
   )) as Record<string, unknown>[];
   data.set("auth_users", authUsers);
   console.log(`    ${authUsers.length} rows`);
