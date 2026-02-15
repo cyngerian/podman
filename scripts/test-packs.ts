@@ -15,6 +15,14 @@
  *   npm run test-packs -- --verbose       # show all products in summary
  */
 
+// Use production Supabase credentials (PROD_ prefixed vars from .env.local)
+if (process.env.PROD_SUPABASE_URL) {
+  process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.PROD_SUPABASE_URL;
+}
+if (process.env.PROD_SUPABASE_SECRET_KEY) {
+  process.env.SUPABASE_SECRET_KEY = process.env.PROD_SUPABASE_SECRET_KEY;
+}
+
 import chalk from "chalk";
 import ora from "ora";
 import Table from "cli-table3";
