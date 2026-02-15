@@ -768,7 +768,7 @@ export default function PickScreen({
                       ref={(el) => { cardRefs.current[i] = el; }}
                       className="shrink-0"
                       style={{
-                        width: `min(${CARD_WIDTH_VW}vw, 400px, calc((100cqh - 64px) * 488 / 680))`,
+                        width: `min(${CARD_WIDTH_VW}vw, 400px, calc((100cqh - 80px) * 488 / 680))`,
                         marginLeft: i === 0 ? 0 : `${CARD_OVERLAP_PX}px`,
                       }}
                     >
