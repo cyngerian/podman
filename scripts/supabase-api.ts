@@ -71,7 +71,8 @@ export async function executeSql(
  * auth.identities.email is a generated column and cannot be inserted.
  */
 export const AUTH_GENERATED_COLUMNS: Record<string, Set<string>> = {
-  identities: new Set(["email"]),
+  users: new Set(["confirmed_at"]),
+  identities: new Set(["email", "confirmed_at"]),
 };
 
 /**
