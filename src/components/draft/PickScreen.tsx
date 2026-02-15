@@ -750,7 +750,7 @@ export default function PickScreen({
         ) : (
           <>
             {/* Carousel */}
-            <div className="flex-1 flex items-center min-h-0 relative overflow-hidden" style={{ marginTop: "-10px" }}>
+            <div className="flex-1 flex items-center min-h-0 relative overflow-hidden" style={{ marginTop: "-10px", containerType: "size" }}>
               {/* Transform container — no native scroll, all movement via JS transforms */}
               <div
                 ref={scrollRef}
@@ -768,8 +768,7 @@ export default function PickScreen({
                       ref={(el) => { cardRefs.current[i] = el; }}
                       className="shrink-0"
                       style={{
-                        width: `${CARD_WIDTH_VW}vw`,
-                        maxWidth: "400px",
+                        width: `min(${CARD_WIDTH_VW}vw, 400px, calc((100cqh - 64px) * 488 / 680))`,
                         marginLeft: i === 0 ? 0 : `${CARD_OVERLAP_PX}px`,
                       }}
                     >
