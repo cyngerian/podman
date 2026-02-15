@@ -9,6 +9,7 @@ interface CardThumbnailProps {
   onClick?: () => void;
   onDoubleClick?: () => void;
   size?: "small" | "medium";
+  hideColorBorder?: boolean;
 }
 
 function getBorderClass(colors: string[]): string {
@@ -23,8 +24,9 @@ export default function CardThumbnail({
   onClick,
   onDoubleClick,
   size = "medium",
+  hideColorBorder = false,
 }: CardThumbnailProps) {
-  const borderClass = getBorderClass(card.colors);
+  const borderClass = hideColorBorder ? "border-border" : getBorderClass(card.colors);
   const imageSrc = size === "small" ? card.smallImageUri : card.imageUri;
 
   return (
