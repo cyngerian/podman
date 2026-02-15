@@ -4,14 +4,19 @@ Guidance for Claude Code when working with this repository.
 
 ## Commands
 
+**Local dev** (run these during development):
 ```bash
 npm run dev          # Next.js dev server (localhost:3000)
-npm run build        # Production build
-npm run lint         # ESLint (eslint command, no src/ arg needed)
-npm test             # Vitest unit tests (draft engine)
+npm test             # Vitest unit tests (draft engine) — run when touching engine logic
 npm run test:watch   # Vitest in watch mode
 npm run test-packs   # Validate pack generation across all sets (requires .env.prod)
 npx supabase start   # Local Supabase (API :54321, DB :54322)
+```
+
+**CI-only** (GitHub Actions runs these on every PR — do NOT run locally):
+```bash
+npm run build        # Production build (type-checks included)
+npm run lint         # ESLint
 ```
 
 ## Architecture

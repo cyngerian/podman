@@ -13,16 +13,6 @@ interface BetweenPackScreenProps {
   players: Array<{ name: string; ready: boolean }>;
 }
 
-const COLOR_LABELS: Record<ManaColor | "multicolor" | "colorless", string> = {
-  W: "White",
-  U: "Blue",
-  B: "Black",
-  R: "Red",
-  G: "Green",
-  multicolor: "Multi",
-  colorless: "Colorless",
-};
-
 const COLOR_VARS: Record<ManaColor | "multicolor" | "colorless", string> = {
   W: "var(--mana-white)",
   U: "var(--mana-blue)",

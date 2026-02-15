@@ -49,8 +49,8 @@ export default function PickClient({
   picks: initialPicks,
   timerPreset,
   pacingMode,
-  packsPerPlayer,
-  deckBuildingEnabled,
+  packsPerPlayer: _packsPerPlayer,
+  deckBuildingEnabled: _deckBuildingEnabled,
   packReceivedAt,
   packQueueLength,
   podMembers,
@@ -87,12 +87,14 @@ export default function PickClient({
   useEffect(() => {
     if (packReceivedAt !== prevPackReceivedAt.current) {
       prevPackReceivedAt.current = packReceivedAt;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs timer to Realtime event, not a cascading render
       setTimerSeconds(computeRemaining());
     }
   }, [packReceivedAt, computeRemaining]);
 
   // Reset timer when pack card count changes (e.g. after server refresh)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs timer to server-driven pack change
     setTimerSeconds(computeRemaining());
   }, [packCards.length, computeRemaining]);
 
@@ -193,7 +195,7 @@ export default function PickClient({
         }
       });
     },
-    [draftId, packCards, router]
+    [draftId, packCards, picks, router]
   );
 
   const handleFilterToggle = useCallback((value: PackFilterValue | "all") => {

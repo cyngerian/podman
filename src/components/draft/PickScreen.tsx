@@ -116,6 +116,15 @@ function LongPressPickButton({ onPick }: { onPick: () => void }) {
   const fillRef = useRef<HTMLDivElement>(null);
   const [pressing, setPressing] = useState(false);
 
+  const cancel = useCallback(() => {
+    setPressing(false);
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+    if (fillRef.current) {
+      fillRef.current.style.transition = "width 150ms ease-out";
+      fillRef.current.style.width = "0%";
+    }
+  }, []);
+
   const start = useCallback(() => {
     setPressing(true);
     if (fillRef.current) {
@@ -126,16 +135,7 @@ function LongPressPickButton({ onPick }: { onPick: () => void }) {
       onPick();
       cancel();
     }, LONG_PRESS_MS);
-  }, [onPick]);
-
-  const cancel = useCallback(() => {
-    setPressing(false);
-    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
-    if (fillRef.current) {
-      fillRef.current.style.transition = "width 150ms ease-out";
-      fillRef.current.style.width = "0%";
-    }
-  }, []);
+  }, [onPick, cancel]);
 
   useEffect(() => {
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
@@ -453,6 +453,7 @@ export default function PickScreen({
         container.removeEventListener("touchend", onTouchEnd);
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- carousel setup only re-runs on count/filter change, not array identity
   }, [filteredCards.length, filterKey]);
 
   // Reset active index when filter changes

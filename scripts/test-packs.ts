@@ -25,7 +25,6 @@ import {
 } from "../src/lib/booster-data";
 import { fetchCardsByCollectorNumber, normalizeForScryfall } from "../src/lib/scryfall";
 import { generateSheetPack } from "../src/lib/sheet-pack-generator";
-import type { CardReference } from "../src/lib/types";
 
 // --- Types ---
 

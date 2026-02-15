@@ -307,7 +307,7 @@ export async function startDraftAction(draftId: string) {
 
   // For standard/cube: distribute first pack, store rest
   const firstRoundPacks = allPacks.slice(0, players.length);
-  const remainingPacks = allPacks.slice(players.length);
+  const _remainingPacks = allPacks.slice(players.length);
 
   draftObj = engineStartDraft(draftObj, firstRoundPacks);
 

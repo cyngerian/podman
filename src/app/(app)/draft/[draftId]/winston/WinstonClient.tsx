@@ -27,7 +27,7 @@ export default function WinstonClient({
   myCards: initialMyCards,
 }: WinstonClientProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const [revealedCards, setRevealedCards] = useState<CardReference[]>([]);
 
   // Subscribe to draft state changes

@@ -27,6 +27,7 @@ export default function SetPicker({ value, onChange, id = "set-picker" }: SetPic
   // Fetch sets on mount
   useEffect(() => {
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching on mount, standard pattern
     setLoading(true);
     fetch("/api/sets")
       .then((r) => r.json())

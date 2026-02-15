@@ -451,7 +451,7 @@ export function advanceToNextPack(
   }
 
   const now = Date.now();
-  let newSeats = [...draft.seats];
+  const newSeats = [...draft.seats];
   for (let seatIdx = 0; seatIdx < newSeats.length; seatIdx++) {
     const newPack: PackState = {
       id: `pack-${seatIdx}-${nextPackNumber - 1}`,

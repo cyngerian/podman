@@ -189,7 +189,7 @@ function pickRarityForSlot(slot: PackSlot): Rarity {
 export function generatePack(
   cardPool: Record<string, CardReference[]>,
   template: PackTemplate,
-  existingPacks?: CardReference[][]
+  _existingPacks?: CardReference[][]
 ): CardReference[] {
   const pack: CardReference[] = [];
   const usedIds = new Set<string>();
