@@ -8,11 +8,11 @@ Guidance for Claude Code when working with this repository.
 npm run dev          # Next.js dev server (localhost:3000)
 npm run build        # Production build
 npm run lint         # ESLint (eslint command, no src/ arg needed)
+npm test             # Vitest unit tests (draft engine)
+npm run test:watch   # Vitest in watch mode
 npm run test-packs   # Validate pack generation across all sets (requires .env.prod)
 npx supabase start   # Local Supabase (API :54321, DB :54322)
 ```
-
-No test framework is configured. `test-packs` is a CLI validation script, not a test suite.
 
 ## Architecture
 
@@ -42,7 +42,7 @@ The `(app)` layout adds a sticky header (`z-30`, `h-12`) with user avatar, displ
 
 ### Draft Engine (`src/lib/draft-engine.ts`)
 
-Pure functions transforming immutable `Draft` state objects. Key functions: `createDraft`, `startDraft`, `makePickAndPass`, `advanceToNextPack`, `transitionToDeckBuilding`, `unsubmitDeck`. State stored as JSON in `drafts.state`, mutated via `applyDraftMutation()` with optimistic concurrency.
+Pure functions transforming immutable `Draft` state objects. Key functions: `createDraft`, `startDraft`, `makePickAndPass`, `advanceToNextPack`, `transitionToDeckBuilding`, `unsubmitDeck`. State stored as JSON in `drafts.state`, mutated via `applyDraftMutation()` with optimistic concurrency. **88 unit tests** in `src/lib/__tests__/draft-engine.test.ts` (Vitest).
 
 ### Key Types (`src/lib/types.ts`)
 
@@ -64,6 +64,7 @@ Return `{ error: string }` on failure or `void`/redirect on success. Auth check 
 - **Security headers**: `next.config.ts` sets X-Frame-Options (DENY), X-Content-Type-Options (nosniff), Referrer-Policy, Permissions-Policy
 - **Atomic auto-confirm**: `voteOnProposal` uses `.eq("status", "open")` to prevent TOCTOU races
 - **Defense-in-depth**: Server actions check authorization explicitly even though RLS would also block
+- **Error monitoring**: Sentry (`@sentry/nextjs`) captures client, server, and edge errors. Global error boundary in `src/app/global-error.tsx`. Config in `sentry.*.config.ts` + `src/instrumentation.ts`.
 
 ### Database & RLS
 
@@ -136,4 +137,8 @@ NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY   # sb_publishable_* format
 SUPABASE_SECRET_KEY                     # sb_secret_* format
 BLOB_READ_WRITE_TOKEN                   # Vercel Blob store (avatar uploads)
+NEXT_PUBLIC_SENTRY_DSN                  # Sentry error monitoring DSN
+SENTRY_ORG                              # Sentry org slug (for source maps)
+SENTRY_PROJECT                          # Sentry project slug
+SENTRY_AUTH_TOKEN                       # Sentry auth token (for source maps)
 ```
