@@ -23,6 +23,8 @@ import {
   sleep,
   DATA_TABLES,
   DATA_TABLES_DELETE,
+  AUTH_GENERATED_COLUMNS,
+  AUTH_USERS_COALESCE_SQL,
 } from "./supabase-api.js";
 
 function findBackupDir(): string {
@@ -66,11 +68,12 @@ function loadJsonFile(dir: string, filename: string): Record<string, unknown>[] 
 function buildInsertSql(
   schema: string,
   table: string,
-  rows: Record<string, unknown>[]
+  rows: Record<string, unknown>[],
+  skipColumns?: Set<string>
 ): string {
   if (rows.length === 0) return "";
 
-  const columns = Object.keys(rows[0]);
+  const columns = Object.keys(rows[0]).filter((c) => !skipColumns?.has(c));
   const colList = columns.map((c) => `"${c}"`).join(", ");
 
   const valueSets = rows.map((row) => {
@@ -108,6 +111,7 @@ async function main() {
   // Load backup data
   console.log("Loading backup files...\n");
   const authUsers = loadJsonFile(backupDir, "auth_users.json");
+  const authIdentities = loadJsonFile(backupDir, "auth_identities.json");
   const tableData = new Map<string, Record<string, unknown>[]>();
   for (const table of DATA_TABLES) {
     tableData.set(table, loadJsonFile(backupDir, `${table}.json`));
@@ -133,6 +137,17 @@ async function main() {
   if (authUsers.length > 0) {
     console.log(`  auth.users (${authUsers.length} rows)...`);
     const sql = buildInsertSql("auth", "users", authUsers);
+    await executeSql(projectRef, accessToken, sql);
+    // GoTrue expects empty strings, not NULLs, for certain varchar columns
+    await executeSql(projectRef, accessToken, AUTH_USERS_COALESCE_SQL);
+    await sleep(250);
+  }
+
+  // Restore auth.identities (required for login)
+  if (authIdentities.length > 0) {
+    console.log(`  auth.identities (${authIdentities.length} rows)...`);
+    const skipCols = AUTH_GENERATED_COLUMNS["identities"] || new Set();
+    const sql = buildInsertSql("auth", "identities", authIdentities, skipCols);
     await executeSql(projectRef, accessToken, sql);
     await sleep(250);
   }

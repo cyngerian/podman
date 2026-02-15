@@ -29,6 +29,8 @@ import {
   sleep,
   DATA_TABLES,
   DATA_TABLES_DELETE,
+  AUTH_GENERATED_COLUMNS,
+  AUTH_USERS_COALESCE_SQL,
 } from "./supabase-api.js";
 
 interface MigrationRow {
@@ -142,6 +144,17 @@ async function exportProdData(
   )) as Record<string, unknown>[];
   data.set("auth_users", authUsers);
   console.log(`    ${authUsers.length} rows`);
+  await sleep(250);
+
+  // auth.identities
+  console.log("  auth.identities...");
+  const authIdentities = (await executeSql(
+    prodRef,
+    accessToken,
+    `SELECT * FROM auth.identities ORDER BY created_at`
+  )) as Record<string, unknown>[];
+  data.set("auth_identities", authIdentities);
+  console.log(`    ${authIdentities.length} rows`);
   await sleep(250);
 
   // Public tables
@@ -271,6 +284,27 @@ async function syncDataToStaging(
       stagingRef,
       accessToken,
       `INSERT INTO auth.users (${colList}) VALUES\n${valueSets.join(",\n")}`
+    );
+    // GoTrue expects empty strings, not NULLs, for certain varchar columns
+    await executeSql(stagingRef, accessToken, AUTH_USERS_COALESCE_SQL);
+    await sleep(250);
+  }
+
+  // Insert auth.identities (required for login — maps users to auth providers)
+  const authIdentities = data.get("auth_identities") || [];
+  if (authIdentities.length > 0) {
+    console.log(`  auth.identities (${authIdentities.length} rows)...`);
+    const skipCols = AUTH_GENERATED_COLUMNS["identities"] || new Set();
+    const identityCols = Object.keys(authIdentities[0]).filter((c) => !skipCols.has(c));
+    const identityColList = identityCols.map((c) => `"${c}"`).join(", ");
+    const identityValueSets = authIdentities.map((row) => {
+      const values = identityCols.map((col) => sqlVal(row[col]));
+      return `(${values.join(", ")})`;
+    });
+    await executeSql(
+      stagingRef,
+      accessToken,
+      `INSERT INTO auth.identities (${identityColList}) VALUES\n${identityValueSets.join(",\n")}`
     );
     await sleep(250);
   }

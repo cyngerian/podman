@@ -45,6 +45,21 @@ async function main() {
   console.log(`    ${authUsersArr.length} rows`);
   await sleep(250);
 
+  // 1b. Backup auth.identities
+  console.log("  auth.identities...");
+  const authIdentities = await executeSql(
+    projectRef,
+    accessToken,
+    `SELECT * FROM auth.identities ORDER BY created_at`
+  );
+  const authIdentitiesArr = authIdentities as Record<string, unknown>[];
+  writeFileSync(
+    join(backupDir, "auth_identities.json"),
+    JSON.stringify(authIdentitiesArr, null, 2)
+  );
+  console.log(`    ${authIdentitiesArr.length} rows`);
+  await sleep(250);
+
   // 2. Backup each public table
   for (const table of DATA_TABLES) {
     console.log(`  ${table}...`);
@@ -62,7 +77,7 @@ async function main() {
     await sleep(250);
   }
 
-  console.log(`\nBackup complete! ${DATA_TABLES.length + 1} tables saved.`);
+  console.log(`\nBackup complete! ${DATA_TABLES.length + 2} tables saved.`);
   console.log(`Location: ${backupDir}/`);
 }
 
