@@ -777,7 +777,7 @@ export default function PickScreen({
                           ensures compositor layer exists from first paint */}
                       <div className="will-change-transform" style={{ transform: "translate3d(0,0,0) scale3d(1,1,1)" }}>
                         <div
-                          className={`relative card-aspect rounded-xl overflow-hidden border-2 shadow-lg ${getBorderClass(card.colors)}`}
+                          className={`relative card-aspect rounded-xl overflow-hidden border-2 shadow-lg ${crackAPack ? "border-border" : getBorderClass(card.colors)}`}
                         >
                           <Image
                             src={flippedCards.has(card.scryfallId) && card.backImageUri ? card.backImageUri : card.imageUri}
@@ -919,6 +919,7 @@ export default function PickScreen({
                 selected={selectedCard?.scryfallId === card.scryfallId}
                 onClick={() => handleCardClick(card)}
                 onDoubleClick={crackAPack ? undefined : () => handleQuickPick(card)}
+                hideColorBorder={crackAPack}
               />
             ))}
           </div>
@@ -1027,7 +1028,7 @@ export default function PickScreen({
                   }}
                   className="relative"
                 >
-                  <div className={`relative card-aspect rounded-lg overflow-hidden border-2 ${getBorderClass(card.colors)}`}>
+                  <div className={`relative card-aspect rounded-lg overflow-hidden border-2 ${crackAPack ? "border-border" : getBorderClass(card.colors)}`}>
                     <Image
                       src={card.smallImageUri || card.imageUri}
                       alt={card.name}
