@@ -35,10 +35,7 @@ async function main() {
   const authUsers = await executeSql(
     projectRef,
     accessToken,
-    `SELECT id, email, encrypted_password, email_confirmed_at,
-            raw_user_meta_data, created_at, updated_at, last_sign_in_at,
-            role, aud, confirmation_token, recovery_token
-     FROM auth.users ORDER BY created_at`
+    `SELECT * FROM auth.users ORDER BY created_at`
   );
   const authUsersArr = authUsers as Record<string, unknown>[];
   writeFileSync(
