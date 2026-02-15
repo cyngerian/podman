@@ -6,7 +6,9 @@ import { createServerSupabaseClient } from "@/lib/supabase-server";
 export async function login(formData: FormData): Promise<{ error: string } | void> {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
-  const redirectTo = (formData.get("redirect") as string) || "/";
+  const rawRedirect = (formData.get("redirect") as string) || "/";
+  // Prevent open redirect — only allow relative paths on this origin
+  const redirectTo = rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") ? rawRedirect : "/";
 
   const supabase = await createServerSupabaseClient();
 
@@ -26,7 +28,8 @@ export async function signup(formData: FormData): Promise<{ error: string } | vo
   const displayName = (formData.get("display_name") as string).trim();
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
-  const redirectTo = (formData.get("redirect") as string) || "/";
+  const rawRedirect = (formData.get("redirect") as string) || "/";
+  const redirectTo = rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") ? rawRedirect : "/";
 
   const supabase = await createServerSupabaseClient();
 

@@ -92,13 +92,15 @@ export async function voteOnProposal(formData: FormData) {
       .eq("vote", "in");
 
     if (count && count >= proposal.player_count) {
-      // Use admin client — the voter may not be the proposer/admin,
-      // but auto-confirm should still work when threshold is met
+      // Atomic conditional update — only one concurrent caller wins.
+      // If two votes race, both may see count >= player_count, but only
+      // the first update matching status='open' will take effect.
       const admin = createAdminClient();
       await admin
         .from("draft_proposals")
         .update({ status: "confirmed" })
-        .eq("id", proposalId);
+        .eq("id", proposalId)
+        .eq("status", "open");
     }
   }
 
@@ -115,6 +117,28 @@ export async function cancelProposal(formData: FormData) {
   } = await supabase.auth.getUser();
 
   if (!user) redirect("/auth/login");
+
+  // Verify user is proposer or group admin before cancelling
+  const { data: proposal } = await supabase
+    .from("draft_proposals")
+    .select("proposed_by")
+    .eq("id", proposalId)
+    .single();
+
+  if (!proposal) redirect(`/dashboard/groups/${groupId}`);
+
+  if (proposal.proposed_by !== user.id) {
+    const { data: membership } = await supabase
+      .from("group_members")
+      .select("role")
+      .eq("group_id", groupId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (membership?.role !== "admin") {
+      redirect(`/dashboard/groups/${groupId}`);
+    }
+  }
 
   await supabase
     .from("draft_proposals")
@@ -244,6 +268,18 @@ export async function createInviteLinkAction(groupId: string): Promise<{ error: 
 
   if (!user) redirect("/auth/login");
 
+  // Verify user is admin of this group
+  const { data: membership } = await supabase
+    .from("group_members")
+    .select("role")
+    .eq("group_id", groupId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (membership?.role !== "admin") {
+    return { error: "Only admins can create invite links" };
+  }
+
   const { error } = await supabase.from("group_invites").insert({
     group_id: groupId,
     created_by: user.id,
@@ -264,6 +300,18 @@ export async function revokeInviteLinkAction(inviteId: string, groupId: string):
   } = await supabase.auth.getUser();
 
   if (!user) redirect("/auth/login");
+
+  // Verify user is admin of this group
+  const { data: membership } = await supabase
+    .from("group_members")
+    .select("role")
+    .eq("group_id", groupId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (membership?.role !== "admin") {
+    return { error: "Only admins can revoke invite links" };
+  }
 
   const { error } = await supabase.from("group_invites").delete().eq("id", inviteId);
 

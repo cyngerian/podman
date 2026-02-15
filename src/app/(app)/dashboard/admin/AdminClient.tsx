@@ -179,7 +179,7 @@ function UserRow({ user }: { user: User }) {
       {mode === "reset" && (
         <div className="flex gap-2 items-center">
           <input
-            type="text"
+            type="password"
             placeholder="New password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
