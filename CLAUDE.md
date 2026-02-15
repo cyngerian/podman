@@ -55,7 +55,14 @@ All draft logic is pure functions that transform immutable `Draft` state objects
 
 ### Server Actions Pattern
 
-Server actions return `{ error: string }` on failure or `void`/redirect on success. Auth check at top of every action. Draft mutations use the admin client.
+Server actions return `{ error: string }` on failure or `void`/redirect on success. Auth check at top of every action. Draft mutations use the admin client. Admin-only actions (invite create/revoke, proposal cancel) must verify group membership/role before hitting the database — don't rely solely on RLS for authorization.
+
+### Security
+
+- **Open redirect prevention**: Login/signup `redirect` param validated to start with `/` and not `//`
+- **Security headers**: `next.config.ts` sets X-Frame-Options (DENY), X-Content-Type-Options (nosniff), Referrer-Policy, Permissions-Policy
+- **Atomic auto-confirm**: `voteOnProposal` uses `.eq("status", "open")` on the update to prevent TOCTOU race conditions
+- **Defense-in-depth**: Server actions check authorization explicitly before DB operations, even though RLS would also block unauthorized access
 
 ### Card Images
 
