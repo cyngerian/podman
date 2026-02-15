@@ -34,15 +34,14 @@ All changes go through PRs so CI validates before merge. **NEVER commit or push 
 2. Make changes, commit to the branch
 3. Push and open a PR: `git push -u origin branch-name` → `gh pr create`
 4. Wait for CI (lint + build + test) to pass
-5. **Deploy to staging for testing**: `git push origin branch-name:staging -f`
-6. Test on `test.podman.app` (staging uses the staging Supabase project)
-7. **Run `npm run backup-prod`** before merging
-8. Merge the PR: `gh pr merge`
-9. Verify Vercel production deploy on `www.podman.app`
-10. Switch back and pull: `git checkout main && git pull`
-11. Delete the branch: `git branch -d branch-name && git push origin --delete branch-name`
+5. **Test on PR preview URL** — Vercel auto-deploys every PR with staging Supabase env vars. Find the preview link in the Vercel bot comment on the PR.
+6. **Run `npm run backup-prod`** before merging
+7. Merge the PR: `gh pr merge`
+8. Verify Vercel production deploy on `www.podman.app`
+9. Switch back and pull: `git checkout main && git pull`
+10. Delete the branch: `git branch -d branch-name && git push origin --delete branch-name`
 
-**Branches**: `main` = production (`www.podman.app`), `staging` = pre-production testing (`test.podman.app`). Vercel auto-deploys on push. Preview deploys with staging env vars also run on every PR.
+**Branches**: `main` = production (`www.podman.app`). Vercel auto-deploys previews (with staging Supabase env vars) on every PR push, and production on merge to `main`. Preview URLs are permanent — they stay live even after the PR is merged.
 
 ## Architecture
 
