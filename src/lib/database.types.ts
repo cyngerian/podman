@@ -532,6 +532,10 @@ export type Database = {
     }
     Functions: {
       accept_group_invite: { Args: { p_token: string }; Returns: string }
+      get_booster_product_json: {
+        Args: { p_code: string }
+        Returns: Record<string, unknown>
+      }
       get_invite_info: {
         Args: { p_token: string }
         Returns: {
