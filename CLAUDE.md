@@ -64,7 +64,7 @@ Return `{ error: string }` on failure or `void`/redirect on success. Auth check 
 - **Security headers**: `next.config.ts` sets X-Frame-Options (DENY), X-Content-Type-Options (nosniff), Referrer-Policy, Permissions-Policy
 - **Atomic auto-confirm**: `voteOnProposal` uses `.eq("status", "open")` to prevent TOCTOU races
 - **Defense-in-depth**: Server actions check authorization explicitly even though RLS would also block
-- **Error monitoring**: Sentry (`@sentry/nextjs`) captures client, server, and edge errors. Global error boundary in `src/app/global-error.tsx`. Config in `sentry.*.config.ts` + `src/instrumentation.ts`.
+- **Error monitoring**: Sentry (`@sentry/nextjs`) captures client, server, and edge errors. Global error boundary in `src/app/global-error.tsx`. Client init in `src/instrumentation-client.ts` (Turbopack-compatible), server/edge via `src/instrumentation.ts`, tunnel route `/monitoring` bypasses ad blockers.
 
 ### Database & RLS
 
