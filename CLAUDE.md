@@ -19,6 +19,20 @@ npm run build        # Production build (type-checks included)
 npm run lint         # ESLint
 ```
 
+## Deployment Workflow
+
+All changes go through PRs so CI validates before merge. Never push directly to `main`.
+
+1. Create a feature branch: `git checkout -b branch-name`
+2. Make changes, commit to the branch
+3. Push and open a PR: `git push -u origin branch-name` → `gh pr create`
+4. Wait for CI (lint + build + test) to pass
+5. Merge the PR: `gh pr merge`
+6. Switch back and pull: `git checkout main && git pull`
+7. Delete the branch: `git branch -d branch-name && git push origin --delete branch-name`
+
+Vercel auto-deploys to production on merge to `main`. Preview deploys run on every PR.
+
 ## Architecture
 
 MTG (Magic: The Gathering) draft web app. Players open packs, pick cards in timed rounds, pass packs to the next player. Supports 8-player standard draft, 2-player Winston, and cube formats.
