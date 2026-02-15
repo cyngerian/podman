@@ -3,7 +3,7 @@
 import { useState, useTransition, useCallback, useEffect } from "react";
 import SetPicker from "@/components/draft/SetPicker";
 import PickScreen from "@/components/draft/PickScreen";
-import { crackAPackAction } from "./actions";
+import { crackAPackAction, warmBoosterDataAction } from "./actions";
 import type { CardReference } from "@/lib/types";
 
 interface BoosterProduct {
@@ -69,6 +69,12 @@ export default function CrackAPackClient() {
       cancelled = true;
     };
   }, [selectedSet]);
+
+  // Pre-warm booster data cache when a product is selected
+  useEffect(() => {
+    if (!selectedSet || !selectedProduct) return;
+    warmBoosterDataAction(selectedSet.code, selectedProduct.code);
+  }, [selectedSet, selectedProduct]);
 
   const crackPack = useCallback(
     (setCode: string, productCode?: string) => {

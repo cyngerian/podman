@@ -3,6 +3,7 @@
 import { getUser } from "@/lib/supabase-server";
 import { generatePacksForSet } from "@/lib/generate-packs";
 import { hydrateCardTypeLines } from "@/lib/scryfall";
+import { loadBoosterProductData } from "@/lib/booster-data";
 import type { CardReference } from "@/lib/types";
 
 export async function crackAPackAction(
@@ -30,5 +31,17 @@ export async function crackAPackAction(
   } catch (e) {
     console.error("crackAPackAction error:", e);
     return { error: "Failed to generate pack" };
+  }
+}
+
+/** Pre-warm booster data cache for a set. Best-effort, never throws. */
+export async function warmBoosterDataAction(
+  setCode: string,
+  productCode?: string
+): Promise<void> {
+  try {
+    await loadBoosterProductData(setCode, productCode);
+  } catch {
+    // Best-effort — swallow errors
   }
 }

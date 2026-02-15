@@ -1,5 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import { createServerSupabaseClient, getUser } from "@/lib/supabase-server";
+import { loadBoosterProductData } from "@/lib/booster-data";
 import type { Draft } from "@/lib/types";
 import LobbyClient from "./LobbyClient";
 
@@ -27,6 +28,11 @@ export default async function LobbyPage({
   ]);
 
   if (!dbDraft) notFound();
+
+  // Pre-warm booster data cache (fire-and-forget, doesn't block rendering)
+  if (dbDraft.set_code) {
+    loadBoosterProductData(dbDraft.set_code).catch(() => {});
+  }
 
   if (dbDraft.status !== "lobby") {
     redirect(`/draft/${draftId}`);
