@@ -10,7 +10,10 @@
     "load-booster-data": "npx tsx scripts/load-booster-data.ts",
     "test-packs": "npx tsx --env-file-if-exists=.env.prod scripts/test-packs.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "backup-prod": "npx tsx scripts/backup-prod.ts",
+    "sync-staging": "npx tsx scripts/sync-staging.ts",
+    "restore-prod": "npx tsx scripts/restore-prod.ts"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.38.0",

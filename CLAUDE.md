@@ -13,6 +13,13 @@ npm run test-packs   # Validate pack generation across all sets (requires .env.p
 npx supabase start   # Local Supabase (API :54321, DB :54322)
 ```
 
+**Data management** (run manually as needed):
+```bash
+npm run backup-prod   # Backup production data to backups/ (run before merging PRs)
+npm run sync-staging  # Sync prod schema + data to staging
+npm run restore-prod  # Restore production from a backup (accepts optional backup dir path)
+```
+
 **CI-only** (GitHub Actions runs these on every PR — do NOT run locally):
 ```bash
 npm run build        # Production build (type-checks included)
@@ -21,15 +28,17 @@ npm run lint         # ESLint
 
 ## Deployment Workflow
 
-All changes go through PRs so CI validates before merge. Never push directly to `main`.
+All changes go through PRs so CI validates before merge. **NEVER commit or push directly to `main`** — always create a feature branch first. If you accidentally commit to `main`, immediately move it to a branch: `git branch <name> && git reset --hard HEAD~1`.
 
 1. Create a feature branch: `git checkout -b branch-name`
 2. Make changes, commit to the branch
 3. Push and open a PR: `git push -u origin branch-name` → `gh pr create`
 4. Wait for CI (lint + build + test) to pass
-5. Merge the PR: `gh pr merge`
-6. Switch back and pull: `git checkout main && git pull`
-7. Delete the branch: `git branch -d branch-name && git push origin --delete branch-name`
+5. **Run `npm run backup-prod`** before merging
+6. Merge the PR: `gh pr merge`
+7. Verify Vercel production deploy
+8. Switch back and pull: `git checkout main && git pull`
+9. Delete the branch: `git branch -d branch-name && git push origin --delete branch-name`
 
 Vercel auto-deploys to production on merge to `main`. Preview deploys run on every PR.
 
@@ -88,6 +97,15 @@ Return `{ error: string }` on failure or `void`/redirect on success. Auth check 
 ### Database & RLS
 
 Supabase Postgres with RLS. Key tables: `profiles`, `groups`, `group_members`, `group_invites`, `draft_proposals`, `draft_players`, `drafts`. RLS policies on `group_members`/`draft_players` use SECURITY DEFINER helpers (`user_group_ids()`, `user_draft_ids()`, `is_group_admin()`) to avoid infinite recursion.
+
+### Migrations
+
+**All schema changes MUST go through migration files** in `supabase/migrations/`. Never apply schema changes directly via MCP tools (Supabase `execute_sql`, `apply_migration`) or the dashboard — those are not reproducible and cannot be rewound.
+
+- Create a new `.sql` file in `supabase/migrations/` with the naming convention `YYYYMMDD_NNN_description.sql`
+- The migration is applied to environments via `npm run sync-staging` (staging) or Supabase CLI
+- Migration files must be idempotent where possible (use `IF NOT EXISTS`, `IF EXISTS`, etc.)
+- Never modify an already-applied migration — create a new one instead
 
 ### Card Images & DFCs
 
@@ -160,4 +178,7 @@ NEXT_PUBLIC_SENTRY_DSN                  # Sentry error monitoring DSN
 SENTRY_ORG                              # Sentry org slug (for source maps)
 SENTRY_PROJECT                          # Sentry project slug
 SENTRY_AUTH_TOKEN                       # Sentry auth token (for source maps)
+SUPABASE_PROJECT_REF                    # Production project ref (scripts)
+SUPABASE_STAGING_REF                    # Staging project ref (sync-staging)
+SUPABASE_ACCESS_TOKEN                   # Supabase personal access token (scripts)
 ```
