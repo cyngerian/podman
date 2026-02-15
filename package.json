@@ -7,13 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "load-booster-data": "npx tsx scripts/load-booster-data.ts",
-    "test-packs": "npx tsx --env-file-if-exists=.env.prod scripts/test-packs.ts",
+    "load-booster-data": "npx tsx --env-file-if-exists=.env.local scripts/load-booster-data.ts",
+    "test-packs": "npx tsx --env-file-if-exists=.env.local scripts/test-packs.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "backup-prod": "npx tsx scripts/backup-prod.ts",
-    "sync-staging": "npx tsx scripts/sync-staging.ts",
-    "restore-prod": "npx tsx scripts/restore-prod.ts"
+    "backup-prod": "npx tsx --env-file-if-exists=.env.local scripts/backup-prod.ts",
+    "sync-staging": "npx tsx --env-file-if-exists=.env.local scripts/sync-staging.ts",
+    "restore-prod": "npx tsx --env-file-if-exists=.env.local scripts/restore-prod.ts"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.38.0",

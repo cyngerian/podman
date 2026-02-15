@@ -9,7 +9,7 @@ Guidance for Claude Code when working with this repository.
 npm run dev          # Next.js dev server (localhost:3000)
 npm test             # Vitest unit tests (draft engine) — run when touching engine logic
 npm run test:watch   # Vitest in watch mode
-npm run test-packs   # Validate pack generation across all sets (requires .env.prod)
+npm run test-packs   # Validate pack generation across all sets (uses PROD_ vars from .env.local)
 npx supabase start   # Local Supabase (API :54321, DB :54322)
 ```
 
