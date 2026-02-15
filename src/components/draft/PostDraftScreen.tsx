@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, type ChangeEvent } from "react";
+import Image from "next/image";
 import type { CardReference, BasicLandCounts, DraftPick } from "@/lib/types";
 import {
   formatDeckListText,
@@ -47,6 +48,13 @@ export default function PostDraftScreen({
   const [expandedPlayers, setExpandedPlayers] = useState<Set<number>>(new Set());
   const [showHistory, setShowHistory] = useState(false);
   const [deckName, setDeckName] = useState(initialDeckName ?? "");
+  const [previewCard, setPreviewCard] = useState<CardReference | null>(null);
+  const [previewFlipped, setPreviewFlipped] = useState(false);
+  const [hoverPreview, setHoverPreview] = useState<{
+    card: CardReference;
+    x: number;
+    y: number;
+  } | null>(null);
 
   const hasDeck = deck !== null && sideboard !== null;
   const activeLands = lands ?? DEFAULT_LANDS;
@@ -117,7 +125,17 @@ export default function PostDraftScreen({
         )}
         <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-7 gap-1.5">
           {cards.map((card, i) => (
-            <CardThumbnail key={`${card.scryfallId}-${i}`} card={card} size="medium" />
+            <CardThumbnail
+              key={`${card.scryfallId}-${i}`}
+              card={card}
+              size="medium"
+              onClick={() => { setPreviewCard(card); setPreviewFlipped(false); }}
+              onMouseEnter={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                setHoverPreview({ card, x: rect.right + 12, y: rect.top });
+              }}
+              onMouseLeave={() => setHoverPreview(null)}
+            />
           ))}
         </div>
       </div>
@@ -304,6 +322,79 @@ export default function PostDraftScreen({
             })}
           </div>
         </section>
+      )}
+
+      {/* ---- Hover Preview (desktop only) ---- */}
+      {hoverPreview && !previewCard && (
+        <div
+          className="fixed z-40 pointer-events-none hidden sm:block"
+          style={{
+            left: Math.min(hoverPreview.x, window.innerWidth - 280),
+            top: Math.max(8, Math.min(hoverPreview.y, window.innerHeight - 400)),
+          }}
+        >
+          <div className="relative w-[250px] card-aspect rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/10">
+            <Image
+              src={hoverPreview.card.imageUri}
+              alt={hoverPreview.card.name}
+              fill
+              sizes="250px"
+              className="object-cover"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ---- Card Preview Modal ---- */}
+      {previewCard && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={() => { setPreviewCard(null); setPreviewFlipped(false); }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") { setPreviewCard(null); setPreviewFlipped(false); }
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Preview of ${previewCard.name}`}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={() => {}}
+            role="presentation"
+            className="flex flex-col items-center gap-4 px-4"
+          >
+            {/* Close hint */}
+            <button
+              type="button"
+              onClick={() => { setPreviewCard(null); setPreviewFlipped(false); }}
+              className="w-10 h-1 rounded-full bg-foreground/30 shrink-0 cursor-pointer"
+              aria-label="Close preview"
+            />
+
+            {/* Large card image */}
+            <div className="relative w-[85vw] max-w-[400px] card-aspect rounded-xl overflow-hidden">
+              <Image
+                src={previewFlipped && previewCard.backImageUri ? previewCard.backImageUri : previewCard.imageUri}
+                alt={previewCard.name}
+                fill
+                sizes="(max-width: 768px) 85vw, 400px"
+                className="object-cover"
+                priority
+              />
+            </div>
+
+            {/* Action buttons */}
+            {previewCard.backImageUri && (
+              <button
+                type="button"
+                onClick={() => setPreviewFlipped((v) => !v)}
+                className="w-full max-w-[400px] py-3 rounded-xl bg-surface border border-border text-foreground font-medium text-sm active:scale-[0.97] transition-all hover:bg-surface-hover"
+              >
+                {previewFlipped ? "Show Front" : "Show Back"}
+              </button>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
