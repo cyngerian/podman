@@ -101,12 +101,26 @@ Supabase Postgres with RLS. Key tables: `profiles`, `groups`, `group_members`, `
 
 ### Migrations
 
-**All schema changes MUST go through migration files** in `supabase/migrations/`. Never apply schema changes directly via MCP tools (Supabase `execute_sql`, `apply_migration`) or the dashboard — those are not reproducible and cannot be rewound.
+**All schema changes MUST go through migration files** in `supabase/migrations/`. Never apply schema changes directly via MCP tools (Supabase `execute_sql`, `apply_migration`) or the dashboard — those are not reproducible and cannot be tracked.
 
-- Create a new `.sql` file in `supabase/migrations/` with the naming convention `YYYYMMDD_NNN_description.sql`
-- The migration is applied to environments via `npm run sync-staging` (staging) or Supabase CLI
-- Migration files must be idempotent where possible (use `IF NOT EXISTS`, `IF EXISTS`, etc.)
+**Naming**: `YYYYMMDDHHMMSS_description.sql` — the numeric prefix before the first `_` must be unique across all files (Supabase uses it as the version key). Use `YYYYMMDD000000` for the first migration of a day, `YYYYMMDD000100` for the second, etc.
+
+**Applying migrations**:
+```bash
+# Linked to prod by default. Dry-run first, then push:
+npx supabase db push --dry-run
+npx supabase db push
+
+# To push to staging instead, re-link first:
+npx supabase link --project-ref gotytvqikkwmrsztojgf
+npx supabase db push
+npx supabase link --project-ref mvqdejniqbaiishumezl  # re-link back to prod
+```
+
+**Rules**:
+- Migration files must be idempotent where possible (use `IF NOT EXISTS`, `IF EXISTS`, `CREATE OR REPLACE`, etc.)
 - Never modify an already-applied migration — create a new one instead
+- After applying, verify with `npx supabase migration list` — Local and Remote columns should match
 
 ### Card Images & DFCs
 
@@ -114,15 +128,15 @@ Remote from Scryfall (`cards.scryfall.io`), optimized via Next.js Image. Rate-li
 
 **Collector number normalization**: `normalizeForScryfall()` handles DFC `a`/`b` suffixes, star `★` suffixes, and "The List" `SET-NUM` format. `fetchCardsByCollectorNumber` sends both original and normalized to Scryfall. See `docs/collector-number-suffix-fix.md`.
 
-**Sheet cards loading**: `booster-data.ts` fetches per-sheet (one query per sheet_id) to avoid PostgREST's 1000-row server cap.
+**Booster data caching**: `booster-data.ts` uses a three-layer cache: L1 module-level Map → L2 Upstash Redis (`src/lib/kv.ts`) → L3 Postgres RPC (`get_booster_product_json`). Warm-up triggers fire on Crack a Pack product selection and draft lobby load.
 
 ## Features
 
 ### Pick Screen (`src/components/draft/PickScreen.tsx`)
 
-**Mobile**: Pure transform carousel — `overflow-hidden`, `touch-action: none`, wrapper moves via `translate3d`. Cards 72vw, active `scale(1.15)`, inactive `scale(0.55)`. rAF loop with zero React re-renders. Long-press pick button (500ms), scrub bar, grid view overlay.
+**Mobile**: Pure transform carousel via `useCarousel` hook (`src/hooks/useCarousel.ts`) — touch handlers, rAF physics loop, DOM ref management. Cards 72vw, active `scale(1.15)`, inactive `scale(0.55)`. Long-press pick button (500ms), scrub bar, grid view overlay.
 
-**Desktop**: Two-row header + grid (`grid-cols-3 lg:4 xl:4`, `max-w-5xl`). Row 2 has inline filter pills. Split by `sm:hidden`/`hidden sm:flex`.
+**Desktop**: Two-row header + grid (`grid-cols-3 lg:4 xl:4`, `max-w-5xl`). Row 2 has inline filter pills. Split by `sm:hidden`/`hidden sm:flex`. Click card → centered modal (`fixed inset-0 z-50`) with large image, card name, flip (DFC), and PICK button.
 
 **Filters**: Multi-select `Set<PackFilterValue>`. Color OR + type AND; creature/non-creature mutually exclusive.
 
@@ -130,17 +144,17 @@ Remote from Scryfall (`cards.scryfall.io`), optimized via Next.js Image. Rate-li
 
 ### Deck Builder (`src/components/deck-builder/DeckBuilderScreen.tsx`)
 
-3-col mobile / 5-col tablet / 7-col desktop. Tap card for magnified preview modal. Collapsible sideboard. Auto-save (1s debounce). Sections: Color Breakdown, Basic Lands (suggest 17), Card Types, Mana Curve.
+3-col mobile / 5-col tablet / 7-col desktop. Tap card for magnified preview modal. Desktop hover → floating 250px magnified preview (hidden when click modal open). Collapsible sideboard. Auto-save (1s debounce). Sections: Color Breakdown, Basic Lands (suggest 17), Card Types, Mana Curve.
 
 **Mid-draft mode** (`mode="midDraft"`): hides lands/submit/deck name. "My Deck" overlay (`fixed inset-0 z-50`). Auto-adds newly picked cards via `knownPoolIdsRef` effect. Reconciles `initialDeck` vs `pool` on mount.
 
 ### Results (`src/components/draft/PostDraftScreen.tsx`)
 
-Deck/sideboard/pool grids, pick history, per-player picks (accordion). Export: clipboard, .cod, .txt — all honor `deckName`. "Edit Deck" → `unsubmitDeck()` → back to deck builder.
+Deck/sideboard/pool grids, pick history, per-player picks (accordion with avatars). Export: clipboard, .cod, .txt — all honor `deckName`. "Edit Deck" → `unsubmitDeck()` → back to deck builder. Click card → magnified modal (mobile + desktop). Desktop hover → floating 250px preview.
 
 ### Profiles
 
-`profiles` table: `display_name`, `avatar_url` (emoji or Vercel Blob URL), `bio`, `favorite_color`. `UserAvatar` component renders image/emoji/first-letter fallback. Sizes: `sm`/`md`/`lg`. Upload via `/api/avatar` → `@vercel/blob`.
+`profiles` table: `display_name`, `avatar_url` (emoji or Vercel Blob URL), `bio`, `favorite_color`. `UserAvatar` component renders image/emoji/first-letter fallback. Sizes: `sm`/`md`/`lg`. Upload via `/api/avatar` → `@vercel/blob`. Avatars displayed everywhere usernames appear: app header, dashboard, group members, proposal voters, lobby seats, pod status, results accordion.
 
 ### Groups
 
@@ -165,6 +179,7 @@ Players sorted by seat with avatars, pick counts, direction arrows (↓ left/↑
 - **Header height**: All headers with "podman" must use `h-12` + `items-center`. Using `py-3` causes vertical shift across page transitions.
 - **Carousel py-8**: Must not be reduced — active card's 1.15x scale needs vertical overflow room.
 - **Carousel marginTop**: Currently -10px. Do not change without user approval.
+- **Carousel responsive sizing**: Card width uses `min(72vw, 400px, calc((100cqh - 80px) * 488/680))` with `container-type: size` on the carousel container. Cards shrink on shorter viewports (Safari with browser chrome) while staying full size in PWA mode.
 - **Overlay width**: `fixed inset-0` overlays span full viewport. Add `max-w-5xl mx-auto w-full` to content inside, not on the fixed wrapper.
 - **Don't share app header with draft overlay**: Draft's `fixed z-40` overlays `sticky z-30` header. Duplicate the header instead.
 
@@ -179,6 +194,8 @@ NEXT_PUBLIC_SENTRY_DSN                  # Sentry error monitoring DSN
 SENTRY_ORG                              # Sentry org slug (for source maps)
 SENTRY_PROJECT                          # Sentry project slug
 SENTRY_AUTH_TOKEN                       # Sentry auth token (for source maps)
+UPSTASH_REDIS_REST_URL                  # Upstash Redis URL (booster data cache)
+UPSTASH_REDIS_REST_TOKEN                # Upstash Redis token (booster data cache)
 SUPABASE_PROJECT_REF                    # Production project ref (scripts)
 SUPABASE_STAGING_REF                    # Staging project ref (sync-staging)
 SUPABASE_ACCESS_TOKEN                   # Supabase personal access token (scripts)
