@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code when working with this repository.
 
 ## Commands
 
@@ -18,127 +18,122 @@ No test framework is configured. `test-packs` is a CLI validation script, not a 
 
 MTG (Magic: The Gathering) draft web app. Players open packs, pick cards in timed rounds, pass packs to the next player. Supports 8-player standard draft, 2-player Winston, and cube formats.
 
-**Stack**: Next.js 16 (App Router) + React 19 + TailwindCSS 4 + Supabase (Postgres + Auth + Realtime) + Vercel
+**Stack**: Next.js 16 (App Router) + React 19 + TailwindCSS 4 + Supabase (Postgres + Auth + Realtime) + Vercel. **Path alias**: `@/*` → `./src/*`
 
-**Path alias**: `@/*` maps to `./src/*`
-
-### Route Structure
+### Routes
 
 - `/auth/*` — login, signup, signout (public)
 - `/(app)/dashboard/*` — group management, draft proposals (auth-protected via middleware)
-- `/(app)/dashboard/profile` — user profile edit page (avatar, bio, favorite color)
+- `/(app)/dashboard/profile` — user profile edit (avatar, bio, favorite color)
+- `/(app)/dashboard/simulate` — configure and start simulated drafts against bots
 - `/(app)/draft/[draftId]/*` — draft flow: lobby → pick → deck-build → results
 - `/(app)/crack-a-pack` — standalone pack opening (any booster type)
-- `/api/sets` — public API (cached 24h)
-- `/api/boosters?set={code}` — booster products for a set (cached 24h)
+- `/invite/[token]` — public group invite landing page (middleware allowlist: `/auth` + `/invite`)
+- `/api/sets`, `/api/boosters?set={code}` — public APIs (cached 24h)
 - `/api/avatar` — POST avatar image upload via `@vercel/blob`
 
 The `(app)` layout adds a sticky header (`z-30`, `h-12`) with user avatar, display name, and sign out. Content constrained to `max-w-5xl`. The pick screen uses `fixed inset-0 z-40` to overlay this header.
 
-### Three Supabase Clients
+### Supabase Clients
 
 1. **Browser** (`src/lib/supabase.ts`) — client components, Realtime subscriptions. Uses `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
-2. **Server** (`src/lib/supabase-server.ts`) — server components and server actions. Cookie-based session.
-3. **Admin** (`src/lib/supabase-admin.ts`) — server actions only. Uses `SUPABASE_SECRET_KEY`, **bypasses RLS**. Required for draft state mutations since host needs to modify all seats atomically.
+2. **Server** (`src/lib/supabase-server.ts`) — server components and actions. Cookie-based session. `getUser()` memoized via `React.cache()`.
+3. **Admin** (`src/lib/supabase-admin.ts`) — server actions only. Uses `SUPABASE_SECRET_KEY`, bypasses RLS. Required for draft state mutations.
 
 ### Draft Engine (`src/lib/draft-engine.ts`)
 
-All draft logic is pure functions that transform immutable `Draft` state objects. Key functions: `createDraft`, `startDraft`, `makePickAndPass`, `advanceToNextPack`, `transitionToDeckBuilding`, `unsubmitDeck`. Draft state is stored as JSON in the `drafts.state` column and mutated via `applyDraftMutation()` in server actions with optimistic concurrency.
+Pure functions transforming immutable `Draft` state objects. Key functions: `createDraft`, `startDraft`, `makePickAndPass`, `advanceToNextPack`, `transitionToDeckBuilding`, `unsubmitDeck`. State stored as JSON in `drafts.state`, mutated via `applyDraftMutation()` with optimistic concurrency.
 
 ### Key Types (`src/lib/types.ts`)
 
-`Draft`, `DraftSeat`, `PackState`, `CardReference` (minimal card data cached in draft state — never store full Scryfall objects). `TimerPreset` controls pick speed via lookup table + multiplier. `PackFilterValue` for multi-select filters (`Set<PackFilterValue>`), `PickedCardSortMode` for UI sorting. `CardReference.typeLine` is optional — missing on drafts created before Feb 2026; hydrated at page load via Scryfall collection endpoint. `CardReference.backImageUri`/`backSmallImageUri` are optional — present only on DFCs; older drafts without these fields simply don't show a flip button. `DraftSeat.deckName` is optional — persisted via auto-save and used in exports. `PodMemberStatus` includes `avatarUrl`, `favoriteColor`, `isCurrentUser` for the pod screen.
+`Draft`, `DraftSeat`, `PackState`, `CardReference` (minimal card data — never full Scryfall objects). Optional fields on `CardReference`: `typeLine` (missing on pre-Feb 2026 drafts, hydrated at page load), `backImageUri`/`backSmallImageUri` (DFCs only). `DraftSeat.deckName` persisted via auto-save. `PodMemberStatus` includes `avatarUrl`, `favoriteColor`, `isCurrentUser`.
 
-### Realtime Updates
+### Realtime
 
-`useRealtimeChannel` hook (`src/hooks/useRealtimeChannel.ts`) wraps Supabase channel lifecycle. `PickClient.tsx` subscribes to draft table changes — when any player picks, all clients get notified and `router.refresh()` pulls fresh server data.
+`useRealtimeChannel` hook wraps Supabase channel lifecycle. `PickClient.tsx` subscribes to draft table changes — `router.refresh()` pulls fresh server data on any pick.
 
-### Server Actions Pattern
+## Key Patterns
 
-Server actions return `{ error: string }` on failure or `void`/redirect on success. Auth check at top of every action. Draft mutations use the admin client. Admin-only actions (invite create/revoke, proposal cancel) must verify group membership/role before hitting the database — don't rely solely on RLS for authorization.
+### Server Actions
+
+Return `{ error: string }` on failure or `void`/redirect on success. Auth check at top. Draft mutations use admin client. Actions modifying group resources must check membership/role explicitly before DB ops — don't rely solely on RLS (see `updateGroupEmoji` as model pattern).
 
 ### Security
 
 - **Open redirect prevention**: Login/signup `redirect` param validated to start with `/` and not `//`
 - **Security headers**: `next.config.ts` sets X-Frame-Options (DENY), X-Content-Type-Options (nosniff), Referrer-Policy, Permissions-Policy
-- **Atomic auto-confirm**: `voteOnProposal` uses `.eq("status", "open")` on the update to prevent TOCTOU race conditions
-- **Defense-in-depth**: Server actions check authorization explicitly before DB operations, even though RLS would also block unauthorized access
+- **Atomic auto-confirm**: `voteOnProposal` uses `.eq("status", "open")` to prevent TOCTOU races
+- **Defense-in-depth**: Server actions check authorization explicitly even though RLS would also block
 
-### Card Images
+### Database & RLS
 
-Remote from Scryfall (`cards.scryfall.io`), optimized via Next.js Image. `CardReference` stores both `imageUri` (normal) and `smallImageUri` (thumbnail). DFCs also have `backImageUri` and `backSmallImageUri` for the back face. Rate-limited Scryfall client in `src/lib/scryfall.ts` (75ms interval, 10 req/s max).
+Supabase Postgres with RLS. Key tables: `profiles`, `groups`, `group_members`, `group_invites`, `draft_proposals`, `draft_players`, `drafts`. RLS policies on `group_members`/`draft_players` use SECURITY DEFINER helpers (`user_group_ids()`, `user_draft_ids()`, `is_group_admin()`) to avoid infinite recursion.
 
-### Double-Faced Cards (DFCs)
+### Card Images & DFCs
 
-`CardReference.backImageUri`/`backSmallImageUri` are populated from `card_faces[1]` by `scryfallCardToReference`. Colors are unioned from all faces via `dfcUnionColors()` so multi-color DFCs get gold borders. `CardThumbnail` shows a ↻ indicator; flip interaction available on carousel (tap ↻ button), desktop preview panel ("Flip" button), and deck builder preview modal ("Show Back"/"Show Front").
+Remote from Scryfall (`cards.scryfall.io`), optimized via Next.js Image. Rate-limited client in `src/lib/scryfall.ts` (75ms interval, 10 req/s). `CardReference` stores `imageUri`/`smallImageUri` + optional `backImageUri`/`backSmallImageUri` for DFCs. Colors unioned from all faces via `dfcUnionColors()`. Flip interaction on carousel, desktop preview, and deck builder modal.
 
-**Collector number normalization**: Booster distribution data (MTGJSON) uses several non-standard collector number formats that Scryfall doesn't recognize. `normalizeForScryfall()` in `scryfall.ts` handles: (1) DFC `a`/`b` suffixes (`51a` → `51`), (2) star `★` suffixes for old core set foils (`254★` → `254`), (3) "The List" `SET-NUM` format (`plst:DOM-130` → `dom:130`). `fetchCardsByCollectorNumber` sends both original and normalized collector numbers to Scryfall so that old-set art variants (`fem:10a`) and DFC suffixes (`isd:51a`) both resolve correctly. See `docs/collector-number-suffix-fix.md`.
+**Collector number normalization**: `normalizeForScryfall()` handles DFC `a`/`b` suffixes, star `★` suffixes, and "The List" `SET-NUM` format. `fetchCardsByCollectorNumber` sends both original and normalized to Scryfall. See `docs/collector-number-suffix-fix.md`.
 
-**Sheet cards loading**: The `sheet_cards` query in `booster-data.ts` fetches per-sheet (one query per sheet_id) rather than a single bulk query. PostgREST's server-side `max-rows` caps responses at 1000 regardless of `.limit()` — 44 products have >1000 total sheet_cards and would be silently truncated by a bulk query.
+**Sheet cards loading**: `booster-data.ts` fetches per-sheet (one query per sheet_id) to avoid PostgREST's 1000-row server cap.
 
-## Groups
+## Features
 
-`groups` table: `name`, `emoji` (optional text), `description`, `created_by`. Emoji displays to the **left** of the group name everywhere (dashboard, group detail, propose page, admin) at a larger size than surrounding text. On the group detail page, admins can inline-edit the emoji via `GroupEmojiEditor` client component. Emoji is also settable at group creation in `CreateGroupForm`. `updateGroupEmoji` server action checks admin role before updating.
+### Pick Screen (`src/components/draft/PickScreen.tsx`)
 
-Dashboard and group detail pages use faint `border-border/40` dividers between major sections.
+**Mobile**: Pure transform carousel — `overflow-hidden`, `touch-action: none`, wrapper moves via `translate3d`. Cards 72vw, active `scale(1.15)`, inactive `scale(0.55)`. rAF loop with zero React re-renders. Long-press pick button (500ms), scrub bar, grid view overlay.
 
-## Database
+**Desktop**: Two-row header + grid (`grid-cols-3 lg:4 xl:4`, `max-w-5xl`). Row 2 has inline filter pills. Split by `sm:hidden`/`hidden sm:flex`.
 
-Supabase Postgres with RLS. Key tables: `profiles`, `groups`, `group_members`, `group_invites`, `draft_proposals`, `draft_players`, `drafts`.
+**Filters**: Multi-select `Set<PackFilterValue>`. Color OR + type AND; creature/non-creature mutually exclusive.
 
-**RLS gotcha**: Policies on `group_members`/`draft_players` that reference their own table cause infinite recursion. Use SECURITY DEFINER helper functions (`user_group_ids()`, `user_draft_ids()`, `is_group_admin()`) that bypass RLS instead.
+**Dependencies**: `mana-font`, `keyrune`, `@vercel/blob`
+
+### Deck Builder (`src/components/deck-builder/DeckBuilderScreen.tsx`)
+
+3-col mobile / 5-col tablet / 7-col desktop. Tap card for magnified preview modal. Collapsible sideboard. Auto-save (1s debounce). Sections: Color Breakdown, Basic Lands (suggest 17), Card Types, Mana Curve.
+
+**Mid-draft mode** (`mode="midDraft"`): hides lands/submit/deck name. "My Deck" overlay (`fixed inset-0 z-50`). Auto-adds newly picked cards via `knownPoolIdsRef` effect. Reconciles `initialDeck` vs `pool` on mount.
+
+### Results (`src/components/draft/PostDraftScreen.tsx`)
+
+Deck/sideboard/pool grids, pick history, per-player picks (accordion). Export: clipboard, .cod, .txt — all honor `deckName`. "Edit Deck" → `unsubmitDeck()` → back to deck builder.
+
+### Profiles
+
+`profiles` table: `display_name`, `avatar_url` (emoji or Vercel Blob URL), `bio`, `favorite_color`. `UserAvatar` component renders image/emoji/first-letter fallback. Sizes: `sm`/`md`/`lg`. Upload via `/api/avatar` → `@vercel/blob`.
+
+### Groups
+
+`groups` table: `name`, `emoji` (optional, displays left of name at larger size), `description`, `created_by`. Inline emoji edit for admins via `GroupEmojiEditor`. Faint `border-border/40` dividers between sections.
+
+**Invite links**: `group_invites` table with UUID tokens, 7d expiry. RPCs: `accept_group_invite` (authenticated), `get_invite_info` (anon). Unauthed users see signup/login with redirect. Admin section for generate/copy/revoke.
+
+### Simulated Drafts
+
+`/dashboard/simulate` — configure format/set/players, start vs bots. Bots use rarity-first → color-commit algorithm. Bot picks run inside `applyDraftMutation`. `drafts.group_id` nullable, `drafts.is_simulated` boolean. Winston bots via `botWinstonDecision`.
+
+### Crack a Pack (`src/app/(app)/crack-a-pack/`)
+
+Standalone pack opening. `/api/boosters?set={code}` returns products filtered to user-relevant types. `generatePacksForSet` accepts optional `{ productCode?, keepBasicLands? }`. Basic lands kept (not stripped).
+
+### Pod Screen (`src/components/draft/PodMemberList.tsx`)
+
+Players sorted by seat with avatars, pick counts, direction arrows (↓ left/↑ right), wrap-around indicator. Current user: accent ring + "(you)". Picking: green ring. Profiles fetched in `pick/page.tsx` via parallel query.
+
+## Constraints
+
+- **Header height**: All headers with "podman" must use `h-12` + `items-center`. Using `py-3` causes vertical shift across page transitions.
+- **Carousel py-8**: Must not be reduced — active card's 1.15x scale needs vertical overflow room.
+- **Carousel marginTop**: Currently -10px. Do not change without user approval.
+- **Overlay width**: `fixed inset-0` overlays span full viewport. Add `max-w-5xl mx-auto w-full` to content inside, not on the fixed wrapper.
+- **Don't share app header with draft overlay**: Draft's `fixed z-40` overlays `sticky z-30` header. Duplicate the header instead.
 
 ## Environment Variables
 
 ```
 NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY   # sb_publishable_* format (not legacy anon key)
-SUPABASE_SECRET_KEY                     # sb_secret_* format (not legacy service_role)
-BLOB_READ_WRITE_TOKEN                   # Vercel Blob store (for avatar uploads)
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY   # sb_publishable_* format
+SUPABASE_SECRET_KEY                     # sb_secret_* format
+BLOB_READ_WRITE_TOKEN                   # Vercel Blob store (avatar uploads)
 ```
-
-## User Profiles
-
-`profiles` table: `display_name`, `avatar_url`, `bio`, `favorite_color` (W/U/B/R/G or null). Avatar can be an emoji string or a URL (Vercel Blob). `UserAvatar` component (`src/components/ui/UserAvatar.tsx`) renders URL images, emoji, or first-letter fallback. Sizes: `sm` (24px), `md` (32px), `lg` (64px).
-
-## Header Height Constraint
-
-**Critical**: All headers containing "podman" must use `h-12` to ensure identical vertical positioning across page transitions. The app layout header, mobile draft row 1, and desktop draft row 1 all use `h-12` + `items-center`. Using `py-3` or other padding instead causes vertical shift because `items-center` positions text based on the tallest flex sibling, which differs between pages (avatar height vs timer height).
-
-## Mobile Carousel (`src/components/draft/PickScreen.tsx`)
-
-Active development area. Pure transform carousel (Option C) — no native scroll. Container is `overflow-hidden` with `touch-action: none`, wrapper moves via `translate3d`. Cards 72vw, active `scale(1.15)`, inactive `scale(0.55)`. rAF polling loop with zero React re-renders during scroll. Desktop uses a grid layout (`grid-cols-3 lg:4 xl:4`, constrained to `max-w-5xl`), split by `sm:hidden` / `hidden sm:flex`.
-
-Desktop has a two-row header: row 1 mirrors the app layout (podman + set info + timer), row 2 has pack/pick info + inline filter pills + picks button. Inline filters replaced the old bottom-bar popup.
-
-**Critical**: `py-8` on the carousel wrapper must not be reduced — the active card's 1.15x scale needs vertical overflow room. Reducing to `py-4` causes visible clipping.
-
-**Dependencies**: `mana-font` (mana symbol icons), `keyrune` (set symbol icons), `@vercel/blob` (avatar uploads). Pick button uses 500ms long-press with fill animation (`LongPressPickButton`). Filters are multi-select (`Set<PackFilterValue>`) with color OR + type AND logic; creature/non-creature are mutually exclusive.
-
-## Deck Builder (`src/components/deck-builder/DeckBuilderScreen.tsx`)
-
-3-col mobile / 5-col tablet / 7-col desktop card grid with `size="medium"`. Tap card to open magnified preview modal (85vw/400px) with move-to-sideboard/deck button. Collapsible sideboard (default collapsed) with "Move all to deck" (two-tap confirm). Auto-saves deck/sideboard/lands/deckName to DB via debounced (1s) `onDeckChange` callback. Deck name persisted in `DraftSeat.deckName`.
-
-Sections: Color Breakdown (mana-font icons, `justify-between`), Basic Lands (mana symbol steppers + "Suggest lands" button computing 17 lands from deck color proportions), Card Types (creatures/other), Mana Curve.
-
-### Mid-Draft Mode
-
-`DeckBuilderScreen` has a `mode` prop: `"full"` (default, deck building phase) or `"midDraft"` (during active draft). In `midDraft` mode: hides lands section, submit/skip footer, deck name input. Header shows "My Deck" with Close button, `sticky top-0`. Root constrained to `max-w-5xl mx-auto` on desktop. New cards default to deck (not sideboard). A `useEffect` + `knownPoolIdsRef` detects newly picked cards and auto-adds them to deck. On mount, reconciles `initialDeck` with `pool` so cards picked between sessions appear.
-
-Accessed via "My Deck" button on both `PickScreen` and `WaitingScreen` (replaced old `PickedCardsDrawer`). Overlay uses `fixed inset-0 z-50`. `saveDeckAction` allows saves during both `active` and `deck_building` draft status. Deck/sideboard state persists to `DraftSeat.deck`/`DraftSeat.sideboard` via auto-save, carried forward to the deck building phase.
-
-## Pod Screen (`src/components/draft/PodMemberList.tsx`)
-
-Shows all draft players sorted by seat position with real profile avatars (`UserAvatar`), pick counts, and picking status. Current user highlighted with accent ring + "(you)" label. Actively picking players get a green ring outline. SVG direction arrows between each player row indicate pack flow: `↓` for left pass (packs 1/3), `↑` for right pass (pack 2). Wrap-around indicator at bottom. Profile data (`avatar_url`, `favorite_color`) fetched in `pick/page.tsx` via parallel query alongside card hydration. Bots fall back to first-letter avatar (no profile row). Displayed directly on `WaitingScreen` and via `PodStatusOverlay` modal (triggered by clicking Pack:Pick in header).
-
-## Crack a Pack (`src/app/(app)/crack-a-pack/`)
-
-Standalone pack opening feature. Pick a set, choose a booster type (play, draft, set, collector), and browse the cards using `PickScreen` in `crackAPack` mode. Basic lands are kept (not stripped like in drafts).
-
-`/api/boosters?set={code}` returns available products filtered to user-relevant types (suffixes: base, `-play`, `-draft`, `-set`, `-collector`). `CrackAPackClient` fetches products on set selection and shows pill buttons when multiple types exist. `crackAPackLabel` prop on `PickScreen` displays the booster type in the header top-right.
-
-`generatePacksForSet` accepts optional `options: { productCode?, keepBasicLands? }`. `loadBoosterProductData` accepts optional `productCode` for exact code lookup (bypasses candidate list). Draft flow is unchanged (options default to existing behavior).
-
-## Results Screen (`src/components/draft/PostDraftScreen.tsx`)
-
-Shows deck/sideboard/pool grids, creature stats, pick history (collapsible), per-player picks (accordion, all collapsed by default). Export: clipboard, Cockatrice (.cod), plain text (.txt) — all use `deckName` in content and filenames. "Edit Deck" button calls `editDeckAction` → `unsubmitDeck()` → redirects back to deck builder with state intact.
