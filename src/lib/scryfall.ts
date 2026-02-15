@@ -514,15 +514,35 @@ export function normalizeForScryfall(id: {
 
 // --- Collection Fetch by Collector Number ---
 
+// Module-level cache for Scryfall card lookups by set:collector_number.
+// Card data is immutable — safe to cache across warm Vercel invocations.
+const scryfallCardCache = new Map<string, CardReference>();
+
 /**
  * Fetch cards from Scryfall by set_code + collector_number pairs.
  * Returns a Map keyed by "set:collector_number" → CardReference.
+ * Individual card results are cached — repeated requests for the same
+ * cards skip the Scryfall API entirely.
  * Used to bridge booster distribution data (which uses collector numbers)
  * to the CardReference format used by the draft system.
  */
 export async function fetchCardsByCollectorNumber(
   identifiers: Array<{ set: string; collector_number: string }>
 ): Promise<Map<string, CardReference>> {
+  // Check cache first — return cached cards and only fetch uncached ones
+  const result = new Map<string, CardReference>();
+  const uncachedIdentifiers: Array<{ set: string; collector_number: string }> = [];
+  for (const id of identifiers) {
+    const key = `${id.set}:${id.collector_number}`;
+    const cached = scryfallCardCache.get(key);
+    if (cached) {
+      result.set(key, cached);
+    } else {
+      uncachedIdentifiers.push(id);
+    }
+  }
+  if (uncachedIdentifiers.length === 0) return result;
+
   // Deduplicate and track original keys.
   // Booster data uses several non-standard collector number formats that
   // Scryfall doesn't recognize. We normalize for the API call and map
@@ -530,7 +550,7 @@ export async function fetchCardsByCollectorNumber(
   const uniqueMap = new Map<string, { set: string; collector_number: string }>();
   // Map from normalized key → original keys
   const normalizedToOriginal = new Map<string, string[]>();
-  for (const id of identifiers) {
+  for (const id of uncachedIdentifiers) {
     const key = `${id.set}:${id.collector_number}`;
     if (uniqueMap.has(key)) continue;
     uniqueMap.set(key, id);
@@ -543,7 +563,6 @@ export async function fetchCardsByCollectorNumber(
   }
   const unique = Array.from(uniqueMap.values());
 
-  const result = new Map<string, CardReference>();
   if (unique.length === 0) return result;
 
   // Deduplicate identifiers sent to Scryfall after normalization.
@@ -596,10 +615,12 @@ export async function fetchCardsByCollectorNumber(
             const normalizedKey = `${card.set}:${card.collector_number}`;
             // Store under the normalized key
             result.set(normalizedKey, cardRef);
+            scryfallCardCache.set(normalizedKey, cardRef);
             // Also store under all original keys that map to this normalized key
             const originals = normalizedToOriginal.get(normalizedKey) ?? [];
             for (const origKey of originals) {
               result.set(origKey, cardRef);
+              scryfallCardCache.set(origKey, cardRef);
             }
           }
         }
