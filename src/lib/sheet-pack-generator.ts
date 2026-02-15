@@ -7,6 +7,14 @@ import type { CardReference } from "./types";
 import type { BoosterProductData, BoosterSheet } from "./booster-data";
 import { weightedRandomIndex } from "./pack-generator";
 
+// --- Types ---
+
+export interface PackCardSkeleton {
+  set_code: string;
+  collector_number: string;
+  is_foil: boolean;
+}
+
 /**
  * Draw a single card from a sheet using weighted random selection.
  * Avoids cards already used in this pack (no replacement).
@@ -42,23 +50,20 @@ function drawFromSheet(
   return null;
 }
 
+// --- Skeleton generation (no Scryfall needed) ---
+
 /**
- * Generate a single pack from booster distribution data.
- *
- * 1. Pick a config via weighted random selection
- * 2. For each slot in the config, draw cards from the named sheet
- * 3. Map each card to a CardReference via the cardMap
+ * Generate a single pack skeleton — just card identifiers + foil flags.
+ * Uses sheet weights to draw cards without needing Scryfall data.
  */
-export function generateSheetPack(
-  data: BoosterProductData,
-  cardMap: Map<string, CardReference>
-): CardReference[] {
-  // Pick a config
+function generateSheetPackSkeleton(
+  data: BoosterProductData
+): PackCardSkeleton[] {
   const configWeights = data.configs.map((c) => c.weight);
   const configIdx = weightedRandomIndex(configWeights);
   const config = data.configs[configIdx];
 
-  const pack: CardReference[] = [];
+  const pack: PackCardSkeleton[] = [];
   const usedKeys = new Set<string>();
 
   for (const slot of config.slots) {
@@ -71,18 +76,11 @@ export function generateSheetPack(
 
       const key = `${drawn.set_code}:${drawn.collector_number}`;
       usedKeys.add(key);
-
-      const cardRef = cardMap.get(key);
-      if (!cardRef) {
-        console.warn(`[sheet-pack-gen] Card not found in cardMap: ${key}`);
-        continue;
-      }
-
-      if (drawn.is_foil) {
-        pack.push({ ...cardRef, isFoil: true });
-      } else {
-        pack.push(cardRef);
-      }
+      pack.push({
+        set_code: drawn.set_code,
+        collector_number: drawn.collector_number,
+        is_foil: drawn.is_foil,
+      });
     }
   }
 
@@ -90,7 +88,90 @@ export function generateSheetPack(
 }
 
 /**
- * Generate all packs for a draft using sheet-based generation.
+ * Generate all pack skeletons for a draft.
+ * Returns card identifiers only — fetch Scryfall data afterward.
+ */
+export function generateAllSheetPackSkeletons(
+  data: BoosterProductData,
+  playerCount: number,
+  packsPerPlayer: number
+): PackCardSkeleton[][] {
+  const totalPacks = playerCount * packsPerPlayer;
+  const packs: PackCardSkeleton[][] = [];
+
+  for (let i = 0; i < totalPacks; i++) {
+    packs.push(generateSheetPackSkeleton(data));
+  }
+
+  return packs;
+}
+
+/**
+ * Collect unique card identifiers from pack skeletons
+ * for a targeted Scryfall fetch.
+ */
+export function collectSkeletonIdentifiers(
+  skeletons: PackCardSkeleton[][]
+): Array<{ set: string; collector_number: string }> {
+  const seen = new Map<string, { set: string; collector_number: string }>();
+  for (const pack of skeletons) {
+    for (const card of pack) {
+      const key = `${card.set_code}:${card.collector_number}`;
+      if (!seen.has(key)) {
+        seen.set(key, {
+          set: card.set_code,
+          collector_number: card.collector_number,
+        });
+      }
+    }
+  }
+  return Array.from(seen.values());
+}
+
+/**
+ * Resolve pack skeletons into full CardReferences using a cardMap.
+ */
+export function resolvePackSkeletons(
+  skeletons: PackCardSkeleton[][],
+  cardMap: Map<string, CardReference>
+): CardReference[][] {
+  return skeletons.map((pack) => {
+    const resolved: CardReference[] = [];
+    for (const card of pack) {
+      const key = `${card.set_code}:${card.collector_number}`;
+      const cardRef = cardMap.get(key);
+      if (!cardRef) {
+        console.warn(`[sheet-pack-gen] Card not found in cardMap: ${key}`);
+        continue;
+      }
+      if (card.is_foil) {
+        resolved.push({ ...cardRef, isFoil: true });
+      } else {
+        resolved.push(cardRef);
+      }
+    }
+    return resolved;
+  });
+}
+
+// --- Legacy API (used by test-packs validation script) ---
+
+/**
+ * Generate a single pack with a pre-built cardMap.
+ * Prefer generateAllSheetPackSkeletons + resolvePackSkeletons for production
+ * (fetches only the cards actually drawn instead of the entire set).
+ */
+export function generateSheetPack(
+  data: BoosterProductData,
+  cardMap: Map<string, CardReference>
+): CardReference[] {
+  const skeleton = generateSheetPackSkeleton(data);
+  return resolvePackSkeletons([skeleton], cardMap)[0];
+}
+
+/**
+ * Generate all packs with a pre-built cardMap.
+ * Used by test-packs validation script which needs the full cardMap anyway.
  */
 export function generateAllSheetPacks(
   data: BoosterProductData,
@@ -98,12 +179,10 @@ export function generateAllSheetPacks(
   playerCount: number,
   packsPerPlayer: number
 ): CardReference[][] {
-  const totalPacks = playerCount * packsPerPlayer;
-  const packs: CardReference[][] = [];
-
-  for (let i = 0; i < totalPacks; i++) {
-    packs.push(generateSheetPack(data, cardMap));
-  }
-
-  return packs;
+  const skeletons = generateAllSheetPackSkeletons(
+    data,
+    playerCount,
+    packsPerPlayer
+  );
+  return resolvePackSkeletons(skeletons, cardMap);
 }
