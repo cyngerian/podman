@@ -750,7 +750,7 @@ export default function PickScreen({
         ) : (
           <>
             {/* Carousel */}
-            <div className="flex-1 flex items-center min-h-0 relative" style={{ marginTop: "-10px" }}>
+            <div className="flex-1 flex items-center min-h-0 relative overflow-hidden" style={{ marginTop: "-10px" }}>
               {/* Transform container — no native scroll, all movement via JS transforms */}
               <div
                 ref={scrollRef}
