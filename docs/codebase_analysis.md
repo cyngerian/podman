@@ -482,7 +482,8 @@ async function myAction(formData) {
 | Unit tests | 88 |
 | Dependencies | 8 production, 10 dev |
 | TypeScript strictness | `strict: true`, zero `any`, zero `@ts-ignore` |
-| Known lint issues | 11 warnings, 6 errors (pre-existing, hooks rules) |
+| Lint issues | 0 (clean baseline, intentional patterns use eslint-disable) |
+| CI | GitHub Actions: lint + build + test on PRs |
 
 ---
 
@@ -494,6 +495,8 @@ async function myAction(formData) {
 - **Security-conscious**: Multiple layers of protection, completed security audit
 - **Performance**: Mobile carousel uses raw DOM manipulation, avoiding React render overhead during touch
 - **Minimal dependencies**: Only 8 production deps — no bloated UI libraries
+- **CI/CD pipeline**: GitHub Actions runs lint, build, and test on every PR; Vercel handles production deploys on merge to `main`
+- **Clean lint baseline**: Zero lint errors/warnings — intentional patterns documented with eslint-disable comments
 
 ### Areas for Improvement
 
@@ -504,10 +507,6 @@ async function myAction(formData) {
 - Export functionality
 
 **Large files**: `PickScreen.tsx` (1,094 lines) and `draft-engine.ts` (1,092 lines) are approaching sizes where extraction would improve maintainability. The pick screen's mobile carousel logic could be extracted to a custom hook or utility.
-
-**Pre-existing lint issues**: 11 warnings and 6 errors (mostly React hooks dependency rules in PickScreen/PickClient/SetPicker). These are intentional in some cases (the carousel avoids re-renders by design) but should be documented with eslint-disable comments explaining why.
-
-**CI/CD**: No GitHub Actions configuration detected. Adding automated lint, type-check, and test runs on PR would prevent regressions.
 
 **E2E testing**: No integration or end-to-end tests. Playwright tests for critical flows (login → create draft → pick → deck build → export) would catch full-stack regressions.
 
