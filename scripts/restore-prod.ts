@@ -113,26 +113,21 @@ async function main() {
     tableData.set(table, loadJsonFile(backupDir, `${table}.json`));
   }
 
-  // Disable the profile auto-create trigger
-  console.log("Disabling profile trigger...");
-  await executeSql(
-    projectRef,
-    accessToken,
-    `ALTER TABLE auth.users DISABLE TRIGGER on_auth_user_created`
-  );
-
-  // Clear tables (children first)
-  console.log("\nClearing tables...\n");
+  // Clear tables (children first, skip profiles — cascades from auth.users)
+  console.log("Clearing tables...\n");
   for (const table of DATA_TABLES_DELETE) {
+    if (table === "profiles") continue;
     console.log(`  Clearing ${table}...`);
     await executeSql(projectRef, accessToken, `DELETE FROM public."${table}"`);
     await sleep(250);
   }
-  console.log("  Clearing auth.users...");
+  console.log("  Clearing auth.users (cascades to profiles)...");
   await executeSql(projectRef, accessToken, `DELETE FROM auth.users`);
   await sleep(250);
 
   // Insert data (parents first)
+  // auth.users insert triggers handle_new_user which auto-creates profiles.
+  // We then UPDATE profiles with the backup data.
   console.log("\nRestoring data...\n");
 
   if (authUsers.length > 0) {
@@ -142,7 +137,49 @@ async function main() {
     await sleep(250);
   }
 
+  // Update profiles with backup data (trigger already created default rows)
+  const profiles = tableData.get("profiles") || [];
+  if (profiles.length > 0) {
+    console.log(`  profiles (${profiles.length} rows, updating)...`);
+    const columns = Object.keys(profiles[0]).filter((c) => c !== "id");
+    const setClauses = columns
+      .map((c) => `"${c}" = d."${c}"`)
+      .join(", ");
+    const allCols = ["id", ...columns];
+    const colList = allCols.map((c) => `"${c}"`).join(", ");
+    const valueSets = profiles.map((row) => {
+      const values = allCols.map((col) => {
+        const val = row[col];
+        if (val === null || val === undefined) return "NULL";
+        if (typeof val === "boolean") return val ? "TRUE" : "FALSE";
+        if (typeof val === "number") return String(val);
+        if (typeof val === "object")
+          return `'${esc(JSON.stringify(val))}'::jsonb`;
+        return `'${esc(String(val))}'`;
+      });
+      return `(${values.join(", ")})`;
+    });
+    const typeCasts = allCols.map((col) => {
+      const val = profiles[0][col];
+      if (typeof val === "boolean") return "::boolean";
+      if (typeof val === "number") return "::numeric";
+      if (typeof val === "object" && val !== null) return "::jsonb";
+      return "::text";
+    });
+    const castList = allCols.map((c, i) => `"${c}"${typeCasts[i]}`).join(", ");
+    await executeSql(
+      projectRef,
+      accessToken,
+      `UPDATE public."profiles" SET ${setClauses}
+       FROM (VALUES ${valueSets.join(",\n")}) AS d(${castList})
+       WHERE public."profiles"."id" = d."id"`
+    );
+    await sleep(250);
+  }
+
+  // Insert remaining tables (skip profiles, already handled)
   for (const table of DATA_TABLES) {
+    if (table === "profiles") continue;
     const rows = tableData.get(table) || [];
     if (rows.length === 0) {
       console.log(`  ${table} (0 rows, skipped)`);
@@ -153,13 +190,6 @@ async function main() {
     await executeSql(projectRef, accessToken, sql);
     await sleep(250);
   }
-
-  // Re-enable the trigger
-  await executeSql(
-    projectRef,
-    accessToken,
-    `ALTER TABLE auth.users ENABLE TRIGGER on_auth_user_created`
-  );
 
   console.log("\nRestore complete!");
 }

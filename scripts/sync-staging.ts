@@ -38,34 +38,20 @@ interface MigrationRow {
 // --- Step 1: Apply missing migrations ---
 
 async function applyMissingMigrations(
-  prodRef: string,
   stagingRef: string,
   accessToken: string
 ): Promise<number> {
   console.log("Step 1: Checking for missing migrations on staging...\n");
 
-  // Get applied migrations from both environments
-  const [prodMigrations, stagingMigrations] = await Promise.all([
-    executeSql(
-      prodRef,
-      accessToken,
-      `SELECT version FROM supabase_migrations.schema_migrations ORDER BY version`
-    ) as Promise<MigrationRow[]>,
-    executeSql(
-      stagingRef,
-      accessToken,
-      `SELECT version FROM supabase_migrations.schema_migrations ORDER BY version`
-    ) as Promise<MigrationRow[]>,
-  ]);
-
+  // Get applied migrations from staging
+  const stagingMigrations = (await executeSql(
+    stagingRef,
+    accessToken,
+    `SELECT version FROM supabase_migrations.schema_migrations ORDER BY version`
+  )) as MigrationRow[];
   const stagingVersions = new Set(stagingMigrations.map((r) => r.version));
 
-  // Find migrations in prod but not staging (applied via MCP/dashboard)
-  const missingFromMcp = prodMigrations.filter(
-    (r) => !stagingVersions.has(r.version)
-  );
-
-  // Also check local migration files not in staging
+  // Read local migration files
   const migrationsDir = join(process.cwd(), "supabase", "migrations");
   const files = readdirSync(migrationsDir)
     .filter((f) => f.endsWith(".sql"))
@@ -76,46 +62,65 @@ async function applyMissingMigrations(
     return !stagingVersions.has(version);
   });
 
-  if (missingFromMcp.length > 0) {
-    console.log(
-      `  ${missingFromMcp.length} migration(s) in prod but not staging:\n` +
-        missingFromMcp.map((r) => `    - ${r.version}`).join("\n") +
-        "\n  These were likely applied via dashboard/MCP. Apply them to staging manually.\n"
-    );
+  if (missingLocalFiles.length === 0) {
+    console.log("  All migrations already applied.\n");
+    return 0;
   }
 
-  let count = 0;
+  // Get the latest MCP-applied migration timestamp from staging to detect
+  // local files whose schema was already applied under different version strings.
+  const latestStaging = stagingMigrations
+    .map((r) => r.version.replace(/\D/g, "")) // strip non-digits for comparison
+    .sort()
+    .pop() || "0";
+
+  let applied = 0;
+  let registered = 0;
   for (const file of missingLocalFiles) {
     const version = file.replace(/\.sql$/, "");
-    console.log(`  Applying: ${file}`);
-    const sql = readFileSync(join(migrationsDir, file), "utf8");
+    // Extract date prefix (e.g. "20260214" from "20260214_008_group_invite_links")
+    const datePrefix = version.replace(/\D/g, "");
 
-    try {
-      await executeSql(stagingRef, accessToken, sql);
-
-      // Record in migration history
+    // If this file's date is at or before the latest staging migration,
+    // the schema was already applied via MCP — just register the version.
+    if (datePrefix <= latestStaging) {
+      console.log(`  Registering (already applied): ${file}`);
       await executeSql(
         stagingRef,
         accessToken,
         `INSERT INTO supabase_migrations.schema_migrations (version) VALUES ('${esc(version)}')`
       );
-      count++;
-    } catch (err) {
-      console.error(
-        `    Failed: ${(err as Error).message.slice(0, 200)}`
-      );
-      throw err;
+      registered++;
+    } else {
+      console.log(`  Applying: ${file}`);
+      const sql = readFileSync(join(migrationsDir, file), "utf8");
+      try {
+        await executeSql(stagingRef, accessToken, sql);
+        await executeSql(
+          stagingRef,
+          accessToken,
+          `INSERT INTO supabase_migrations.schema_migrations (version) VALUES ('${esc(version)}')`
+        );
+        applied++;
+      } catch (err) {
+        console.error(
+          `    Failed: ${(err as Error).message.slice(0, 200)}`
+        );
+        throw err;
+      }
     }
     await sleep(500);
   }
 
-  if (count === 0 && missingFromMcp.length === 0) {
-    console.log("  All migrations already applied.\n");
-  } else if (count > 0) {
-    console.log(`  Applied ${count} local migration(s).\n`);
+  if (registered > 0) {
+    console.log(`  Registered ${registered} previously-applied migration(s).`);
   }
+  if (applied > 0) {
+    console.log(`  Applied ${applied} new migration(s).`);
+  }
+  console.log();
 
-  return count;
+  return applied;
 }
 
 // --- Step 2: Export production data ---
@@ -186,6 +191,37 @@ function buildInsertSql(
   return `INSERT INTO public."${table}" (${colList}) VALUES\n${valueSets.join(",\n")}`;
 }
 
+function sqlVal(val: unknown): string {
+  if (val === null || val === undefined) return "NULL";
+  if (typeof val === "boolean") return val ? "TRUE" : "FALSE";
+  if (typeof val === "number") return String(val);
+  if (typeof val === "object") return `'${esc(JSON.stringify(val))}'::jsonb`;
+  return `'${esc(String(val))}'`;
+}
+
+function buildUpdateSql(
+  table: string,
+  rows: Record<string, unknown>[],
+  pkColumn: string
+): string {
+  if (rows.length === 0) return "";
+
+  const columns = Object.keys(rows[0]).filter((c) => c !== pkColumn);
+  const allCols = [pkColumn, ...columns];
+  const colDefs = allCols.map((c) => `"${c}"`).join(", ");
+  const setClauses = columns.map((c) => `"${c}" = d."${c}"`).join(", ");
+
+  // Build individual UPDATE statements to avoid VALUES type-casting issues
+  const statements = rows.map((row) => {
+    const setValues = columns
+      .map((c) => `"${c}" = ${sqlVal(row[c])}`)
+      .join(", ");
+    return `UPDATE public."${table}" SET ${setValues} WHERE "${pkColumn}" = ${sqlVal(row[pkColumn])}`;
+  });
+
+  return statements.join(";\n");
+}
+
 async function syncDataToStaging(
   stagingRef: string,
   accessToken: string,
@@ -193,16 +229,9 @@ async function syncDataToStaging(
 ) {
   console.log("Step 3: Clearing staging data...\n");
 
-  // Disable the profile auto-create trigger so we can insert auth.users
-  // without the trigger creating default profiles
-  await executeSql(
-    stagingRef,
-    accessToken,
-    `ALTER TABLE auth.users DISABLE TRIGGER on_auth_user_created`
-  );
-
-  // Delete in reverse FK order
+  // Delete in reverse FK order (skip profiles — will be updated after auth.users insert)
   for (const table of DATA_TABLES_DELETE) {
+    if (table === "profiles") continue;
     console.log(`  Clearing ${table}...`);
     await executeSql(
       stagingRef,
@@ -212,8 +241,8 @@ async function syncDataToStaging(
     await sleep(250);
   }
 
-  // Clear auth.users
-  console.log("  Clearing auth.users...");
+  // Clear auth.users (CASCADE deletes profiles too)
+  console.log("  Clearing auth.users (cascades to profiles)...");
   await executeSql(
     stagingRef,
     accessToken,
@@ -223,7 +252,7 @@ async function syncDataToStaging(
 
   console.log("\nStep 4: Inserting production data into staging...\n");
 
-  // Insert auth.users first
+  // Insert auth.users — the handle_new_user trigger auto-creates profiles
   const authUsers = data.get("auth_users") || [];
   if (authUsers.length > 0) {
     console.log(`  auth.users (${authUsers.length} rows)...`);
@@ -249,8 +278,18 @@ async function syncDataToStaging(
     await sleep(250);
   }
 
-  // Insert public tables in FK order
+  // Update profiles with prod data (trigger already created default rows)
+  const profiles = data.get("profiles") || [];
+  if (profiles.length > 0) {
+    console.log(`  profiles (${profiles.length} rows, updating)...`);
+    const sql = buildUpdateSql("profiles", profiles, "id");
+    await executeSql(stagingRef, accessToken, sql);
+    await sleep(250);
+  }
+
+  // Insert remaining public tables in FK order (skip profiles, already handled)
   for (const table of DATA_TABLES) {
+    if (table === "profiles") continue;
     const rows = data.get(table) || [];
     if (rows.length === 0) {
       console.log(`  ${table} (0 rows, skipped)`);
@@ -262,13 +301,6 @@ async function syncDataToStaging(
     await executeSql(stagingRef, accessToken, sql);
     await sleep(250);
   }
-
-  // Re-enable the trigger
-  await executeSql(
-    stagingRef,
-    accessToken,
-    `ALTER TABLE auth.users ENABLE TRIGGER on_auth_user_created`
-  );
 
   console.log();
 }
@@ -283,7 +315,7 @@ async function main() {
   console.log(`Production:  ${prodRef}`);
   console.log(`Staging:     ${stagingRef}\n`);
 
-  await applyMissingMigrations(prodRef, stagingRef, accessToken);
+  await applyMissingMigrations(stagingRef, accessToken);
   const data = await exportProdData(prodRef, accessToken);
   await syncDataToStaging(stagingRef, accessToken, data);
 
