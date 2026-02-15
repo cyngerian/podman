@@ -42,8 +42,14 @@ export interface BoosterProductData {
   allCardIdentifiers: Array<{ set: string; collector_number: string }>;
 }
 
+// Module-level cache for booster product data.
+// Booster structure is static — safe to cache across warm Vercel invocations.
+const boosterDataCache = new Map<string, BoosterProductData | null>();
+
 /**
  * Load booster product data for a set code.
+ * Results are cached in memory — repeated calls for the same product
+ * skip all Supabase queries.
  * When productCode is provided, queries by exact code.
  * Otherwise tries product codes in order: {set}-play, {set}-draft, {set}
  * Returns null if no product found (triggers fallback to template system).
@@ -52,6 +58,10 @@ export async function loadBoosterProductData(
   setCode: string,
   productCode?: string
 ): Promise<BoosterProductData | null> {
+  const cacheKey = productCode?.toLowerCase() ?? setCode.toLowerCase();
+  const cached = boosterDataCache.get(cacheKey);
+  if (cached !== undefined) return cached;
+
   const supabase = createAdminClient();
   const code = setCode.toLowerCase();
 
@@ -82,7 +92,10 @@ export async function loadBoosterProductData(
     }
   }
 
-  if (!product) return null;
+  if (!product) {
+    boosterDataCache.set(cacheKey, null);
+    return null;
+  }
 
   // Parallel fetch: configs + sheets
   const [configsResult, sheetsResult] = await Promise.all([
@@ -170,7 +183,7 @@ export async function loadBoosterProductData(
     slots: slotsByConfig.get(c.id) ?? [],
   }));
 
-  return {
+  const result: BoosterProductData = {
     productId: product.id,
     code: product.code,
     setCode: product.set_code,
@@ -178,4 +191,6 @@ export async function loadBoosterProductData(
     sheets: sheetMap,
     allCardIdentifiers: Array.from(identifierSet.values()),
   };
+  boosterDataCache.set(cacheKey, result);
+  return result;
 }

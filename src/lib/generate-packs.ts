@@ -7,7 +7,11 @@
 import type { CardReference } from "./types";
 import { loadBoosterProductData } from "./booster-data";
 import { fetchCardsByCollectorNumber } from "./scryfall";
-import { generateAllSheetPacks } from "./sheet-pack-generator";
+import {
+  generateAllSheetPackSkeletons,
+  collectSkeletonIdentifiers,
+  resolvePackSkeletons,
+} from "./sheet-pack-generator";
 import {
   fetchBoosterCards,
   groupCardsByRarity,
@@ -47,20 +51,19 @@ export async function generatePacksForSet(
 ): Promise<CardReference[][]> {
   const { productCode, keepBasicLands } = options ?? {};
 
-  // Try sheet-based generation
+  // Try sheet-based generation: build packs first, then fetch only selected cards
   const boosterData = await loadBoosterProductData(setCode, productCode);
 
   if (boosterData) {
-    const cardMap = await fetchCardsByCollectorNumber(
-      boosterData.allCardIdentifiers
+    const skeletons = generateAllSheetPackSkeletons(
+      boosterData,
+      playerCount,
+      packsPerPlayer
     );
+    const neededIds = collectSkeletonIdentifiers(skeletons);
+    const cardMap = await fetchCardsByCollectorNumber(neededIds);
     if (cardMap.size > 0) {
-      const packs = generateAllSheetPacks(
-        boosterData,
-        cardMap,
-        playerCount,
-        packsPerPlayer
-      );
+      const packs = resolvePackSkeletons(skeletons, cardMap);
       return keepBasicLands ? packs : stripNonFoilBasicLands(packs);
     }
   }
