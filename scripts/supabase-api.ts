@@ -67,12 +67,46 @@ export async function executeSql(
 // --- Table Ordering ---
 
 /**
+ * Columns to exclude when inserting into auth tables.
+ * auth.identities.email is a generated column and cannot be inserted.
+ */
+export const AUTH_GENERATED_COLUMNS: Record<string, Set<string>> = {
+  identities: new Set(["email"]),
+};
+
+/**
+ * GoTrue expects certain varchar columns in auth.users to be empty strings,
+ * not NULL. Production may store NULLs, but GoTrue crashes with
+ * "Database error querying schema" when scanning NULL into Go string fields.
+ * Run this after inserting auth.users rows.
+ */
+export const AUTH_USERS_COALESCE_SQL = `
+UPDATE auth.users SET
+  email_change = COALESCE(email_change, ''),
+  email_change_token_new = COALESCE(email_change_token_new, ''),
+  email_change_token_current = COALESCE(email_change_token_current, ''),
+  phone_change = COALESCE(phone_change, ''),
+  phone_change_token = COALESCE(phone_change_token, ''),
+  confirmation_token = COALESCE(confirmation_token, ''),
+  recovery_token = COALESCE(recovery_token, ''),
+  reauthentication_token = COALESCE(reauthentication_token, '')
+WHERE email_change IS NULL
+   OR email_change_token_new IS NULL
+   OR email_change_token_current IS NULL
+   OR phone_change IS NULL
+   OR phone_change_token IS NULL
+   OR confirmation_token IS NULL
+   OR recovery_token IS NULL
+   OR reauthentication_token IS NULL`;
+
+/**
  * User/game data tables in FK-safe insert order (parents first).
  * Does NOT include booster data tables (those use load-booster-data.ts).
  *
- * auth.users is handled separately since it's in the auth schema.
- * profiles is also special: the handle_new_user trigger auto-creates rows
- * on auth.users insert, so we update profiles rather than insert.
+ * auth.users and auth.identities are handled separately since they're in
+ * the auth schema. profiles is also special: the handle_new_user trigger
+ * auto-creates rows on auth.users insert, so we update profiles rather
+ * than insert.
  */
 export const DATA_TABLES = [
   "profiles",
