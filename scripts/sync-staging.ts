@@ -266,18 +266,11 @@ async function syncDataToStaging(
   const authUsers = data.get("auth_users") || [];
   if (authUsers.length > 0) {
     console.log(`  auth.users (${authUsers.length} rows)...`);
-    const columns = Object.keys(authUsers[0]);
+    const skipUserCols = AUTH_GENERATED_COLUMNS["users"] || new Set();
+    const columns = Object.keys(authUsers[0]).filter((c) => !skipUserCols.has(c));
     const colList = columns.map((c) => `"${c}"`).join(", ");
     const valueSets = authUsers.map((row) => {
-      const values = columns.map((col) => {
-        const val = row[col];
-        if (val === null || val === undefined) return "NULL";
-        if (typeof val === "boolean") return val ? "TRUE" : "FALSE";
-        if (typeof val === "number") return String(val);
-        if (typeof val === "object")
-          return `'${esc(JSON.stringify(val))}'::jsonb`;
-        return `'${esc(String(val))}'`;
-      });
+      const values = columns.map((col) => sqlVal(row[col]));
       return `(${values.join(", ")})`;
     });
     await executeSql(

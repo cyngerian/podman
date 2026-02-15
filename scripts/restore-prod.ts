@@ -136,7 +136,8 @@ async function main() {
 
   if (authUsers.length > 0) {
     console.log(`  auth.users (${authUsers.length} rows)...`);
-    const sql = buildInsertSql("auth", "users", authUsers);
+    const skipUserCols = AUTH_GENERATED_COLUMNS["users"] || new Set();
+    const sql = buildInsertSql("auth", "users", authUsers, skipUserCols);
     await executeSql(projectRef, accessToken, sql);
     // GoTrue expects empty strings, not NULLs, for certain varchar columns
     await executeSql(projectRef, accessToken, AUTH_USERS_COALESCE_SQL);
