@@ -21,7 +21,7 @@ export default async function LobbyPage({
     supabase.from("drafts").select("*").eq("id", draftId).single(),
     supabase
       .from("draft_players")
-      .select("user_id, seat_position, profiles(display_name)")
+      .select("user_id, seat_position, profiles(display_name, avatar_url, favorite_color)")
       .eq("draft_id", draftId)
       .order("joined_at", { ascending: true }),
   ]);
@@ -37,6 +37,14 @@ export default async function LobbyPage({
     displayName: p.profiles?.display_name ?? "Unknown",
     seatPosition: p.seat_position,
   }));
+
+  const playerProfiles: Record<string, { avatarUrl: string | null; favoriteColor: string | null }> = {};
+  for (const p of players ?? []) {
+    playerProfiles[p.user_id] = {
+      avatarUrl: p.profiles?.avatar_url ?? null,
+      favoriteColor: p.profiles?.favorite_color ?? null,
+    };
+  }
 
   const config = (dbDraft.config ?? {}) as Record<string, unknown>;
 
@@ -91,6 +99,7 @@ export default async function LobbyPage({
         draftId={draftId}
         currentUserId={user.id}
         isHost={isHost}
+        playerProfiles={playerProfiles}
       />
     </div>
   );

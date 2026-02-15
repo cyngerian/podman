@@ -147,6 +147,11 @@ export default function DeckBuilderScreen({
   const [error, setError] = useState<string | null>(null);
   const [sideboardOpen, setSideboardOpen] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [hoverPreview, setHoverPreview] = useState<{
+    card: CardReference;
+    x: number;
+    y: number;
+  } | null>(null);
 
   // In midDraft mode, add newly picked cards to deck automatically
   const knownPoolIdsRef = useRef(new Set(pool.map((c) => c.scryfallId)));
@@ -398,6 +403,11 @@ export default function DeckBuilderScreen({
                   onClick={() =>
                     { setPreviewState({ card, zone: "deck" }); setPreviewFlipped(false); }
                   }
+                  onMouseEnter={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setHoverPreview({ card, x: rect.right + 12, y: rect.top });
+                  }}
+                  onMouseLeave={() => setHoverPreview(null)}
                 />
               ))}
             </div>
@@ -468,6 +478,11 @@ export default function DeckBuilderScreen({
                       onClick={() =>
                         { setPreviewState({ card, zone: "sideboard" }); setPreviewFlipped(false); }
                       }
+                      onMouseEnter={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setHoverPreview({ card, x: rect.right + 12, y: rect.top });
+                      }}
+                      onMouseLeave={() => setHoverPreview(null)}
                     />
                   ))}
                 </div>
@@ -603,6 +618,27 @@ export default function DeckBuilderScreen({
             </button>
           )}
         </footer>
+      )}
+
+      {/* ---- Hover Preview (desktop only) ---- */}
+      {hoverPreview && !previewState && (
+        <div
+          className="fixed z-40 pointer-events-none hidden sm:block"
+          style={{
+            left: Math.min(hoverPreview.x, window.innerWidth - 280),
+            top: Math.max(8, Math.min(hoverPreview.y, window.innerHeight - 400)),
+          }}
+        >
+          <div className="relative w-[250px] card-aspect rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/10">
+            <Image
+              src={hoverPreview.card.imageUri}
+              alt={hoverPreview.card.name}
+              fill
+              sizes="250px"
+              className="object-cover"
+            />
+          </div>
+        </div>
       )}
 
       {/* ---- Card Preview Modal ---- */}

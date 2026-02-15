@@ -750,7 +750,7 @@ export default function PickScreen({
         ) : (
           <>
             {/* Carousel */}
-            <div className="flex-1 flex items-center min-h-0 relative" style={{ marginTop: "-10px" }}>
+            <div className="flex-1 flex items-center min-h-0 relative overflow-hidden" style={{ marginTop: "-10px", containerType: "size" }}>
               {/* Transform container — no native scroll, all movement via JS transforms */}
               <div
                 ref={scrollRef}
@@ -768,8 +768,7 @@ export default function PickScreen({
                       ref={(el) => { cardRefs.current[i] = el; }}
                       className="shrink-0"
                       style={{
-                        width: `${CARD_WIDTH_VW}vw`,
-                        maxWidth: "400px",
+                        width: `min(${CARD_WIDTH_VW}vw, 400px, calc((100cqh - 80px) * 488 / 680))`,
                         marginLeft: i === 0 ? 0 : `${CARD_OVERLAP_PX}px`,
                       }}
                     >
@@ -931,75 +930,93 @@ export default function PickScreen({
           )}
         </div>
 
-        {/* Preview panel */}
-        <div className="shrink-0 border-t border-border bg-surface">
-          <div className="max-w-5xl mx-auto flex items-center gap-4 px-4 py-3">
-            {selectedCard ? (
-              <>
-                <div className="relative w-20 card-aspect rounded-lg overflow-hidden shrink-0">
-                  <Image
-                    src={flippedCards.has(selectedCard.scryfallId) && selectedCard.backImageUri ? selectedCard.backImageUri : selectedCard.imageUri}
-                    alt={getCardFaceName(selectedCard, flippedCards.has(selectedCard.scryfallId))}
-                    fill
-                    sizes="80px"
-                    className="object-cover"
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-semibold text-foreground truncate">
-                    {getCardFaceName(selectedCard, flippedCards.has(selectedCard.scryfallId))}
-                  </h3>
-                </div>
-                {selectedCard.backImageUri && (
+      </div>
+
+      {/* ==================== DESKTOP: Card Preview Modal ==================== */}
+      {selectedCard && (
+        <div
+          className="hidden sm:flex fixed inset-0 z-50 items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={() => { setSelectedCard(null); setFlippedCards(new Set()); }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") { setSelectedCard(null); setFlippedCards(new Set()); }
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Preview of ${getCardFaceName(selectedCard, flippedCards.has(selectedCard.scryfallId))}`}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={() => {}}
+            role="presentation"
+            className="flex flex-col items-center gap-4 px-4"
+          >
+            {/* Close hint */}
+            <button
+              type="button"
+              onClick={() => { setSelectedCard(null); setFlippedCards(new Set()); }}
+              className="w-10 h-1 rounded-full bg-foreground/30 shrink-0 cursor-pointer"
+              aria-label="Close preview"
+            />
+
+            {/* Large card image */}
+            <div className="relative w-[85vw] max-w-[400px] card-aspect rounded-xl overflow-hidden">
+              <Image
+                src={flippedCards.has(selectedCard.scryfallId) && selectedCard.backImageUri ? selectedCard.backImageUri : selectedCard.imageUri}
+                alt={getCardFaceName(selectedCard, flippedCards.has(selectedCard.scryfallId))}
+                fill
+                sizes="(max-width: 768px) 85vw, 400px"
+                className="object-cover"
+                priority
+              />
+            </div>
+
+            {/* Card name */}
+            <h3 className="text-base font-semibold text-white text-center">
+              {getCardFaceName(selectedCard, flippedCards.has(selectedCard.scryfallId))}
+            </h3>
+
+            {/* Action buttons */}
+            <div className="w-full max-w-[400px] flex flex-col gap-2">
+              {selectedCard.backImageUri && (
+                <button
+                  type="button"
+                  onClick={() => toggleFlip(selectedCard.scryfallId)}
+                  className="w-full py-3 rounded-xl bg-surface border border-border text-foreground font-medium text-sm active:scale-[0.97] transition-all hover:bg-surface-hover"
+                >
+                  {flippedCards.has(selectedCard.scryfallId) ? "Show Front" : "Show Back"}
+                </button>
+              )}
+              {crackAPack ? (
+                <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => toggleFlip(selectedCard.scryfallId)}
-                    className="px-3 py-2 rounded-lg shrink-0 bg-surface text-foreground/70 text-xs font-medium hover:bg-surface-hover transition-colors border border-border"
+                    onClick={onBackToSetPicker}
+                    className="flex-1 py-3 rounded-xl bg-surface border border-border text-foreground font-bold text-sm tracking-wide hover:bg-surface-hover transition-colors"
                   >
-                    Flip
+                    Change Set
                   </button>
-                )}
-                {crackAPack ? (
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={onBackToSetPicker}
-                      className="px-4 py-2.5 rounded-xl bg-surface text-foreground font-bold text-sm tracking-wide border border-border"
-                    >
-                      Change Set
-                    </button>
-                    <button
-                      type="button"
-                      onClick={onCrackAnother}
-                      disabled={crackAPackLoading}
-                      className="px-4 py-2.5 rounded-xl bg-accent text-white font-bold text-sm tracking-wide hover:bg-accent-hover transition-colors disabled:opacity-40"
-                    >
-                      {crackAPackLoading ? "Opening..." : "Crack Another"}
-                    </button>
-                  </div>
-                ) : (
                   <button
                     type="button"
-                    onClick={handlePick}
-                    className="
-                      px-6 py-2.5 rounded-xl shrink-0
-                      bg-accent text-white font-bold text-sm tracking-wide
-                      hover:bg-accent-hover active:scale-[0.97] transition-all duration-100
-                    "
+                    onClick={onCrackAnother}
+                    disabled={crackAPackLoading}
+                    className="flex-1 py-3 rounded-xl bg-accent text-white font-bold text-sm tracking-wide hover:bg-accent-hover transition-colors disabled:opacity-40"
                   >
-                    PICK
+                    {crackAPackLoading ? "Opening..." : "Crack Another"}
                   </button>
-                )}
-              </>
-            ) : (
-              <p className="text-sm text-foreground/40 w-full text-center py-2">
-                {crackAPack ? "Click a card to view it" : "Click a card to select it, double-click to pick immediately"}
-              </p>
-            )}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handlePick}
+                  className="w-full py-3 rounded-xl bg-accent text-white font-bold text-sm tracking-wide hover:bg-accent-hover active:scale-[0.97] transition-all duration-100"
+                >
+                  PICK
+                </button>
+              )}
+            </div>
           </div>
         </div>
-
-      </div>
+      )}
 
       {/* Grid view overlay (mobile) */}
       {showGridView && (

@@ -1,6 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { createServerSupabaseClient, getUser } from "@/lib/supabase-server";
 import type { Draft } from "@/lib/types";
+import { isBotUserId } from "@/lib/bot-drafter";
 import ResultsClient from "./ResultsClient";
 
 export default async function ResultsPage({
@@ -35,11 +36,29 @@ export default async function ResultsPage({
   const seat = draft.seats.find((s) => s.userId === user.id);
   if (!seat) redirect(`/draft/${draftId}`);
 
+  // Fetch profiles for avatar data
+  const humanUserIds = draft.seats
+    .filter((s) => !isBotUserId(s.userId))
+    .map((s) => s.userId);
+  const { data: profiles } = humanUserIds.length > 0
+    ? await supabase
+        .from("profiles")
+        .select("id, avatar_url, favorite_color")
+        .in("id", humanUserIds)
+    : { data: [] };
+
+  const profileMap: Record<string, { avatarUrl: string | null; favoriteColor: string | null }> = {};
+  for (const p of profiles ?? []) {
+    profileMap[p.id] = { avatarUrl: p.avatar_url, favoriteColor: p.favorite_color };
+  }
+
   // Build all-players history if pick history is public
   const allPlayersHistory = draft.pickHistoryPublic
     ? draft.seats.map((s) => ({
         playerName: s.displayName,
         picks: s.picks,
+        avatarUrl: profileMap[s.userId]?.avatarUrl ?? null,
+        favoriteColor: profileMap[s.userId]?.favoriteColor ?? null,
       }))
     : undefined;
 

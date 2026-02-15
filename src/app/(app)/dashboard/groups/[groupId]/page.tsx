@@ -44,12 +44,12 @@ export default async function GroupDetailPage({
     supabase.from("groups").select("*").eq("id", groupId).single(),
     supabase
       .from("group_members")
-      .select("user_id, role, joined_at, profiles(display_name)")
+      .select("user_id, role, joined_at, profiles(display_name, avatar_url, favorite_color)")
       .eq("group_id", groupId)
       .order("joined_at", { ascending: true }),
     supabase
       .from("draft_proposals")
-      .select("id, title, format, player_count, status, created_at, proposed_by, profiles!draft_proposals_proposed_by_fkey(display_name)")
+      .select("id, title, format, player_count, status, created_at, proposed_by, profiles!draft_proposals_proposed_by_fkey(display_name, avatar_url, favorite_color)")
       .eq("group_id", groupId)
       .in("status", ["open", "confirmed"])
       .order("created_at", { ascending: false }),
@@ -72,6 +72,8 @@ export default async function GroupDetailPage({
     userId: m.user_id,
     role: m.role,
     displayName: m.profiles?.display_name ?? "Unknown",
+    avatarUrl: m.profiles?.avatar_url ?? null,
+    favoriteColor: m.profiles?.favorite_color ?? null,
   }));
 
   const currentMember = memberList.find((m) => m.userId === user.id);
@@ -211,8 +213,15 @@ export default async function GroupDetailPage({
                     {p.status}
                   </span>
                 </div>
-                <p className="text-xs text-foreground/40 mt-1">
-                  {p.format} &middot; {p.player_count} players &middot; by {p.profiles?.display_name ?? "Unknown"}
+                <p className="text-xs text-foreground/40 mt-1 flex items-center gap-1">
+                  {p.format} &middot; {p.player_count} players &middot;
+                  <UserAvatar
+                    avatarUrl={p.profiles?.avatar_url ?? null}
+                    displayName={p.profiles?.display_name ?? "Unknown"}
+                    size="sm"
+                    favoriteColor={p.profiles?.favorite_color ?? null}
+                  />
+                  {p.profiles?.display_name ?? "Unknown"}
                 </p>
               </Link>
             ))}
@@ -235,6 +244,12 @@ export default async function GroupDetailPage({
                   : "border-border bg-surface"
               }`}
             >
+              <UserAvatar
+                avatarUrl={member.avatarUrl}
+                displayName={member.displayName}
+                size="sm"
+                favoriteColor={member.favoriteColor}
+              />
               <span className="flex-1 text-sm font-medium truncate">
                 {member.displayName}
                 {member.userId === user.id && (

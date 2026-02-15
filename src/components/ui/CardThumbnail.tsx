@@ -8,6 +8,8 @@ interface CardThumbnailProps {
   selected?: boolean;
   onClick?: () => void;
   onDoubleClick?: () => void;
+  onMouseEnter?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  onMouseLeave?: () => void;
   size?: "small" | "medium";
   hideColorBorder?: boolean;
 }
@@ -23,6 +25,8 @@ export default function CardThumbnail({
   selected = false,
   onClick,
   onDoubleClick,
+  onMouseEnter,
+  onMouseLeave,
   size = "medium",
   hideColorBorder = false,
 }: CardThumbnailProps) {
@@ -34,6 +38,8 @@ export default function CardThumbnail({
       type="button"
       onClick={onClick}
       onDoubleClick={onDoubleClick}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       className={`
         relative rounded-lg overflow-hidden card-aspect
         border-2 transition-all duration-150 ease-out
