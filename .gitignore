@@ -49,3 +49,6 @@ backups/
 
 # python
 .venv/
+
+# claude
+CLAUDE.md
