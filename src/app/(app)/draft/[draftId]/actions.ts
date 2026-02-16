@@ -194,7 +194,7 @@ export async function startDraftAction(draftId: string) {
   // Load draft
   const { data: draft } = await admin
     .from("drafts")
-    .select("*")
+    .select("host_id, status, config, group_id, format, set_code, set_name")
     .eq("id", draftId)
     .single();
 
@@ -307,13 +307,10 @@ export async function startDraftAction(draftId: string) {
     draftObj = initializeWinston(draftObj, pool);
 
     // Assign seat positions in DB
-    for (let i = 0; i < shuffledPlayers.length; i++) {
-      await admin
-        .from("draft_players")
-        .update({ seat_position: i })
-        .eq("draft_id", draftId)
-        .eq("user_id", shuffledPlayers[i].user_id);
-    }
+    await Promise.all(shuffledPlayers.map((p, i) =>
+      admin.from("draft_players").update({ seat_position: i })
+        .eq("draft_id", draftId).eq("user_id", p.user_id)
+    ));
 
     // Save state
     await admin
@@ -336,13 +333,10 @@ export async function startDraftAction(draftId: string) {
   draftObj = engineStartDraft(draftObj, firstRoundPacks);
 
   // Assign seat positions in DB
-  for (let i = 0; i < shuffledPlayers.length; i++) {
-    await admin
-      .from("draft_players")
-      .update({ seat_position: i })
-      .eq("draft_id", draftId)
-      .eq("user_id", shuffledPlayers[i].user_id);
-  }
+  await Promise.all(shuffledPlayers.map((p, i) =>
+    admin.from("draft_players").update({ seat_position: i })
+      .eq("draft_id", draftId).eq("user_id", p.user_id)
+  ));
 
   // Store allPacks in config for later rounds
   const updatedConfig = {

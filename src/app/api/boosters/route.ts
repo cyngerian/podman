@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-admin";
 
-export const dynamic = "force-dynamic";
-
 /**
  * GET /api/boosters?set=mkm
  * Returns available booster products for a set code.

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createServerSupabaseClient, getUser } from "@/lib/supabase-server";
+import { createServerSupabaseClient, getUser, getProfile } from "@/lib/supabase-server";
 import UserAvatar from "@/components/ui/UserAvatar";
 
 export const metadata: Metadata = {
@@ -16,12 +16,8 @@ export default async function DashboardPage() {
   const supabase = await createServerSupabaseClient();
 
   // Fetch profile, group memberships, active simulated drafts, and active group drafts in parallel
-  const [{ data: profile }, { data: memberships }, { data: simDrafts }, { data: activeDraftPlayers }] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("display_name, avatar_url, is_site_admin, favorite_color")
-      .eq("id", user.id)
-      .single(),
+  const [profile, { data: memberships }, { data: simDrafts }, { data: activeDraftPlayers }] = await Promise.all([
+    getProfile(user.id),
     supabase
       .from("group_members")
       .select("role, group_id, groups(id, name, description, emoji, created_at)")

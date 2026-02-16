@@ -36,3 +36,17 @@ export const getUser = cache(async () => {
   } = await supabase.auth.getUser();
   return user;
 });
+
+/**
+ * Cached per-request profile fetch. Deduplicates profile queries
+ * across layouts and pages within the same render.
+ */
+export const getProfile = cache(async (userId: string) => {
+  const supabase = await createServerSupabaseClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("display_name, avatar_url, favorite_color, bio, is_site_admin")
+    .eq("id", userId)
+    .single();
+  return data;
+});
