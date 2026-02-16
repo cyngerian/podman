@@ -101,6 +101,13 @@ Return `{ error: string }` on failure or `void`/redirect on success. Auth check 
 - **Defense-in-depth**: Server actions check authorization explicitly even though RLS would also block
 - **Error monitoring**: Sentry (`@sentry/nextjs`) captures client, server, and edge errors. Global error boundary in `src/app/global-error.tsx`. Client init in `src/instrumentation-client.ts` (Turbopack-compatible), server/edge via `src/instrumentation.ts`, tunnel route `/monitoring` bypasses ad blockers.
 
+### Accessibility
+
+- **Focus traps**: `useFocusTrap` hook (`src/hooks/useFocusTrap.ts`) — saves active element, focuses first child on open, traps Tab/Shift+Tab, restores focus on close. Applied to all 5 modals/overlays (PickScreen desktop preview + grid view + deck builder, DeckBuilderScreen preview, PostDraftScreen preview, PodStatusOverlay).
+- **Keyboard access**: LongPressPickButton supports Enter/Space hold + Escape cancel. Scrub bar has `role="slider"` with arrow keys, Home/End. Filter buttons have `aria-label` + `aria-pressed`.
+- **ARIA**: Dialog roles on all overlays. `aria-hidden` on decorative mana icons. Scrub bar ARIA values synced in `useCarousel` `updateVisuals()`.
+- **Skip-to-content**: `sr-only` link in app layout, visible on focus, jumps to `#main-content`.
+
 ### Database & RLS
 
 Supabase Postgres with RLS. Key tables: `profiles`, `groups`, `group_members`, `group_invites`, `draft_proposals`, `draft_players`, `drafts`. RLS policies on `group_members`/`draft_players` use SECURITY DEFINER helpers (`user_group_ids()`, `user_draft_ids()`, `is_group_admin()`) to avoid infinite recursion.
@@ -142,7 +149,7 @@ Remote from Scryfall (`cards.scryfall.io`), optimized via Next.js Image. Rate-li
 
 ### Pick Screen (`src/components/draft/PickScreen.tsx`)
 
-**Mobile**: Pure transform carousel via `useCarousel` hook (`src/hooks/useCarousel.ts`) — touch handlers, rAF physics loop, DOM ref management. Cards 72vw, active `scale(1.15)`, inactive `scale(0.55)`. Long-press pick button (500ms), scrub bar, grid view overlay.
+**Mobile**: Pure transform carousel via `useCarousel` hook (`src/hooks/useCarousel.ts`) — touch handlers, rAF physics loop, DOM ref management. Cards 72vw, active `scale(1.15)`, inactive `scale(0.55)`. Long-press pick button (500ms, also keyboard-accessible via Enter/Space hold), scrub bar (keyboard-navigable with arrow keys), grid view overlay.
 
 **Desktop**: Two-row header + grid (`grid-cols-3 lg:4 xl:4`, `max-w-5xl`). Row 2 has inline filter pills. Split by `sm:hidden`/`hidden sm:flex`. Click card → centered modal (`fixed inset-0 z-50`) with large image, card name, flip (DFC), and PICK button.
 
@@ -211,4 +218,4 @@ SUPABASE_ACCESS_TOKEN                   # Supabase personal access token (script
 
 ## Pending Work
 
-`CODEBASE_REVIEW.md` at project root contains a verified implementation plan (Feb 2026) — 30 issues, 7 PRs, 3 waves. Wave 1 complete (PRs #20–23, merged). Next: Wave 2 (code quality cleanup + performance improvements). See that file and memory topic `codebase-review.md` for details.
+`CODEBASE_REVIEW.md` at project root contains a verified implementation plan (Feb 2026) — 30 issues, 7 PRs, 3 waves. All 3 waves complete (PRs #20–27, merged). Rarity sort fix in PR #28.

@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import type { CardReference, PickedCardSortMode, ManaColor } from "@/lib/types";
-import { RARITY_RANK } from "@/lib/card-utils";
+import { rarityRank } from "@/lib/card-utils";
 import CardThumbnail from "@/components/ui/CardThumbnail";
 import CardPreview from "@/components/ui/CardPreview";
 
@@ -46,12 +46,10 @@ function sortPicks(picks: CardReference[], mode: PickedCardSortMode): CardRefere
     case "cmc":
       return sorted.sort((a, b) => a.cmc - b.cmc);
     case "rarity":
-      return sorted.sort((a, b) => {
-        const aIdx = RARITY_RANK.indexOf(a.rarity);
-        const bIdx = RARITY_RANK.indexOf(b.rarity);
-        if (aIdx !== bIdx) return aIdx - bIdx;
-        return a.cmc - b.cmc;
-      });
+      return sorted.sort((a, b) =>
+        rarityRank(a.rarity) - rarityRank(b.rarity) ||
+        a.cmc - b.cmc
+      );
     default:
       return sorted;
   }
