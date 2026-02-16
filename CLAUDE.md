@@ -18,6 +18,7 @@ npx supabase start   # Local Supabase (API :54321, DB :54322)
 npm run backup-prod   # Backup production data to backups/ (run before merging PRs)
 npm run sync-staging  # Sync prod schema + data to staging
 npm run restore-prod  # Restore production from a backup (accepts optional backup dir path)
+npm run update-sets   # Detect and load new MTG sets into DB + invalidate KV cache
 ```
 
 **CI-only** (GitHub Actions runs these on every PR — do NOT run locally):

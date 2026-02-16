@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "backup-prod": "npx tsx --env-file-if-exists=.env.local scripts/backup-prod.ts",
     "sync-staging": "npx tsx --env-file-if-exists=.env.local scripts/sync-staging.ts",
-    "restore-prod": "npx tsx --env-file-if-exists=.env.local scripts/restore-prod.ts"
+    "restore-prod": "npx tsx --env-file-if-exists=.env.local scripts/restore-prod.ts",
+    "update-sets": "npx tsx --env-file-if-exists=.env.local scripts/load-booster-data.ts --sync"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.38.0",
