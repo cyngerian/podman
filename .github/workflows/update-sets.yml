@@ -1,0 +1,35 @@
+name: Update Sets
+
+on:
+  schedule:
+    - cron: "0 10 * * *" # Daily at 10:00 UTC
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  update-sets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Sync new sets (prod)
+        run: npx tsx scripts/load-booster-data.ts --sync
+        env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+
+      - name: Sync new sets (staging)
+        run: npx tsx scripts/load-booster-data.ts --sync
+        env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_STAGING_REF }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
