@@ -62,6 +62,8 @@ MTG (Magic: The Gathering) draft web app. Players open packs, pick cards in time
 - `/api/sets`, `/api/boosters?set={code}` — public APIs (cached 24h)
 - `/api/avatar` — POST avatar image upload via `@vercel/blob`
 
+**Layout files:** `src/app/layout.tsx` is the root layout (HTML shell, metadata exports, Sentry). `src/app/(app)/layout.tsx` is the app shell (sticky header, user avatar, sign out). These are different files — metadata goes in the root layout, JSX/header changes go in the app layout.
+
 The `(app)` layout adds a sticky header (`z-30`, `h-12`) with user avatar, display name, and sign out. Content constrained to `max-w-5xl`. The pick screen uses `fixed inset-0 z-40` to overlay this header.
 
 ### Supabase Clients
@@ -72,7 +74,7 @@ The `(app)` layout adds a sticky header (`z-30`, `h-12`) with user avatar, displ
 
 ### Draft Engine (`src/lib/draft-engine.ts`)
 
-Pure functions transforming immutable `Draft` state objects. Key functions: `createDraft`, `startDraft`, `makePickAndPass`, `advanceToNextPack`, `transitionToDeckBuilding`, `unsubmitDeck`. State stored as JSON in `drafts.state`, mutated via `applyDraftMutation()` with optimistic concurrency. **88 unit tests** in `src/lib/__tests__/draft-engine.test.ts` (Vitest).
+Pure functions transforming immutable `Draft` state objects. Key functions: `createDraft`, `startDraft`, `makePickAndPass`, `advanceToNextPack`, `transitionToDeckBuilding`, `unsubmitDeck`. State stored as JSON in `drafts.state`, mutated via `applyDraftMutation()` with optimistic concurrency. **117 unit tests** across `src/lib/__tests__/` (Vitest): 88 draft engine, 12 scryfall normalization, 17 export functions.
 
 ### Key Types (`src/lib/types.ts`)
 
@@ -91,7 +93,10 @@ Return `{ error: string }` on failure or `void`/redirect on success. Auth check 
 ### Security
 
 - **Open redirect prevention**: Login/signup `redirect` param validated to start with `/` and not `//`
-- **Security headers**: `next.config.ts` sets X-Frame-Options (DENY), X-Content-Type-Options (nosniff), Referrer-Policy, Permissions-Policy
+- **Security headers**: `next.config.ts` sets X-Frame-Options (DENY), X-Content-Type-Options (nosniff), Referrer-Policy, Permissions-Policy, Content-Security-Policy-Report-Only
+- **Membership checks**: All server actions that modify group resources verify membership explicitly before DB ops (PR #20)
+- **Avatar upload validation**: MIME-type allowlist (JPEG, PNG, GIF, WebP, AVIF), not filename-based (PR #20)
+- **RPC search_path**: All SECURITY DEFINER functions use `SET search_path = ''` (PR #20)
 - **Atomic auto-confirm**: `voteOnProposal` uses `.eq("status", "open")` to prevent TOCTOU races
 - **Defense-in-depth**: Server actions check authorization explicitly even though RLS would also block
 - **Error monitoring**: Sentry (`@sentry/nextjs`) captures client, server, and edge errors. Global error boundary in `src/app/global-error.tsx`. Client init in `src/instrumentation-client.ts` (Turbopack-compatible), server/edge via `src/instrumentation.ts`, tunnel route `/monitoring` bypasses ad blockers.
@@ -130,6 +135,8 @@ Remote from Scryfall (`cards.scryfall.io`), optimized via Next.js Image. Rate-li
 **Collector number normalization**: `normalizeForScryfall()` handles DFC `a`/`b` suffixes, star `★` suffixes, and "The List" `SET-NUM` format. `fetchCardsByCollectorNumber` sends both original and normalized to Scryfall. See `docs/collector-number-suffix-fix.md`.
 
 **Booster data caching**: `booster-data.ts` uses a three-layer cache: L1 module-level Map → L2 Upstash Redis (`src/lib/kv.ts`) → L3 Postgres RPC (`get_booster_product_json`). Warm-up triggers fire on Crack a Pack product selection and draft lobby load.
+
+**Booster data updates**: `scripts/load-booster-data.ts` loads data from `taw/magic-sealed-data`. Flags: `--sync` (detect+load new products only), `--set <code>` (filter to one set), `--clear` (wipe before load). All load paths invalidate Upstash Redis `booster:*` keys. GitHub Actions workflow `update-sets.yml` runs `--sync` daily at 10:00 UTC against both prod and staging.
 
 ## Features
 
@@ -201,3 +208,7 @@ SUPABASE_PROJECT_REF                    # Production project ref (scripts)
 SUPABASE_STAGING_REF                    # Staging project ref (sync-staging)
 SUPABASE_ACCESS_TOKEN                   # Supabase personal access token (scripts)
 ```
+
+## Pending Work
+
+`CODEBASE_REVIEW.md` at project root contains a verified implementation plan (Feb 2026) — 30 issues, 7 PRs, 3 waves. Wave 1 complete (PRs #20–23, merged). Next: Wave 2 (code quality cleanup + performance improvements). See that file and memory topic `codebase-review.md` for details.
