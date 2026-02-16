@@ -380,6 +380,9 @@ async function main() {
       `\nSynced ${loaded} new products for ${setCodes.length} set(s): ${setCodes.join(", ")}`
     );
   }
+
+  // Exit with error code if any products failed to load
+  if (errors > 0) process.exit(1);
 }
 
 main().catch((err) => {
