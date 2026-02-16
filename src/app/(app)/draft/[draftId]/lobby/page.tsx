@@ -19,7 +19,7 @@ export default async function LobbyPage({
 
   // Fetch draft and players in parallel
   const [{ data: dbDraft }, { data: players }] = await Promise.all([
-    supabase.from("drafts").select("*").eq("id", draftId).single(),
+    supabase.from("drafts").select("id, host_id, group_id, format, set_code, set_name, status, config, created_at").eq("id", draftId).single(),
     supabase
       .from("draft_players")
       .select("user_id, seat_position, profiles(display_name, avatar_url, favorite_color)")

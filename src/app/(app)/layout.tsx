@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { createServerSupabaseClient, getUser } from "@/lib/supabase-server";
+import { getUser, getProfile } from "@/lib/supabase-server";
 import UserAvatar from "@/components/ui/UserAvatar";
 
 export default async function AppLayout({
@@ -7,20 +7,13 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [user, supabase] = await Promise.all([
-    getUser(),
-    createServerSupabaseClient(),
-  ]);
+  const user = await getUser();
 
   let displayName = "User";
   let avatarUrl: string | null = null;
   let favoriteColor: string | null = null;
   if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("display_name, avatar_url, favorite_color")
-      .eq("id", user.id)
-      .single();
+    const profile = await getProfile(user.id);
     displayName = profile?.display_name ?? user.email ?? "User";
     avatarUrl = profile?.avatar_url ?? null;
     favoriteColor = profile?.favorite_color ?? null;

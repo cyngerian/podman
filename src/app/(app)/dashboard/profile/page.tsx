@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { createServerSupabaseClient, getUser } from "@/lib/supabase-server";
+import { getUser, getProfile } from "@/lib/supabase-server";
 import ProfileForm from "./ProfileForm";
 
 export const metadata: Metadata = {
@@ -11,12 +11,7 @@ export default async function ProfilePage() {
   const user = await getUser();
   if (!user) redirect("/auth/login");
 
-  const supabase = await createServerSupabaseClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("display_name, avatar_url, bio, favorite_color")
-    .eq("id", user.id)
-    .single();
+  const profile = await getProfile(user.id);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 space-y-6">
