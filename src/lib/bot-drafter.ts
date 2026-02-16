@@ -3,6 +3,7 @@
 // ============================================================================
 
 import type { CardReference, ManaColor, Rarity } from "./types";
+import { isCreature } from "./card-utils";
 
 // --- Constants ---
 
@@ -72,11 +73,6 @@ function chooseCommittedColors(pool: CardReference[]): ManaColor[] {
 }
 
 // --- Card Evaluation Helpers ---
-
-function isCreature(card: CardReference): boolean {
-  if (!card.typeLine) return false;
-  return card.typeLine.toLowerCase().includes("creature");
-}
 
 function cardMatchesColors(card: CardReference, colors: ManaColor[]): boolean {
   // Colorless cards always match

@@ -99,22 +99,9 @@ export async function generateMixedPacks(
 ): Promise<CardReference[][]> {
   const allPacks: CardReference[][] = [];
 
-  // Deduplicate set codes and pre-load booster data in parallel
+  // Deduplicate set codes and pre-load booster data in parallel (cache warming)
   const uniqueCodes = [...new Set(packSets.map((s) => s.code))];
-  const boosterDataBySet = new Map<
-    string,
-    Awaited<ReturnType<typeof loadBoosterProductData>>
-  >();
-
-  const dataResults = await Promise.all(
-    uniqueCodes.map(async (code) => {
-      const data = await loadBoosterProductData(code);
-      return { code, data };
-    })
-  );
-  for (const { code, data } of dataResults) {
-    boosterDataBySet.set(code, data);
-  }
+  await Promise.all(uniqueCodes.map((code) => loadBoosterProductData(code)));
 
   // Generate packs round by round
   for (const packSet of packSets) {

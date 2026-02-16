@@ -24,6 +24,7 @@
  */
 
 import { Redis } from "@upstash/redis";
+import { esc, executeSql, sleep } from "./supabase-api";
 
 const DATA_URL =
   "https://raw.githubusercontent.com/taw/magic-sealed-data/master/sealed_basic_data.json";
@@ -50,10 +51,6 @@ interface TawProduct {
 }
 
 // --- Helpers ---
-
-function esc(s: string): string {
-  return s.replace(/'/g, "''");
-}
 
 function parseCardKey(key: string) {
   const parts = key.split(":");
@@ -86,48 +83,6 @@ function parseArgs(): {
   }
 
   return { clear, setFilter, sync };
-}
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-/**
- * Execute raw SQL via Supabase Management API.
- * POST /v1/projects/{ref}/database/query
- * Retries on 429 (rate limit) with exponential backoff.
- */
-async function executeSql(
-  projectRef: string,
-  accessToken: string,
-  sql: string
-): Promise<unknown> {
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const resp = await fetch(
-      `https://api.supabase.com/v1/projects/${projectRef}/database/query`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ query: sql }),
-      }
-    );
-
-    if (resp.status === 429) {
-      const wait = 2000 * Math.pow(2, attempt); // 2s, 4s, 8s, 16s, 32s
-      await sleep(wait);
-      continue;
-    }
-
-    if (!resp.ok) {
-      const text = await resp.text();
-      throw new Error(`SQL failed (${resp.status}): ${text.slice(0, 300)}`);
-    }
-
-    return resp.json();
-  }
-
-  throw new Error("Rate limited after 5 retries");
 }
 
 /**

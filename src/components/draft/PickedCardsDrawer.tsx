@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import type { CardReference, PickedCardSortMode, ManaColor } from "@/lib/types";
+import { RARITY_RANK } from "@/lib/card-utils";
 import CardThumbnail from "@/components/ui/CardThumbnail";
 import CardPreview from "@/components/ui/CardPreview";
 
@@ -23,8 +24,6 @@ const SORT_OPTIONS: { value: PickedCardSortMode; label: string }[] = [
 const COLOR_ORDER: (ManaColor | "multicolor" | "colorless")[] = [
   "W", "U", "B", "R", "G", "multicolor", "colorless",
 ];
-
-const RARITY_ORDER = ["mythic", "rare", "uncommon", "common"] as const;
 
 function getColorGroup(card: CardReference): ManaColor | "multicolor" | "colorless" {
   if (card.colors.length === 0) return "colorless";
@@ -48,8 +47,8 @@ function sortPicks(picks: CardReference[], mode: PickedCardSortMode): CardRefere
       return sorted.sort((a, b) => a.cmc - b.cmc);
     case "rarity":
       return sorted.sort((a, b) => {
-        const aIdx = RARITY_ORDER.indexOf(a.rarity);
-        const bIdx = RARITY_ORDER.indexOf(b.rarity);
+        const aIdx = RARITY_RANK.indexOf(a.rarity);
+        const bIdx = RARITY_RANK.indexOf(b.rarity);
         if (aIdx !== bIdx) return aIdx - bIdx;
         return a.cmc - b.cmc;
       });

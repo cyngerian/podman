@@ -66,11 +66,11 @@ export default function LobbyClient({
   function handleStartDraft() {
     setError(null);
     startTransition(async () => {
-      try {
-        await startDraftAction(draftId);
+      const result = await startDraftAction(draftId);
+      if (result?.error) {
+        setError(result.error);
+      } else {
         router.push(`/draft/${draftId}`);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to start draft");
       }
     });
   }

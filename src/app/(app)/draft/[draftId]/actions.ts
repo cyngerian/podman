@@ -92,7 +92,7 @@ async function applyDraftMutation(
     };
 
     if (opts?.updateStatus) {
-      updatePayload.status = updatedDraft.status === "deck_building" ? "deck_building" : updatedDraft.status;
+      updatePayload.status = updatedDraft.status;
     }
     if (opts?.updateStartedAt && updatedDraft.startedAt) {
       updatePayload.started_at = new Date(updatedDraft.startedAt).toISOString();
@@ -198,9 +198,9 @@ export async function startDraftAction(draftId: string) {
     .eq("id", draftId)
     .single();
 
-  if (!draft) throw new Error("Draft not found");
-  if (draft.host_id !== user.id) throw new Error("Only the host can start the draft");
-  if (draft.status !== "lobby") throw new Error("Draft is not in lobby status");
+  if (!draft) return { error: "Draft not found" };
+  if (draft.host_id !== user.id) return { error: "Only the host can start the draft" };
+  if (draft.status !== "lobby") return { error: "Draft is not in lobby status" };
 
   // Load players with profiles
   const { data: players } = await admin
@@ -209,7 +209,7 @@ export async function startDraftAction(draftId: string) {
     .eq("draft_id", draftId);
 
   if (!players || players.length < 2) {
-    throw new Error("Need at least 2 players to start");
+    return { error: "Need at least 2 players to start" };
   }
 
   const config = (draft.config ?? {}) as Record<string, unknown>;
@@ -258,7 +258,7 @@ export async function startDraftAction(draftId: string) {
       allPacks = await generateMixedPacks(packSets, players.length);
     } else {
       const setCode = draft.set_code;
-      if (!setCode) throw new Error("No set code configured");
+      if (!setCode) return { error: "No set code configured" };
       allPacks = await generatePacksForSet(setCode, players.length, draftObj.packsPerPlayer);
     }
 
@@ -268,7 +268,7 @@ export async function startDraftAction(draftId: string) {
     }
   } else if (draft.format === "cube") {
     const cubeList = config.cubeList as string[] | undefined;
-    if (!cubeList || cubeList.length === 0) throw new Error("No cube list configured");
+    if (!cubeList || cubeList.length === 0) return { error: "No cube list configured" };
 
     // Resolve cube card names to CardReferences
     // For now, create placeholder refs from the list
@@ -293,7 +293,7 @@ export async function startDraftAction(draftId: string) {
   } else if (draft.format === "winston") {
     // Winston uses a flat pool, not individual packs
     const setCode = draft.set_code;
-    if (!setCode) throw new Error("No set code configured for Winston");
+    if (!setCode) return { error: "No set code configured for Winston" };
 
     const scryfallCards = await fetchBoosterCards(setCode);
     const cardRefs = scryfallCards.map((c) => scryfallCardToReference(c));
@@ -332,7 +332,6 @@ export async function startDraftAction(draftId: string) {
 
   // For standard/cube: distribute first pack, store rest
   const firstRoundPacks = allPacks.slice(0, players.length);
-  const _remainingPacks = allPacks.slice(players.length);
 
   draftObj = engineStartDraft(draftObj, firstRoundPacks);
 

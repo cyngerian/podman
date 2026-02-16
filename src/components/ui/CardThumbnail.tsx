@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import type { CardReference } from "@/lib/types";
+import { getBorderClass } from "@/lib/card-utils";
 
 interface CardThumbnailProps {
   card: CardReference;
@@ -12,12 +13,6 @@ interface CardThumbnailProps {
   onMouseLeave?: () => void;
   size?: "small" | "medium";
   hideColorBorder?: boolean;
-}
-
-function getBorderClass(colors: string[]): string {
-  if (colors.length === 0) return "card-border-C";
-  if (colors.length > 1) return "card-border-M";
-  return `card-border-${colors[0]}`;
 }
 
 export default function CardThumbnail({

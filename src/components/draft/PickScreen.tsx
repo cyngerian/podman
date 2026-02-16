@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
 import type { CardReference, ManaColor, PackFilterValue, PodMemberStatus, BasicLandCounts } from "@/lib/types";
+import { isCreature, getBorderClass } from "@/lib/card-utils";
 import CardThumbnail from "@/components/ui/CardThumbnail";
 import Timer from "@/components/ui/Timer";
 import DeckBuilderScreen from "@/components/deck-builder/DeckBuilderScreen";
@@ -56,11 +57,6 @@ const TYPE_FILTERS: { value: PackFilterValue; label: string }[] = [
   { value: "noncreature", label: "Non-Creatures" },
 ];
 
-function isCreature(card: CardReference): boolean {
-  if (!card.typeLine) return false;
-  return card.typeLine.includes("Creature");
-}
-
 function matchesFilterSet(card: CardReference, filterSet: Set<PackFilterValue>): boolean {
   if (filterSet.size === 0) return true;
 
@@ -95,12 +91,6 @@ function matchesFilterSet(card: CardReference, filterSet: Set<PackFilterValue>):
 
   // Both must match (AND between color and type groups)
   return colorMatch && typeMatch;
-}
-
-function getBorderClass(colors: string[]): string {
-  if (colors.length === 0) return "card-border-C";
-  if (colors.length > 1) return "card-border-M";
-  return `card-border-${colors[0]}`;
 }
 
 /** Get front or back face name from a DFC's "Front // Back" name */
