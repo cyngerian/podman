@@ -21,6 +21,12 @@ export default async function AppLayout({
 
   return (
     <div className="flex min-h-dvh flex-col">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:px-4 focus:py-2 focus:bg-accent focus:text-white focus:rounded-lg focus:text-sm focus:font-medium"
+      >
+        Skip to content
+      </a>
       {/* Top bar */}
       <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur-sm">
         <div className="max-w-5xl mx-auto w-full flex items-center justify-between px-4 h-12">
@@ -45,7 +51,7 @@ export default async function AppLayout({
       </header>
 
       {/* Main content */}
-      <main className="flex-1">{children}</main>
+      <main id="main-content" className="flex-1">{children}</main>
     </div>
   );
 }

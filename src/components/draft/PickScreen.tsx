@@ -10,6 +10,7 @@ import Timer from "@/components/ui/Timer";
 const DeckBuilderScreen = dynamic(() => import("@/components/deck-builder/DeckBuilderScreen"), { ssr: false });
 import PodStatusOverlay from "./PodStatusOverlay";
 import { useCarousel } from "@/hooks/useCarousel";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import Image from "next/image";
 
 interface PickScreenProps {
@@ -41,15 +42,15 @@ interface PickScreenProps {
 }
 
 // Row 1: color filters
-const COLOR_FILTERS: { value: PackFilterValue | "all"; manaClass?: string; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "W", manaClass: "ms ms-w ms-cost", label: "W" },
-  { value: "U", manaClass: "ms ms-u ms-cost", label: "U" },
-  { value: "B", manaClass: "ms ms-b ms-cost", label: "B" },
-  { value: "R", manaClass: "ms ms-r ms-cost", label: "R" },
-  { value: "G", manaClass: "ms ms-g ms-cost", label: "G" },
-  { value: "multicolor", label: "Multi" },
-  { value: "colorless", manaClass: "ms ms-c ms-cost", label: "C" },
+const COLOR_FILTERS: { value: PackFilterValue | "all"; manaClass?: string; label: string; ariaLabel: string }[] = [
+  { value: "all", label: "All", ariaLabel: "All colors" },
+  { value: "W", manaClass: "ms ms-w ms-cost", label: "W", ariaLabel: "White" },
+  { value: "U", manaClass: "ms ms-u ms-cost", label: "U", ariaLabel: "Blue" },
+  { value: "B", manaClass: "ms ms-b ms-cost", label: "B", ariaLabel: "Black" },
+  { value: "R", manaClass: "ms ms-r ms-cost", label: "R", ariaLabel: "Red" },
+  { value: "G", manaClass: "ms ms-g ms-cost", label: "G", ariaLabel: "Green" },
+  { value: "multicolor", label: "Multi", ariaLabel: "Multicolor" },
+  { value: "colorless", manaClass: "ms ms-c ms-cost", label: "C", ariaLabel: "Colorless" },
 ];
 
 // Row 2: type filters
@@ -142,6 +143,20 @@ function LongPressPickButton({ onPick }: { onPick: () => void }) {
       onMouseDown={start}
       onMouseUp={cancel}
       onMouseLeave={cancel}
+      onBlur={cancel}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && !e.repeat) {
+          e.preventDefault();
+          start();
+        } else if (e.key === "Escape") {
+          cancel();
+        }
+      }}
+      onKeyUp={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          cancel();
+        }
+      }}
       className={`
         relative w-full max-w-[320px] py-3 rounded-xl overflow-hidden
         bg-accent/30 text-white font-bold text-base tracking-wide
@@ -193,6 +208,14 @@ export default function PickScreen({
   const [showPodStatus, setShowPodStatus] = useState(false);
   // Track which cards are showing back face (by scryfallId)
   const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set());
+
+  // Focus trap refs
+  const previewModalRef = useRef<HTMLDivElement>(null);
+  const gridViewRef = useRef<HTMLDivElement>(null);
+  const deckBuilderOverlayRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(previewModalRef, !!selectedCard);
+  useFocusTrap(gridViewRef, showGridView);
+  useFocusTrap(deckBuilderOverlayRef, showDeckBuilder);
   const flippedCardsRef = useRef<Set<string>>(flippedCards);
   useEffect(() => { flippedCardsRef.current = flippedCards; }, [flippedCards]);
   const filteredCards = packCards.filter((card) => matchesFilterSet(card, filterSet));
@@ -378,6 +401,8 @@ export default function PickScreen({
                     key={opt.value}
                     type="button"
                     onClick={() => onFilterToggle(opt.value)}
+                    aria-label={opt.ariaLabel}
+                    aria-pressed={isFilterActive(opt.value)}
                     className={`
                       flex items-center justify-center gap-1 px-2 py-1 rounded-full text-xs font-semibold
                       transition-colors
@@ -388,11 +413,12 @@ export default function PickScreen({
                     `}
                   >
                     {opt.manaClass ? (
-                      <i className={opt.manaClass} style={{ fontSize: "13px" }} />
+                      <i className={opt.manaClass} style={{ fontSize: "13px" }} aria-hidden="true" />
                     ) : opt.value === "multicolor" ? (
                       <span
                         className="w-3 h-3 rounded-full inline-block"
                         style={{ backgroundColor: "var(--mana-gold)" }}
+                        aria-hidden="true"
                       />
                     ) : null}
                     {opt.value === "all" ? "All" : null}
@@ -404,6 +430,7 @@ export default function PickScreen({
                     key={opt.value}
                     type="button"
                     onClick={() => onFilterToggle(opt.value)}
+                    aria-pressed={isFilterActive(opt.value)}
                     className={`
                       px-2 py-1 rounded-full text-xs font-semibold
                       transition-colors
@@ -442,6 +469,8 @@ export default function PickScreen({
                   key={opt.value}
                   type="button"
                   onClick={() => onFilterToggle(opt.value)}
+                  aria-label={opt.ariaLabel}
+                  aria-pressed={isFilterActive(opt.value)}
                   className={`
                     flex items-center justify-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0
                     transition-colors
@@ -452,11 +481,12 @@ export default function PickScreen({
                   `}
                 >
                   {opt.manaClass ? (
-                    <i className={opt.manaClass} style={{ fontSize: "14px" }} />
+                    <i className={opt.manaClass} style={{ fontSize: "14px" }} aria-hidden="true" />
                   ) : opt.value === "multicolor" ? (
                     <span
                       className="w-3.5 h-3.5 rounded-full inline-block"
                       style={{ backgroundColor: "var(--mana-gold)" }}
+                      aria-hidden="true"
                     />
                   ) : null}
                   {opt.value === "all" ? "All" : null}
@@ -470,6 +500,7 @@ export default function PickScreen({
                   key={opt.value}
                   type="button"
                   onClick={() => onFilterToggle(opt.value)}
+                  aria-pressed={isFilterActive(opt.value)}
                   className={`
                     px-2.5 py-1 rounded-full text-xs font-semibold shrink-0
                     transition-colors
@@ -562,11 +593,36 @@ export default function PickScreen({
                 ref={scrubBarRef}
                 className="shrink-0"
                 style={{ width: "50%" }}
+                role="slider"
+                tabIndex={0}
+                aria-label="Card navigator"
+                aria-valuemin={0}
+                aria-valuemax={filteredCards.length - 1}
+                aria-valuenow={0}
+                aria-valuetext={`Card 1 of ${filteredCards.length}`}
                 onClick={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect();
                   const progress = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
                   const targetIdx = Math.round(progress * (filteredCards.length - 1));
                   snapToCardRef.current(targetIdx);
+                }}
+                onKeyDown={(e) => {
+                  const max = filteredCards.length - 1;
+                  const current = activeIndexRef.current;
+                  let next: number | null = null;
+                  if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+                    next = Math.min(current + 1, max);
+                  } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+                    next = Math.max(current - 1, 0);
+                  } else if (e.key === "Home") {
+                    next = 0;
+                  } else if (e.key === "End") {
+                    next = max;
+                  }
+                  if (next !== null) {
+                    e.preventDefault();
+                    snapToCardRef.current(next);
+                  }
                 }}
                 onTouchStart={(e) => {
                   e.stopPropagation();
@@ -678,6 +734,7 @@ export default function PickScreen({
       {/* ==================== DESKTOP: Card Preview Modal ==================== */}
       {selectedCard && (
         <div
+          ref={previewModalRef}
           className="hidden sm:flex fixed inset-0 z-50 items-center justify-center bg-black/80 backdrop-blur-sm"
           onClick={() => { setSelectedCard(null); setFlippedCards(new Set()); }}
           onKeyDown={(e) => {
@@ -763,7 +820,7 @@ export default function PickScreen({
 
       {/* Grid view overlay (mobile) */}
       {showGridView && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-background sm:hidden">
+        <div ref={gridViewRef} className="fixed inset-0 z-50 flex flex-col bg-background sm:hidden" role="dialog" aria-modal="true" aria-label="All cards grid view">
           <header className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
             <span className="text-sm font-semibold text-foreground">
               All Cards ({filteredCards.length})
@@ -816,7 +873,7 @@ export default function PickScreen({
 
       {/* Deck builder overlay */}
       {!crackAPack && showDeckBuilder && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-background">
+        <div ref={deckBuilderOverlayRef} className="fixed inset-0 z-50 flex flex-col bg-background" role="dialog" aria-modal="true" aria-label="Deck builder">
           <DeckBuilderScreen
             mode="midDraft"
             pool={picks}

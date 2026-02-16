@@ -6,6 +6,7 @@ import type { CardReference, BasicLandCounts, ManaColor } from "@/lib/types";
 import { MANA_COLORS } from "@/lib/types";
 import { isCreature, rarityRank } from "@/lib/card-utils";
 import { suggestLandCounts } from "@/lib/draft-engine";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import CardThumbnail from "@/components/ui/CardThumbnail";
 import ManaCurve from "@/components/ui/ManaCurve";
 
@@ -143,6 +144,10 @@ export default function DeckBuilderScreen({
     x: number;
     y: number;
   } | null>(null);
+
+  // Focus trap for preview modal
+  const previewModalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(previewModalRef, !!previewState);
 
   // In midDraft mode, add newly picked cards to deck automatically
   const knownPoolIdsRef = useRef(new Set(pool.map((c) => c.scryfallId)));
@@ -602,6 +607,7 @@ export default function DeckBuilderScreen({
       {/* ---- Card Preview Modal ---- */}
       {previewState && (
         <div
+          ref={previewModalRef}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
           onClick={() => { setPreviewState(null); setPreviewFlipped(false); }}
           onKeyDown={(e) => {
