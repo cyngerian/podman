@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, type ChangeEvent } from "react";
+import { useState, useCallback, useMemo, useRef, type ChangeEvent } from "react";
 import Image from "next/image";
 import type { CardReference, BasicLandCounts, DraftPick } from "@/lib/types";
 import UserAvatar from "@/components/ui/UserAvatar";
@@ -12,6 +12,7 @@ import {
   copyToClipboard,
 } from "@/lib/export";
 import { isCreature } from "@/lib/card-utils";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import CardThumbnail from "@/components/ui/CardThumbnail";
 
 interface PostDraftScreenProps {
@@ -55,6 +56,10 @@ export default function PostDraftScreen({
     x: number;
     y: number;
   } | null>(null);
+
+  // Focus trap for preview modal
+  const previewModalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(previewModalRef, !!previewCard);
 
   const hasDeck = deck !== null && sideboard !== null;
   const activeLands = lands ?? DEFAULT_LANDS;
@@ -354,6 +359,7 @@ export default function PostDraftScreen({
       {/* ---- Card Preview Modal ---- */}
       {previewCard && (
         <div
+          ref={previewModalRef}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
           onClick={() => { setPreviewCard(null); setPreviewFlipped(false); }}
           onKeyDown={(e) => {

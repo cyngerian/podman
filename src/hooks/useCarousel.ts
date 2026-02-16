@@ -130,6 +130,11 @@ export function useCarousel({ filteredCards, filterKey, flippedCardsRef }: UseCa
           if (cardEl) cardEl.style.zIndex = `${100 - Math.abs(i - closestIdx) * 10}`;
         }
         if (counterRef.current) counterRef.current.textContent = `${closestIdx + 1} / ${filteredCards.length}`;
+        // Update scrub bar ARIA values for screen readers
+        if (scrubBarRef.current) {
+          scrubBarRef.current.setAttribute("aria-valuenow", String(closestIdx));
+          scrubBarRef.current.setAttribute("aria-valuetext", `Card ${closestIdx + 1} of ${filteredCards.length}`);
+        }
         if (nameRef.current) {
           const card = filteredCards[closestIdx];
           if (!card) {

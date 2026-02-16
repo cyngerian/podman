@@ -1,6 +1,8 @@
 "use client";
 
+import { useRef } from "react";
 import type { PodMemberStatus, PassDirection } from "@/lib/types";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import PodMemberList from "./PodMemberList";
 
 interface PodStatusOverlayProps {
@@ -16,21 +18,25 @@ export default function PodStatusOverlay({
   isOpen,
   onClose,
 }: PodStatusOverlayProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, isOpen);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col">
+    <div ref={dialogRef} className="fixed inset-0 z-50 flex flex-col" role="dialog" aria-modal="true" aria-labelledby="pod-status-title">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60"
         onClick={onClose}
+        role="presentation"
       />
 
       {/* Panel */}
       <div className="relative mt-2 flex-1 flex flex-col bg-surface rounded-t-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-          <h2 className="text-lg font-bold text-foreground">
+          <h2 id="pod-status-title" className="text-lg font-bold text-foreground">
             Pod ({members.length})
           </h2>
           <button
