@@ -93,8 +93,6 @@ export default async function PickPage({
       picks={seat.pool}
       timerPreset={draft.timerPreset}
       pacingMode={draft.pacingMode}
-      packsPerPlayer={draft.packsPerPlayer}
-      deckBuildingEnabled={draft.deckBuildingEnabled}
       packReceivedAt={seat.packReceivedAt}
       packQueueLength={seat.packQueue.length}
       podMembers={podMembers}

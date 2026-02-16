@@ -11,6 +11,7 @@ import {
   downloadFile,
   copyToClipboard,
 } from "@/lib/export";
+import { isCreature } from "@/lib/card-utils";
 import CardThumbnail from "@/components/ui/CardThumbnail";
 
 interface PostDraftScreenProps {
@@ -31,10 +32,6 @@ interface PostDraftScreenProps {
 }
 
 const DEFAULT_LANDS: BasicLandCounts = { W: 0, U: 0, B: 0, R: 0, G: 0 };
-
-function isCreature(card: CardReference): boolean {
-  return card.typeLine?.toLowerCase().includes("creature") ?? false;
-}
 
 export default function PostDraftScreen({
   pool,

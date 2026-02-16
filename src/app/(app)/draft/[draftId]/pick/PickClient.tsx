@@ -28,8 +28,6 @@ interface PickClientProps {
   picks: CardReference[];
   timerPreset: TimerPreset;
   pacingMode: PacingMode;
-  packsPerPlayer: number;
-  deckBuildingEnabled: boolean;
   packReceivedAt: number | null;
   packQueueLength: number;
   podMembers: PodMemberStatus[];
@@ -49,8 +47,6 @@ export default function PickClient({
   picks: initialPicks,
   timerPreset,
   pacingMode,
-  packsPerPlayer: _packsPerPlayer,
-  deckBuildingEnabled: _deckBuildingEnabled,
   packReceivedAt,
   packQueueLength,
   podMembers,

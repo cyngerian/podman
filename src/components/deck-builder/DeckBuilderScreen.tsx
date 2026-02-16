@@ -4,6 +4,8 @@ import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import Image from "next/image";
 import type { CardReference, BasicLandCounts, ManaColor } from "@/lib/types";
 import { MANA_COLORS } from "@/lib/types";
+import { isCreature, rarityRank } from "@/lib/card-utils";
+import { suggestLandCounts } from "@/lib/draft-engine";
 import CardThumbnail from "@/components/ui/CardThumbnail";
 import ManaCurve from "@/components/ui/ManaCurve";
 
@@ -54,13 +56,6 @@ const MANA_ICON_CLASS: Record<ManaColor, string> = {
   G: "ms ms-g ms-cost",
 };
 
-const RARITY_ORDER: Record<string, number> = {
-  mythic: 0,
-  rare: 1,
-  uncommon: 2,
-  common: 3,
-};
-
 const COLOR_ORDER: Record<string, number> = {
   W: 0,
   U: 1,
@@ -89,7 +84,7 @@ function sortCards(cards: CardReference[], mode: SortMode): CardReference[] {
         );
       case "rarity":
         return (
-          (RARITY_ORDER[a.rarity] ?? 9) - (RARITY_ORDER[b.rarity] ?? 9) ||
+          rarityRank(a.rarity) - rarityRank(b.rarity) ||
           a.cmc - b.cmc ||
           a.name.localeCompare(b.name)
         );
@@ -100,10 +95,6 @@ function sortCards(cards: CardReference[], mode: SortMode): CardReference[] {
 
 function totalLandCount(lands: BasicLandCounts): number {
   return MANA_COLORS.reduce((sum, c) => sum + lands[c], 0);
-}
-
-function isCreature(card: CardReference): boolean {
-  return card.typeLine?.toLowerCase().includes("creature") ?? false;
 }
 
 // --- Main Component ---
@@ -252,40 +243,7 @@ export default function DeckBuilderScreen({
   }, []);
 
   const suggestLands = useCallback(() => {
-    const totalTarget = 17;
-    const counts: Record<ManaColor, number> = { W: 0, U: 0, B: 0, R: 0, G: 0 };
-    for (const card of deck) {
-      for (const color of card.colors) {
-        if (MANA_COLORS.includes(color)) {
-          counts[color]++;
-        }
-      }
-    }
-    const totalSymbols = Object.values(counts).reduce((a, b) => a + b, 0);
-    if (totalSymbols === 0) {
-      setLands({ ...EMPTY_LANDS });
-      return;
-    }
-    const suggested: BasicLandCounts = { W: 0, U: 0, B: 0, R: 0, G: 0 };
-    let assigned = 0;
-    const fractional: { color: ManaColor; frac: number }[] = [];
-    for (const color of MANA_COLORS) {
-      const exact = (counts[color] / totalSymbols) * totalTarget;
-      const floored = Math.floor(exact);
-      suggested[color] = floored;
-      assigned += floored;
-      fractional.push({ color, frac: exact - floored });
-    }
-    fractional.sort((a, b) => b.frac - a.frac);
-    let remaining = totalTarget - assigned;
-    for (const { color } of fractional) {
-      if (remaining <= 0) break;
-      if (counts[color] > 0) {
-        suggested[color]++;
-        remaining--;
-      }
-    }
-    setLands(suggested);
+    setLands(suggestLandCounts(deck));
     setError(null);
   }, [deck]);
 
