@@ -7,12 +7,23 @@
  * making the load ~100x faster than individual REST API inserts.
  *
  * Usage:
- *   npx tsx scripts/load-booster-data.ts [--clear] [--set <code>]
+ *   npx tsx scripts/load-booster-data.ts [--clear] [--set <code>] [--sync]
+ *
+ * Flags:
+ *   --sync   Auto-detect and load only new products not yet in the DB
+ *   --set    Filter to a single set code
+ *   --clear  Wipe existing data before loading (full or per-set)
  *
  * Env vars required:
  *   SUPABASE_PROJECT_REF  (e.g. "mvqdejniqbaiishumezl")
  *   SUPABASE_ACCESS_TOKEN (personal access token from supabase.com/dashboard/account/tokens)
+ *
+ * Optional env vars (for KV cache invalidation):
+ *   UPSTASH_REDIS_REST_URL
+ *   UPSTASH_REDIS_REST_TOKEN
  */
+
+import { Redis } from "@upstash/redis";
 
 const DATA_URL =
   "https://raw.githubusercontent.com/taw/magic-sealed-data/master/sealed_basic_data.json";
@@ -53,10 +64,15 @@ function parseCardKey(key: string) {
   };
 }
 
-function parseArgs(): { clear: boolean; setFilter: string | null } {
+function parseArgs(): {
+  clear: boolean;
+  setFilter: string | null;
+  sync: boolean;
+} {
   const args = process.argv.slice(2);
   let clear = false;
   let setFilter: string | null = null;
+  let sync = false;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--clear") {
@@ -64,10 +80,12 @@ function parseArgs(): { clear: boolean; setFilter: string | null } {
     } else if (args[i] === "--set" && args[i + 1]) {
       setFilter = args[i + 1].toLowerCase();
       i++;
+    } else if (args[i] === "--sync") {
+      sync = true;
     }
   }
 
-  return { clear, setFilter };
+  return { clear, setFilter, sync };
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -110,6 +128,54 @@ async function executeSql(
   }
 
   throw new Error("Rate limited after 5 retries");
+}
+
+/**
+ * Query the DB for all existing product codes.
+ */
+async function fetchExistingProductCodes(
+  projectRef: string,
+  accessToken: string
+): Promise<Set<string>> {
+  const result = (await executeSql(
+    projectRef,
+    accessToken,
+    "SELECT code FROM booster_products"
+  )) as Array<{ code: string }>;
+  return new Set(result.map((row) => row.code));
+}
+
+/**
+ * Invalidate Upstash Redis KV cache entries for loaded product codes.
+ * Gracefully skips if Upstash env vars are not set.
+ */
+async function invalidateKVCache(productCodes: string[]): Promise<void> {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+  if (!url || !token) {
+    console.log(
+      "Skipping KV invalidation (UPSTASH_REDIS_REST_URL/TOKEN not set)"
+    );
+    return;
+  }
+
+  const redis = new Redis({ url, token });
+  const keys = productCodes.map((code) => `booster:${code}`);
+
+  if (keys.length === 0) return;
+
+  try {
+    // DEL accepts multiple keys in one call
+    const deleted = await redis.del(...keys);
+    console.log(
+      `Invalidated ${deleted} KV cache ${deleted === 1 ? "entry" : "entries"}`
+    );
+  } catch (err) {
+    console.warn(
+      `KV invalidation failed: ${(err as Error).message.slice(0, 200)}`
+    );
+  }
 }
 
 /**
@@ -195,7 +261,12 @@ async function main() {
     process.exit(1);
   }
 
-  const { clear, setFilter } = parseArgs();
+  const { clear, setFilter, sync } = parseArgs();
+
+  if (sync && (clear || setFilter)) {
+    console.error("--sync cannot be combined with --clear or --set");
+    process.exit(1);
+  }
 
   // Download data
   console.log("Downloading booster data...");
@@ -208,12 +279,35 @@ async function main() {
   const allProducts: TawProduct[] = await response.json();
   console.log(`Downloaded ${allProducts.length} products`);
 
-  // Filter if --set provided
-  const products = setFilter
-    ? allProducts.filter((p) => p.set_code.toLowerCase() === setFilter)
-    : allProducts;
+  // Determine which products to load
+  let products: TawProduct[];
 
-  if (setFilter) {
+  if (sync) {
+    // Auto-sync: only load products not already in the DB
+    console.log("Checking existing products in DB...");
+    const existingCodes = await fetchExistingProductCodes(
+      projectRef,
+      accessToken
+    );
+    console.log(`Found ${existingCodes.size} existing products in DB`);
+
+    products = allProducts.filter((p) => !existingCodes.has(p.code));
+
+    if (products.length === 0) {
+      console.log(
+        `\nAll ${allProducts.length} products up to date. Nothing to load.`
+      );
+      return;
+    }
+
+    const newSetCodes = [...new Set(products.map((p) => p.set_code))];
+    console.log(
+      `Found ${products.length} new products for ${newSetCodes.length} set(s): ${newSetCodes.join(", ")}`
+    );
+  } else if (setFilter) {
+    products = allProducts.filter(
+      (p) => p.set_code.toLowerCase() === setFilter
+    );
     console.log(
       `Filtered to ${products.length} products for set "${setFilter}"`
     );
@@ -221,6 +315,8 @@ async function main() {
       console.error(`No products found for set code "${setFilter}"`);
       process.exit(1);
     }
+  } else {
+    products = allProducts;
   }
 
   // Clear existing data if requested
@@ -237,6 +333,7 @@ async function main() {
   console.log("Loading products...");
   let loaded = 0;
   let errors = 0;
+  const loadedCodes: string[] = [];
   const startTime = Date.now();
 
   for (const product of products) {
@@ -245,6 +342,7 @@ async function main() {
     try {
       await executeSql(projectRef, accessToken, sql);
       loaded++;
+      loadedCodes.push(product.code);
     } catch (err) {
       console.error(
         `  Error on ${product.code}: ${(err as Error).message.slice(0, 200)}`
@@ -266,6 +364,22 @@ async function main() {
   console.log(`\nDone in ${totalTime}s!`);
   console.log(`  Products loaded: ${loaded}`);
   if (errors > 0) console.log(`  Products failed: ${errors}`);
+
+  // Invalidate KV cache for loaded products
+  if (loadedCodes.length > 0) {
+    await invalidateKVCache(loadedCodes);
+  }
+
+  // Print summary for --sync
+  if (sync && loaded > 0) {
+    const setCodes = [...new Set(loadedCodes.map((code) => {
+      const product = products.find((p) => p.code === code);
+      return product?.set_code ?? code;
+    }))];
+    console.log(
+      `\nSynced ${loaded} new products for ${setCodes.length} set(s): ${setCodes.join(", ")}`
+    );
+  }
 }
 
 main().catch((err) => {

@@ -36,3 +36,13 @@ export async function kvSet(key: string, value: unknown): Promise<void> {
     // KV is never a hard dependency — swallow errors
   }
 }
+
+export async function kvDel(key: string): Promise<void> {
+  try {
+    const client = getRedis();
+    if (!client) return;
+    await client.del(key);
+  } catch {
+    // KV is never a hard dependency — swallow errors
+  }
+}
