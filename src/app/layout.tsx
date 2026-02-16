@@ -13,7 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "podman",
+  title: {
+    default: "podman",
+    template: "%s — podman",
+  },
   description: "Draft Magic: The Gathering with friends",
   manifest: "/manifest.json",
   appleWebApp: {
@@ -23,6 +26,18 @@ export const metadata: Metadata = {
   },
   other: {
     "apple-mobile-web-app-capable": "yes",
+  },
+  openGraph: {
+    title: "podman",
+    description: "Draft Magic: The Gathering with friends",
+    url: "https://www.podman.app",
+    siteName: "podman",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "podman",
+    description: "Draft Magic: The Gathering with friends",
   },
 };
 

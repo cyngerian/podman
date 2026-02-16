@@ -1,5 +1,31 @@
+import type { Metadata } from "next";
 import { createServerSupabaseClient, getUser } from "@/lib/supabase-server";
 import AcceptInviteButton from "./AcceptInviteButton";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}): Promise<Metadata> {
+  const { token } = await params;
+  const supabase = await createServerSupabaseClient();
+  const { data: info } = await supabase.rpc("get_invite_info", {
+    p_token: token,
+  });
+
+  const invite = info?.[0];
+  if (!invite?.group_name) {
+    return { title: "Group Invite" };
+  }
+
+  return {
+    title: `Join ${invite.group_name}`,
+    openGraph: {
+      title: `Join ${invite.group_name} on podman`,
+      description: invite.group_description || "Draft Magic: The Gathering with friends",
+    },
+  };
+}
 
 export default async function InvitePage({
   params,
