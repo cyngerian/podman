@@ -7,14 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "load-booster-data": "npx tsx --env-file-if-exists=.env.local scripts/load-booster-data.ts",
-    "test-packs": "npx tsx --env-file-if-exists=.env.local scripts/test-packs.ts",
+    "load-booster-data": "tsx --env-file-if-exists=.env.local scripts/load-booster-data.ts",
+    "test-packs": "tsx --env-file-if-exists=.env.local scripts/test-packs.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "backup-prod": "npx tsx --env-file-if-exists=.env.local scripts/backup-prod.ts",
-    "sync-staging": "npx tsx --env-file-if-exists=.env.local scripts/sync-staging.ts",
-    "restore-prod": "npx tsx --env-file-if-exists=.env.local scripts/restore-prod.ts",
-    "update-sets": "npx tsx --env-file-if-exists=.env.local scripts/load-booster-data.ts --sync"
+    "backup-prod": "tsx --env-file-if-exists=.env.local scripts/backup-prod.ts",
+    "sync-staging": "tsx --env-file-if-exists=.env.local scripts/sync-staging.ts",
+    "restore-prod": "tsx --env-file-if-exists=.env.local scripts/restore-prod.ts",
+    "update-sets": "tsx --env-file-if-exists=.env.local scripts/load-booster-data.ts --sync"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.38.0",
@@ -39,6 +39,7 @@
     "eslint-config-next": "16.1.6",
     "ora": "^8.2.0",
     "tailwindcss": "^4",
+    "tsx": "^4",
     "typescript": "^5",
     "vitest": "^4.0.18"
   }
