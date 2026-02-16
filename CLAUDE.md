@@ -74,7 +74,7 @@ The `(app)` layout adds a sticky header (`z-30`, `h-12`) with user avatar, displ
 
 ### Draft Engine (`src/lib/draft-engine.ts`)
 
-Pure functions transforming immutable `Draft` state objects. Key functions: `createDraft`, `startDraft`, `makePickAndPass`, `advanceToNextPack`, `transitionToDeckBuilding`, `unsubmitDeck`. State stored as JSON in `drafts.state`, mutated via `applyDraftMutation()` with optimistic concurrency. **117 unit tests** across `src/lib/__tests__/` (Vitest): 88 draft engine, 12 scryfall normalization, 17 export functions.
+Pure functions transforming immutable `Draft` state objects. Key functions: `createDraft`, `startDraft`, `makePickAndPass`, `advanceToNextPack`, `transitionToDeckBuilding`, `unsubmitDeck`. State stored as JSON in `drafts.state`, mutated via `applyDraftMutation()` with optimistic concurrency. **207 unit tests** across `src/lib/__tests__/` (Vitest): 88 draft engine, 12 scryfall normalization, 17 export, 17 card-utils, 25 bot-drafter, 30 pack-generator, 18 sheet-pack-generator.
 
 ### Key Types (`src/lib/types.ts`)
 
