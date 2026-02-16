@@ -133,6 +133,27 @@ export async function joinDraft(draftId: string) {
   const user = await getAuthenticatedUser();
   const supabase = await createServerSupabaseClient();
 
+  // Look up the draft's group to verify membership
+  const { data: draft } = await supabase
+    .from("drafts")
+    .select("group_id")
+    .eq("id", draftId)
+    .single();
+
+  if (!draft) return { error: "Draft not found" };
+
+  // Simulated drafts (no group) don't need membership check
+  if (draft.group_id) {
+    const { data: membership } = await supabase
+      .from("group_members")
+      .select("role")
+      .eq("group_id", draft.group_id)
+      .eq("user_id", user.id)
+      .single();
+
+    if (!membership) return { error: "Not a member of this group" };
+  }
+
   // Check if already a player
   const { data: existing } = await supabase
     .from("draft_players")
@@ -142,10 +163,12 @@ export async function joinDraft(draftId: string) {
     .maybeSingle();
 
   if (!existing) {
-    await supabase.from("draft_players").insert({
+    const { error } = await supabase.from("draft_players").insert({
       draft_id: draftId,
       user_id: user.id,
     });
+
+    if (error) return { error: error.message };
   }
 }
 
@@ -153,11 +176,13 @@ export async function leaveDraft(draftId: string) {
   const user = await getAuthenticatedUser();
   const supabase = await createServerSupabaseClient();
 
-  await supabase
+  const { error } = await supabase
     .from("draft_players")
     .delete()
     .eq("draft_id", draftId)
     .eq("user_id", user.id);
+
+  if (error) return { error: error.message };
 
   redirect("/dashboard");
 }

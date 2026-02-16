@@ -22,7 +22,24 @@ export async function createProposal(formData: FormData) {
 
   if (!user) redirect("/auth/login");
 
-  const config = configJson ? JSON.parse(configJson) as Json : null;
+  // Verify user is a member of this group
+  const { data: membership } = await supabase
+    .from("group_members")
+    .select("role")
+    .eq("group_id", groupId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (!membership) return { error: "Not a member of this group" };
+
+  let config: Json = null;
+  if (configJson) {
+    try {
+      config = JSON.parse(configJson) as Json;
+    } catch {
+      return { error: "Invalid draft configuration" };
+    }
+  }
 
   const { data: proposal, error } = await supabase
     .from("draft_proposals")
@@ -66,6 +83,18 @@ export async function voteOnProposal(formData: FormData) {
   } = await supabase.auth.getUser();
 
   if (!user) redirect("/auth/login");
+
+  // Verify user is a member of the proposal's group
+  const { data: membership } = await supabase
+    .from("group_members")
+    .select("role")
+    .eq("group_id", groupId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (!membership) {
+    redirect(`/dashboard`);
+  }
 
   // Upsert vote
   await supabase.from("proposal_votes").upsert(
@@ -121,7 +150,7 @@ export async function cancelProposal(formData: FormData) {
   // Verify user is proposer or group admin before cancelling
   const { data: proposal } = await supabase
     .from("draft_proposals")
-    .select("proposed_by")
+    .select("proposed_by, group_id")
     .eq("id", proposalId)
     .single();
 
@@ -131,7 +160,7 @@ export async function cancelProposal(formData: FormData) {
     const { data: membership } = await supabase
       .from("group_members")
       .select("role")
-      .eq("group_id", groupId)
+      .eq("group_id", proposal.group_id)
       .eq("user_id", user.id)
       .single();
 
@@ -159,11 +188,24 @@ export async function convertProposalToDraft(formData: FormData) {
 
   if (!user) redirect("/auth/login");
 
-  // Load proposal
+  // Verify user is a member of this group
+  const { data: convertMembership } = await supabase
+    .from("group_members")
+    .select("role")
+    .eq("group_id", groupId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (!convertMembership) {
+    redirect(`/dashboard`);
+  }
+
+  // Load proposal (scoped to group to prevent cross-group access)
   const { data: proposal } = await supabase
     .from("draft_proposals")
     .select("*")
     .eq("id", proposalId)
+    .eq("group_id", groupId)
     .single();
 
   if (!proposal || proposal.status !== "confirmed") {

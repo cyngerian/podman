@@ -23,7 +23,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "File must be under 2MB" }, { status: 400 });
   }
 
-  const ext = file.name.split(".").pop() ?? "jpg";
+  // Derive extension from validated MIME type to prevent extension spoofing
+  const MIME_TO_EXT: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/gif": "gif",
+    "image/webp": "webp",
+    "image/avif": "avif",
+  };
+
+  const ext = MIME_TO_EXT[file.type];
+  if (!ext) {
+    return NextResponse.json(
+      { error: "Unsupported image type. Allowed: JPEG, PNG, GIF, WebP, AVIF" },
+      { status: 400 }
+    );
+  }
+
   const blob = await put(`avatars/${user.id}.${ext}`, file, {
     access: "public",
     addRandomSuffix: true,
