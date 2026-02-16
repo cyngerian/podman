@@ -1,6 +1,11 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getUser } from "@/lib/supabase-server";
 import SimulateFormWrapper from "./SimulateFormWrapper";
+
+export const metadata: Metadata = {
+  title: "Simulate Draft",
+};
 
 export default async function SimulateDraftPage({
   searchParams,
