@@ -225,7 +225,7 @@ export default function PickScreen({
   const CARD_WIDTH_VW = 72; // base card width
   const CARD_OVERLAP_PX = -35; // base negative margin for overlap
 
-  const { scrollRef, wrapperRef, cardRefs, nameRef, counterRef, scrubThumbRef, scrubBarRef, activeIndexRef, snapToCardRef, scrubToCardRef } = useCarousel({ filteredCards, filterKey, flippedCardsRef });
+  const { scrollRef, wrapperRef, cardRefs, nameRef, counterRef, scrubThumbRef, scrubBarRef, activeIndexRef, snapToCardRef } = useCarousel({ filteredCards, filterKey, flippedCardsRef });
 
   // Track touch interactions on scrub bar to suppress click-after-drag
   const scrubTouchRef = useRef(false);
@@ -633,7 +633,7 @@ export default function PickScreen({
                   scrubTouchRef.current = true;
                   const rect = e.currentTarget.getBoundingClientRect();
                   const progress = Math.max(0, Math.min(1, (e.touches[0].clientX - rect.left) / rect.width));
-                  scrubToCardRef.current(Math.round(progress * (filteredCards.length - 1)));
+                  snapToCardRef.current(Math.round(progress * (filteredCards.length - 1)));
                 }}
                 onTouchMove={(e) => {
                   e.stopPropagation();
@@ -642,7 +642,7 @@ export default function PickScreen({
                   if (!bar) return;
                   const rect = bar.getBoundingClientRect();
                   const progress = Math.max(0, Math.min(1, (e.touches[0].clientX - rect.left) / rect.width));
-                  scrubToCardRef.current(Math.round(progress * (filteredCards.length - 1)));
+                  snapToCardRef.current(Math.round(progress * (filteredCards.length - 1)));
                 }}
                 onTouchEnd={() => {
                   setTimeout(() => { scrubTouchRef.current = false; }, 300);

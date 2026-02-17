@@ -41,7 +41,6 @@ export function useCarousel({ filteredCards, filterKey, flippedCardsRef }: UseCa
   const scrubBarRef = useRef<HTMLDivElement>(null);
   const activeIndexRef = useRef(0);
   const snapToCardRef = useRef<(index: number) => void>(() => {});
-  const scrubToCardRef = useRef<(index: number) => void>(() => {});
 
   useEffect(() => {
     const container = scrollRef.current;
@@ -163,17 +162,10 @@ export function useCarousel({ filteredCards, filterKey, flippedCardsRef }: UseCa
       }
     };
 
-    // Expose snap-to-card for grid view (animated)
+    // Expose snap-to-card for scrub bar, grid view, keyboard nav
     snapToCardRef.current = (idx: number) => {
       velocity = 0;
       snapTarget = cardCenters[Math.max(0, Math.min(idx, cardCenters.length - 1))];
-    };
-
-    // Expose scrub-to-card for scrub bar (immediate, no animation)
-    scrubToCardRef.current = (idx: number) => {
-      velocity = 0;
-      snapTarget = null;
-      offset = cardCenters[Math.max(0, Math.min(idx, cardCenters.length - 1))];
     };
 
     // --- Touch handlers ---
@@ -297,6 +289,5 @@ export function useCarousel({ filteredCards, filterKey, flippedCardsRef }: UseCa
     scrubBarRef,
     activeIndexRef,
     snapToCardRef,
-    scrubToCardRef,
   };
 }
