@@ -13,16 +13,31 @@ export interface PackCardSkeleton {
   set_code: string;
   collector_number: string;
   is_foil: boolean;
+  sheet_id: number;
+}
+
+/**
+ * Build a lookup from "set_code:collector_number" → card name.
+ * Used for name-based dedup: cards with the same name but different
+ * collector numbers (e.g., showcase variants) are treated as duplicates.
+ */
+export function buildNameMap(cardMap: Map<string, CardReference>): Map<string, string> {
+  const nameMap = new Map<string, string>();
+  for (const [key, card] of cardMap) {
+    nameMap.set(key, card.name);
+  }
+  return nameMap;
 }
 
 /**
  * Draw a single card from a sheet using weighted random selection.
- * Avoids cards already used in this pack (no replacement).
- * Returns the sheet card entry, or null if all cards are used.
+ * Avoids cards whose dedup key (name if nameMap provided, else set:collector_number)
+ * is already used. Returns the sheet card entry, or null if all cards are used.
  */
 function drawFromSheet(
   sheet: BoosterSheet,
-  usedKeys: Set<string>
+  usedNames: Set<string>,
+  nameMap?: Map<string, string>
 ): { set_code: string; collector_number: string; is_foil: boolean } | null {
   // Try up to 50 times with weighted random, then fall back to exhaustive search
   for (let attempt = 0; attempt < 50; attempt++) {
@@ -31,7 +46,8 @@ function drawFromSheet(
       roll -= card.weight;
       if (roll <= 0) {
         const key = `${card.set_code}:${card.collector_number}`;
-        if (!usedKeys.has(key)) {
+        const dedupKey = nameMap?.get(key) ?? key;
+        if (!usedNames.has(dedupKey)) {
           return card;
         }
         break; // Card already used, re-roll
@@ -42,7 +58,8 @@ function drawFromSheet(
   // Exhaustive fallback: find any unused card
   for (const card of sheet.cards) {
     const key = `${card.set_code}:${card.collector_number}`;
-    if (!usedKeys.has(key)) {
+    const dedupKey = nameMap?.get(key) ?? key;
+    if (!usedNames.has(dedupKey)) {
       return card;
     }
   }
@@ -55,31 +72,42 @@ function drawFromSheet(
 /**
  * Generate a single pack skeleton — just card identifiers + foil flags.
  * Uses sheet weights to draw cards without needing Scryfall data.
+ * Dedup is per-sheet (matching taw spec): cards with the same name on the
+ * same sheet are rerolled, but cross-sheet duplicates are allowed.
  */
 function generateSheetPackSkeleton(
-  data: BoosterProductData
+  data: BoosterProductData,
+  nameMap?: Map<string, string>
 ): PackCardSkeleton[] {
   const configWeights = data.configs.map((c) => c.weight);
   const configIdx = weightedRandomIndex(configWeights);
   const config = data.configs[configIdx];
 
   const pack: PackCardSkeleton[] = [];
-  const usedKeys = new Set<string>();
+  const usedNamesBySheet = new Map<number, Set<string>>();
 
   for (const slot of config.slots) {
     const sheet = data.sheets.get(slot.sheet_id);
     if (!sheet) continue;
 
+    let sheetUsed = usedNamesBySheet.get(slot.sheet_id);
+    if (!sheetUsed) {
+      sheetUsed = new Set<string>();
+      usedNamesBySheet.set(slot.sheet_id, sheetUsed);
+    }
+
     for (let i = 0; i < slot.count; i++) {
-      const drawn = drawFromSheet(sheet, usedKeys);
+      const drawn = drawFromSheet(sheet, sheetUsed, nameMap);
       if (!drawn) continue;
 
       const key = `${drawn.set_code}:${drawn.collector_number}`;
-      usedKeys.add(key);
+      const dedupKey = nameMap?.get(key) ?? key;
+      sheetUsed.add(dedupKey);
       pack.push({
         set_code: drawn.set_code,
         collector_number: drawn.collector_number,
         is_foil: drawn.is_foil,
+        sheet_id: slot.sheet_id,
       });
     }
   }
@@ -94,13 +122,14 @@ function generateSheetPackSkeleton(
 export function generateAllSheetPackSkeletons(
   data: BoosterProductData,
   playerCount: number,
-  packsPerPlayer: number
+  packsPerPlayer: number,
+  nameMap?: Map<string, string>
 ): PackCardSkeleton[][] {
   const totalPacks = playerCount * packsPerPlayer;
   const packs: PackCardSkeleton[][] = [];
 
   for (let i = 0; i < totalPacks; i++) {
-    packs.push(generateSheetPackSkeleton(data));
+    packs.push(generateSheetPackSkeleton(data, nameMap));
   }
 
   return packs;
@@ -165,7 +194,8 @@ export function generateSheetPack(
   data: BoosterProductData,
   cardMap: Map<string, CardReference>
 ): CardReference[] {
-  const skeleton = generateSheetPackSkeleton(data);
+  const nameMap = buildNameMap(cardMap);
+  const skeleton = generateSheetPackSkeleton(data, nameMap);
   return resolvePackSkeletons([skeleton], cardMap)[0];
 }
 
@@ -179,10 +209,12 @@ export function generateAllSheetPacks(
   playerCount: number,
   packsPerPlayer: number
 ): CardReference[][] {
+  const nameMap = buildNameMap(cardMap);
   const skeletons = generateAllSheetPackSkeletons(
     data,
     playerCount,
-    packsPerPlayer
+    packsPerPlayer,
+    nameMap
   );
   return resolvePackSkeletons(skeletons, cardMap);
 }
