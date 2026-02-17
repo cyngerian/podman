@@ -11,6 +11,7 @@ import {
   generateAllSheetPackSkeletons,
   collectSkeletonIdentifiers,
   resolvePackSkeletons,
+  buildNameMap,
 } from "./sheet-pack-generator";
 import {
   fetchBoosterCards,
@@ -55,10 +56,17 @@ export async function generatePacksForSet(
   const boosterData = await loadBoosterProductData(setCode, productCode);
 
   if (boosterData) {
+    // Pre-fetch all cards in the product to build name lookup for dedup.
+    // Results are cached in scryfallCardCache, so the targeted fetch below
+    // will be 100% cache hits — no extra API calls.
+    const allCards = await fetchCardsByCollectorNumber(boosterData.allCardIdentifiers);
+    const nameMap = buildNameMap(allCards);
+
     const skeletons = generateAllSheetPackSkeletons(
       boosterData,
       playerCount,
-      packsPerPlayer
+      packsPerPlayer,
+      nameMap
     );
     const neededIds = collectSkeletonIdentifiers(skeletons);
     const cardMap = await fetchCardsByCollectorNumber(neededIds);

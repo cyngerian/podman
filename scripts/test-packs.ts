@@ -32,7 +32,12 @@ import {
   type BoosterProductData,
 } from "../src/lib/booster-data";
 import { fetchCardsByCollectorNumber, normalizeForScryfall } from "../src/lib/scryfall";
-import { generateSheetPack } from "../src/lib/sheet-pack-generator";
+import {
+  generateAllSheetPackSkeletons,
+  resolvePackSkeletons,
+  buildNameMap,
+} from "../src/lib/sheet-pack-generator";
+import type { PackCardSkeleton } from "../src/lib/sheet-pack-generator";
 
 // --- Types ---
 
@@ -168,6 +173,45 @@ function checkPhase1(data: BoosterProductData): Phase1Result {
   };
 }
 
+// --- Pack Duplicate Helpers ---
+
+/**
+ * Check for same-sheet name duplicates in a pack skeleton.
+ * Per taw spec, cards with the same name from the same sheet are bugs.
+ * Cross-sheet duplicates (e.g., foil + non-foil) are allowed.
+ */
+function checkSameSheetDupes(
+  skeleton: PackCardSkeleton[],
+  nameMap: Map<string, string>,
+  packNum: number,
+  issues: string[]
+): void {
+  // Group cards by sheet_id, check name uniqueness within each group
+  const bySheet = new Map<number, string[]>();
+  for (const card of skeleton) {
+    const key = `${card.set_code}:${card.collector_number}`;
+    const name = nameMap.get(key) ?? key;
+    const names = bySheet.get(card.sheet_id);
+    if (names) {
+      names.push(name);
+    } else {
+      bySheet.set(card.sheet_id, [name]);
+    }
+  }
+
+  for (const [sheetId, names] of bySheet) {
+    const seen = new Set<string>();
+    for (const name of names) {
+      if (seen.has(name)) {
+        issues.push(
+          `Pack ${packNum} has same-sheet duplicate: "${name}" on sheet ${sheetId}`
+        );
+      }
+      seen.add(name);
+    }
+  }
+}
+
 // --- Phase 2: Scryfall + Pack Gen ---
 
 async function checkPhase2(
@@ -213,23 +257,20 @@ async function checkPhase2(
   }
 
   // Generate packs and validate
+  const nameMap = buildNameMap(cardMap);
+  const skeletons = generateAllSheetPackSkeletons(data, 1, packCount, nameMap);
+  const resolvedPacks = resolvePackSkeletons(skeletons, cardMap);
+
   let packsGenerated = 0;
-  for (let i = 0; i < packCount; i++) {
-    const pack = generateSheetPack(data, cardMap);
+  for (let i = 0; i < resolvedPacks.length; i++) {
+    const pack = resolvedPacks[i];
+    const skeleton = skeletons[i];
 
     if (pack.length === 0) {
       packIssues.push(`Pack ${i + 1} is empty`);
     } else {
-      // Check for intra-pack duplicates
-      const ids = new Set<string>();
-      for (const card of pack) {
-        if (ids.has(card.scryfallId)) {
-          packIssues.push(
-            `Pack ${i + 1} has duplicate: ${card.name} (${card.scryfallId})`
-          );
-        }
-        ids.add(card.scryfallId);
-      }
+      // Check for same-sheet name duplicates (real bugs — engine should prevent these)
+      checkSameSheetDupes(skeleton, nameMap, i + 1, packIssues);
       packsGenerated++;
     }
   }

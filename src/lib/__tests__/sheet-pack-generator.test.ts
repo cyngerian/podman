@@ -5,6 +5,7 @@ import {
   generateAllSheetPackSkeletons,
   generateSheetPack,
   generateAllSheetPacks,
+  buildNameMap,
 } from "../sheet-pack-generator";
 import type { PackCardSkeleton } from "../sheet-pack-generator";
 import type {
@@ -294,5 +295,123 @@ describe("generateAllSheetPacks", () => {
     const packs = generateAllSheetPacks(data, cardMap, 1, 1);
     expect(packs[0]).toHaveLength(4);
     expect(packs[0][0].scryfallId).toBeTruthy();
+  });
+});
+
+// === 6. Name-based dedup ===
+
+describe("buildNameMap", () => {
+  it("builds name lookup from cardMap", () => {
+    const cardMap = new Map<string, CardReference>([
+      ["tst:1", makeCard("sf-1", { name: "Lightning Bolt" })],
+      ["tst:2", makeCard("sf-2", { name: "Counterspell" })],
+    ]);
+    const nameMap = buildNameMap(cardMap);
+    expect(nameMap.get("tst:1")).toBe("Lightning Bolt");
+    expect(nameMap.get("tst:2")).toBe("Counterspell");
+    expect(nameMap.size).toBe(2);
+  });
+});
+
+describe("name-based dedup in skeleton generation", () => {
+  it("deduplicates by card name within same sheet", () => {
+    // Two cards on one sheet with different collector numbers but same name
+    const sheet = makeSheet(1, [
+      { set_code: "tst", collector_number: "1", weight: 1, is_foil: false },
+      { set_code: "tst", collector_number: "300", weight: 1, is_foil: false },
+    ]);
+    const sheets = new Map<number, BoosterSheet>([[1, sheet]]);
+    const configs: BoosterConfig[] = [
+      { id: 1, weight: 1, slots: [{ sheet_id: 1, count: 2 }] },
+    ];
+    const data = makeProductData({ configs, sheets });
+
+    // nameMap maps both collector numbers to the same name
+    const nameMap = new Map<string, string>([
+      ["tst:1", "Same Card"],
+      ["tst:300", "Same Card"],
+    ]);
+
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const skeletons = generateAllSheetPackSkeletons(data, 1, 1, nameMap);
+    // Only 1 card drawn because both share the same name on the same sheet
+    expect(skeletons[0]).toHaveLength(1);
+  });
+
+  it("allows same-name cards from different sheets", () => {
+    // Same-name cards on two different sheets → both drawn (cross-sheet dupes allowed)
+    const sheet1 = makeSheet(1, [
+      { set_code: "tst", collector_number: "1", weight: 1, is_foil: false },
+    ]);
+    const sheet2 = makeSheet(2, [
+      { set_code: "tst", collector_number: "200", weight: 1, is_foil: true },
+    ]);
+    const sheets = new Map<number, BoosterSheet>([
+      [1, sheet1],
+      [2, sheet2],
+    ]);
+    const configs: BoosterConfig[] = [
+      {
+        id: 1,
+        weight: 1,
+        slots: [
+          { sheet_id: 1, count: 1 },
+          { sheet_id: 2, count: 1 },
+        ],
+      },
+    ];
+    const data = makeProductData({ configs, sheets });
+
+    const nameMap = new Map<string, string>([
+      ["tst:1", "Same Card"],
+      ["tst:200", "Same Card"],
+    ]);
+
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const skeletons = generateAllSheetPackSkeletons(data, 1, 1, nameMap);
+    // Both drawn because they're from different sheets
+    expect(skeletons[0]).toHaveLength(2);
+  });
+
+  it("falls back to collector number dedup when nameMap not provided", () => {
+    // Two cards with different collector numbers, no nameMap → both drawn
+    const sheet = makeSheet(1, [
+      { set_code: "tst", collector_number: "1", weight: 1, is_foil: false },
+      { set_code: "tst", collector_number: "300", weight: 1, is_foil: false },
+    ]);
+    const sheets = new Map<number, BoosterSheet>([[1, sheet]]);
+    const configs: BoosterConfig[] = [
+      { id: 1, weight: 1, slots: [{ sheet_id: 1, count: 2 }] },
+    ];
+    const data = makeProductData({ configs, sheets });
+
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const skeletons = generateAllSheetPackSkeletons(data, 1, 1);
+    // Both drawn — no nameMap, so dedup uses collector number keys (different)
+    expect(skeletons[0]).toHaveLength(2);
+  });
+
+  it("legacy generateSheetPack deduplicates by name", () => {
+    // Same name, different collector numbers on one sheet
+    const sheet = makeSheet(1, [
+      { set_code: "tst", collector_number: "1", weight: 1, is_foil: false },
+      { set_code: "tst", collector_number: "300", weight: 1, is_foil: false },
+    ]);
+    const sheets = new Map<number, BoosterSheet>([[1, sheet]]);
+    const configs: BoosterConfig[] = [
+      { id: 1, weight: 1, slots: [{ sheet_id: 1, count: 2 }] },
+    ];
+    const data = makeProductData({ configs, sheets });
+
+    // cardMap gives both the same name
+    const cardMap = new Map<string, CardReference>([
+      ["tst:1", makeCard("sf-1", { name: "Same Card" })],
+      ["tst:300", makeCard("sf-300", { name: "Same Card" })],
+    ]);
+
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const pack = generateSheetPack(data, cardMap);
+    // Only 1 card — legacy API builds nameMap internally from cardMap
+    expect(pack).toHaveLength(1);
   });
 });
