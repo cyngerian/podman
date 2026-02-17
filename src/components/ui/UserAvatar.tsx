@@ -64,6 +64,7 @@ export default function UserAvatar({
           width={px}
           height={px}
           className="object-cover w-full h-full"
+          unoptimized
         />
       </div>
     );
