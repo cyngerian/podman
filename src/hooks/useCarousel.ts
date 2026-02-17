@@ -162,7 +162,7 @@ export function useCarousel({ filteredCards, filterKey, flippedCardsRef }: UseCa
       }
     };
 
-    // Expose snap-to-card for scrub bar
+    // Expose snap-to-card for scrub bar, grid view, keyboard nav
     snapToCardRef.current = (idx: number) => {
       velocity = 0;
       snapTarget = cardCenters[Math.max(0, Math.min(idx, cardCenters.length - 1))];

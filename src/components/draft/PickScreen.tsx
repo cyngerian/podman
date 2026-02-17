@@ -227,6 +227,9 @@ export default function PickScreen({
 
   const { scrollRef, wrapperRef, cardRefs, nameRef, counterRef, scrubThumbRef, scrubBarRef, activeIndexRef, snapToCardRef } = useCarousel({ filteredCards, filterKey, flippedCardsRef });
 
+  // Track touch interactions on scrub bar to suppress click-after-drag
+  const scrubTouchRef = useRef(false);
+
   const toggleFlip = useCallback((scryfallId: string) => {
     setFlippedCards((prev) => {
       const next = new Set(prev);
@@ -601,6 +604,7 @@ export default function PickScreen({
                 aria-valuenow={0}
                 aria-valuetext={`Card 1 of ${filteredCards.length}`}
                 onClick={(e) => {
+                  if (scrubTouchRef.current) return;
                   const rect = e.currentTarget.getBoundingClientRect();
                   const progress = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
                   const targetIdx = Math.round(progress * (filteredCards.length - 1));
@@ -626,6 +630,7 @@ export default function PickScreen({
                 }}
                 onTouchStart={(e) => {
                   e.stopPropagation();
+                  scrubTouchRef.current = true;
                   const rect = e.currentTarget.getBoundingClientRect();
                   const progress = Math.max(0, Math.min(1, (e.touches[0].clientX - rect.left) / rect.width));
                   snapToCardRef.current(Math.round(progress * (filteredCards.length - 1)));
@@ -638,6 +643,9 @@ export default function PickScreen({
                   const rect = bar.getBoundingClientRect();
                   const progress = Math.max(0, Math.min(1, (e.touches[0].clientX - rect.left) / rect.width));
                   snapToCardRef.current(Math.round(progress * (filteredCards.length - 1)));
+                }}
+                onTouchEnd={() => {
+                  setTimeout(() => { scrubTouchRef.current = false; }, 300);
                 }}
               >
                 <div className="w-full h-10 flex items-center cursor-pointer">
