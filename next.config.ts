@@ -13,6 +13,13 @@ const nextConfig: NextConfig = {
         hostname: "*.public.blob.vercel-storage.com",
       },
     ],
+    // Scryfall image URLs are immutable — cache optimized images for 31 days
+    minimumCacheTTL: 2678400,
+    // WebP only — skip AVIF to halve the number of transformations
+    formats: ["image/webp"],
+    // Restrict to widths the app actually uses (default has 16 widths, we need 6)
+    deviceSizes: [640, 828, 1080],
+    imageSizes: [128, 256, 384],
   },
   async headers() {
     return [
