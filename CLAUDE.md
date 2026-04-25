@@ -74,7 +74,7 @@ The `(app)` layout adds a sticky header (`z-30`, `h-12`) with user avatar, displ
 
 ### Draft Engine (`src/lib/draft-engine.ts`)
 
-Pure functions transforming immutable `Draft` state objects. Key functions: `createDraft`, `startDraft`, `makePickAndPass`, `advanceToNextPack`, `transitionToDeckBuilding`, `unsubmitDeck`. State stored as JSON in `drafts.state`, mutated via `applyDraftMutation()` with optimistic concurrency. **207 unit tests** across `src/lib/__tests__/` (Vitest): 88 draft engine, 12 scryfall normalization, 17 export, 17 card-utils, 25 bot-drafter, 30 pack-generator, 18 sheet-pack-generator.
+Pure functions transforming immutable `Draft` state objects. Key functions: `createDraft`, `startDraft`, `makePickAndPass`, `advanceToNextPack`, `transitionToDeckBuilding`, `unsubmitDeck`. State stored as JSON in `drafts.state`, mutated via `applyDraftMutation()` with optimistic concurrency. **212 unit tests** across `src/lib/__tests__/` (Vitest): 88 draft engine, 12 scryfall normalization, 17 export, 17 card-utils, 25 bot-drafter, 30 pack-generator, 23 sheet-pack-generator.
 
 ### Key Types (`src/lib/types.ts`)
 
@@ -142,6 +142,8 @@ Remote from Scryfall (`cards.scryfall.io`), optimized via Next.js Image. Rate-li
 **Collector number normalization**: `normalizeForScryfall()` handles DFC `a`/`b` suffixes, star `★` suffixes, and "The List" `SET-NUM` format. `fetchCardsByCollectorNumber` sends both original and normalized to Scryfall. See `docs/collector-number-suffix-fix.md`.
 
 **Booster data caching**: `booster-data.ts` uses a three-layer cache: L1 module-level Map → L2 Upstash Redis (`src/lib/kv.ts`) → L3 Postgres RPC (`get_booster_product_json`). Warm-up triggers fire on Crack a Pack product selection and draft lobby load.
+
+**Pack dedup**: Name-based per-sheet (matching taw/magic-sealed-data spec). Same-name cards from the same sheet are rerolled; cross-sheet duplicates (e.g., foil + non-foil) are allowed. `buildNameMap()` in `sheet-pack-generator.ts` builds the lookup. `PackCardSkeleton.sheet_id` tracks provenance. `test-packs` validates per-sheet name uniqueness.
 
 **Booster data updates**: `scripts/load-booster-data.ts` loads data from `taw/magic-sealed-data`. Flags: `--sync` (detect+load new products only), `--set <code>` (filter to one set), `--clear` (wipe before load). All load paths invalidate Upstash Redis `booster:*` keys. GitHub Actions workflow `update-sets.yml` runs `--sync` daily at 10:00 UTC against both prod and staging.
 
@@ -219,3 +221,11 @@ SUPABASE_ACCESS_TOKEN                   # Supabase personal access token (script
 ## Pending Work
 
 `CODEBASE_REVIEW.md` at project root contains a verified implementation plan (Feb 2026) — 30 issues, 7 PRs, 3 waves. All 3 waves complete (PRs #20–27, merged). Rarity sort fix in PR #28.
+
+## Worker Detection
+
+If the file `.esm/worker.md` exists in this directory, **you are a worker agent**.
+Read `.esm/worker.md` immediately and follow its instructions. The worker file
+defines your task, acceptance criteria, and constraints. The rest of this CLAUDE.md
+still applies (conventions, tools, project info) but the worker file takes
+precedence for your role and workflow.

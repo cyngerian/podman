@@ -1,0 +1,87 @@
+docs_dir: docs/
+
+templates:
+  architecture:
+    path: docs/codebase_analysis_2026-02-16.md
+    description: System architecture, tech stack, directory structure, schema, API surface
+    triggers:
+      - "src/**/*.ts"
+      - "src/**/*.tsx"
+      - "supabase/migrations/**"
+    frequency: session
+    sections:
+      - "1. Project Overview"
+      - "2. Technology Stack"
+      - "3. Directory Structure"
+      - "4. Architecture Deep Dive"
+      - "5. Database Schema"
+      - "6. API Endpoints"
+      - "7. File-by-File Breakdown"
+      - "8. Key Design Patterns"
+      - "9. Environment & Setup"
+      - "10. Security Considerations"
+      - "11. Code Quality Assessment"
+      - "12. Module Dependency Graph"
+
+  deployment:
+    path: docs/plans/deployment_strategy.md
+    description: Vercel + Supabase deployment strategy, env vars, migrations, dev workflow
+    triggers:
+      - "Dockerfile"
+      - "vercel.json"
+      - "vercel.ts"
+      - ".github/workflows/**"
+      - "next.config.ts"
+      - "supabase/config.toml"
+    frequency: session
+    sections:
+      - "Overview"
+      - "Cost Breakdown"
+      - "1. Initial Setup"
+      - "2. Environment Variables"
+      - "3. Database Migrations"
+      - "4. Development Workflow"
+      - "5. Vercel Configuration"
+      - "6. Supabase Auth Configuration"
+      - "7. CI/CD (Optional, Future)"
+      - "8. Quick Reference"
+
+  testing:
+    path: docs/testing.md
+    description: Test strategy, suites, fixtures, and coverage notes
+    triggers:
+      - "src/lib/__tests__/**"
+      - "vitest.config.*"
+      - "scripts/test-packs.ts"
+    frequency: task
+    sections:
+      - "Overview"
+      - "Test Suites"
+      - "Running Tests"
+      - "Fixtures and Mocks"
+      - "Coverage Gaps"
+
+  ci:
+    path: docs/ci.md
+    description: GitHub Actions workflows and CI/CD pipeline
+    triggers:
+      - ".github/workflows/**"
+    frequency: task
+    sections:
+      - "Overview"
+      - "Workflows"
+      - "Triggers"
+      - "Secrets and Environment"
+      - "Local Reproduction"
+
+  scripts:
+    path: docs/scripts.md
+    description: TypeScript scripts in scripts/ — backup, restore, sync, data loading
+    triggers:
+      - "scripts/**"
+    frequency: task
+    sections:
+      - "Overview"
+      - "Scripts"
+      - "Environment Variables"
+      - "Common Tasks"

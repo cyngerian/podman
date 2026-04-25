@@ -6,6 +6,8 @@ last_verified: 2026-02-11
 
 # Deployment Strategy
 
+<!-- last_updated: 2026-02-11 -->
+
 ## Overview
 
 Three-environment setup: **local dev** → **staging** → **production**, using two free Supabase projects, deployed via Vercel.
