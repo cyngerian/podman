@@ -33,6 +33,7 @@ yarn-error.log*
 
 # env files
 .env*.local
+.env*.local.*
 .env
 .env.prod
 
@@ -52,3 +53,5 @@ backups/
 
 # claude
 CLAUDE.md
+.claude/skills/
+.esm/
