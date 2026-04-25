@@ -1,5 +1,7 @@
 # podman — Comprehensive Codebase Analysis
 
+<!-- last_updated: 2026-02-16 -->
+
 Generated: February 16, 2026
 
 ---
