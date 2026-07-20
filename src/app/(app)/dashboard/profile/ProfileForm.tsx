@@ -2,8 +2,49 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import * as Sentry from "@sentry/nextjs";
 import UserAvatar from "@/components/ui/UserAvatar";
 import { updateProfile } from "./actions";
+
+const WEB_SAFE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/avif"];
+const MAX_AVATAR_DIMENSION = 512;
+const REENCODE_SIZE_THRESHOLD = 512 * 1024;
+
+// Re-encode to a downscaled JPEG via canvas. Handles HEIC from iOS Photos
+// (Safari decodes it natively even though other browsers can't display it)
+// and shrinks multi-MB camera photos before upload. Falls back to the
+// original file if decoding fails — the server allowlist is the backstop.
+async function prepareAvatarFile(file: File): Promise<File> {
+  const needsReencode =
+    !WEB_SAFE_TYPES.includes(file.type) ||
+    (file.size > REENCODE_SIZE_THRESHOLD && file.type !== "image/gif");
+  if (!needsReencode) return file;
+
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.src = objectUrl;
+    await img.decode();
+
+    const scale = Math.min(1, MAX_AVATAR_DIMENSION / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", 0.85)
+    );
+    if (!blob) return file;
+    return new File([blob], "avatar.jpg", { type: "image/jpeg" });
+  } catch {
+    return file;
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
 
 const MANA_COLORS = [
   { code: "W", manaClass: "ms ms-w ms-cost", label: "White" },
@@ -44,25 +85,39 @@ export default function ProfileForm({
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Allow re-selecting the same file after a failure
+    e.target.value = "";
 
     setUploading(true);
     setError(null);
 
-    const formData = new FormData();
-    formData.append("file", file);
+    try {
+      const upload = await prepareAvatarFile(file);
+      const formData = new FormData();
+      formData.append("file", upload);
 
-    const res = await fetch("/api/avatar", { method: "POST", body: formData });
-    const data = await res.json();
+      const res = await fetch("/api/avatar", { method: "POST", body: formData });
 
-    if (!res.ok) {
-      setError(data.error ?? "Upload failed");
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setError(data?.error ?? `Upload failed (${res.status})`);
+        return;
+      }
+
+      const data = await res.json();
+      setAvatarUrl(data.url);
+      setEmojiInput("");
+      // The route already persisted avatar_url — refresh so the header
+      // avatar and any server-rendered views pick it up without a Save
+      router.refresh();
+    } catch (err) {
+      Sentry.captureException(err, {
+        extra: { fileType: file.type, fileSize: file.size },
+      });
+      setError("Upload failed. Please try again.");
+    } finally {
       setUploading(false);
-      return;
     }
-
-    setAvatarUrl(data.url);
-    setEmojiInput("");
-    setUploading(false);
   }
 
   function handleEmojiChange(value: string) {
@@ -127,7 +182,7 @@ export default function ProfileForm({
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="image/*,.heic,.heif"
               onChange={handleFileUpload}
               className="hidden"
             />
