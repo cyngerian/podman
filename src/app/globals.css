@@ -56,6 +56,19 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* iOS Safari auto-zooms when a focused form control renders below 16px.
+   Components declare `text-base sm:text-sm` so the intent is visible in the
+   markup; this unlayered rule is the backstop for anything that forgets.
+   Unlayered CSS outrules Tailwind's `@layer utilities`, so it wins over any
+   smaller text-* utility on the element. */
+@media (max-width: 639px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
 /* Card aspect ratio */
 .card-aspect {
   aspect-ratio: 488 / 680;

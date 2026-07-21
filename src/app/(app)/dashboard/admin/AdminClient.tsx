@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useAutoDismiss } from "@/hooks/useAutoDismiss";
 import {
   resetUserPassword,
   deleteUser,
@@ -66,7 +67,7 @@ export default function AdminClient({
             className={`px-3 py-2 text-sm font-medium transition-colors ${
               tab === t.key
                 ? "border-b-2 border-accent text-foreground"
-                : "text-foreground/40 hover:text-foreground/60"
+                : "text-foreground/60 hover:text-foreground/80"
             }`}
           >
             {t.label} ({t.count})
@@ -102,6 +103,8 @@ function UserRow({ user }: { user: User }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  useAutoDismiss(success, () => setSuccess(null));
 
   function handleReset() {
     setError(null);
@@ -146,7 +149,7 @@ function UserRow({ user }: { user: User }) {
             )}
           </div>
           <div className="text-xs text-foreground/40 truncate">{user.email}</div>
-          <div className="text-xs text-foreground/30">
+          <div className="text-xs text-foreground/50">
             Joined {new Date(user.createdAt).toLocaleDateString()}
           </div>
         </div>
@@ -174,7 +177,11 @@ function UserRow({ user }: { user: User }) {
       </div>
 
       {error && <div className="text-xs text-red-400">{error}</div>}
-      {success && <div className="text-xs text-green-400">{success}</div>}
+      {success && (
+        <div role="status" aria-live="polite" className="text-xs text-green-400">
+          {success}
+        </div>
+      )}
 
       {mode === "reset" && (
         <div className="flex gap-2 items-center">
@@ -183,7 +190,7 @@ function UserRow({ user }: { user: User }) {
             placeholder="New password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="flex-1 rounded-lg border border-border bg-background px-2 py-1 text-sm text-foreground placeholder:text-foreground/30 focus:border-accent focus:outline-none"
+            className="flex-1 rounded-lg border border-border bg-background px-2 py-1 text-base sm:text-sm text-foreground placeholder:text-foreground/50 focus:border-accent focus:outline-none"
           />
           <button
             onClick={handleReset}
@@ -209,7 +216,7 @@ function UserRow({ user }: { user: User }) {
           </button>
           <button
             onClick={() => setMode("idle")}
-            className="text-xs text-foreground/40 hover:text-foreground/60"
+            className="text-xs text-foreground/60 hover:text-foreground/80"
           >
             Cancel
           </button>
@@ -289,7 +296,7 @@ function GroupRow({ group }: { group: Group }) {
           </button>
           <button
             onClick={() => setConfirming(false)}
-            className="text-xs text-foreground/40 hover:text-foreground/60"
+            className="text-xs text-foreground/60 hover:text-foreground/80"
           >
             Cancel
           </button>
@@ -360,7 +367,7 @@ function DraftRow({ draft }: { draft: Draft }) {
               {draft.status.replace("_", " ")}
             </span>
             {draft.isSimulated && (
-              <span className="text-[10px] uppercase tracking-wide text-foreground/30">
+              <span className="text-[10px] uppercase tracking-wide text-foreground/50">
                 Sim
               </span>
             )}
@@ -391,7 +398,7 @@ function DraftRow({ draft }: { draft: Draft }) {
           </button>
           <button
             onClick={() => setConfirming(false)}
-            className="text-xs text-foreground/40 hover:text-foreground/60"
+            className="text-xs text-foreground/60 hover:text-foreground/80"
           >
             Cancel
           </button>

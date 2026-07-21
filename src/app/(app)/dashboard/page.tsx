@@ -68,14 +68,14 @@ export default async function DashboardPage() {
         </span>
         <Link
           href="/dashboard/profile"
-          className="text-xs text-foreground/40 hover:text-foreground/60 transition-colors"
+          className="text-xs text-foreground/60 hover:text-foreground/80 transition-colors"
         >
           Edit Profile
         </Link>
         {profile?.is_site_admin && (
           <Link
             href="/dashboard/admin"
-            className="text-xs text-foreground/40 hover:text-foreground/60 transition-colors"
+            className="text-xs text-foreground/60 hover:text-foreground/80 transition-colors"
           >
             Admin
           </Link>

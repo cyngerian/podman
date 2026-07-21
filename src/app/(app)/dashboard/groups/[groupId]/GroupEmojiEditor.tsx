@@ -27,7 +27,7 @@ export default function GroupEmojiEditor({
           setValue(currentEmoji ?? "");
           setEditing(true);
         }}
-        className="text-foreground/30 hover:text-foreground/60 transition-colors text-xs"
+        className="text-foreground/60 hover:text-foreground/80 transition-colors text-xs"
         title="Edit emoji"
       >
         {currentEmoji ? <span className="text-2xl">{currentEmoji}</span> : "+ emoji"}
@@ -55,7 +55,7 @@ export default function GroupEmojiEditor({
         onBlur={save}
         maxLength={8}
         autoFocus
-        className="w-16 rounded border border-border bg-surface px-1.5 py-0.5 text-sm text-center focus:border-accent focus:outline-none"
+        className="w-16 rounded border border-border bg-surface px-1.5 py-0.5 text-base sm:text-sm text-center focus:border-accent focus:outline-none"
         disabled={pending}
       />
     </span>

@@ -232,7 +232,7 @@ export default function PostDraftScreen({
           value={deckName}
           onChange={(e: ChangeEvent<HTMLInputElement>) => setDeckName(e.target.value)}
           placeholder="Deck name (optional)"
-          className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-foreground/30 focus:outline-none focus:ring-1 focus:ring-accent"
+          className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-base sm:text-sm text-foreground placeholder:text-foreground/50 focus:outline-none focus:ring-1 focus:ring-accent"
         />
         <div className="space-y-2">
           {renderExportButton(

@@ -161,7 +161,7 @@ export default function DraftLobby({
                 <span className="flex h-7 w-7 items-center justify-center rounded-full bg-border/50 text-xs font-bold tabular-nums text-foreground/40">
                   {i + 1}
                 </span>
-                <span className="text-sm text-foreground/30">
+                <span className="text-sm text-foreground/50">
                   Waiting for player...
                 </span>
               </div>
