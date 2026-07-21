@@ -15,9 +15,10 @@
 -- rather than full card objects, since every deck/sideboard card is also a pool
 -- card; the server re-expands them (see src/lib/draft-view.ts).
 --
--- Authorization: SECURITY DEFINER (bypasses RLS) but `seat` is only populated
--- for the seat whose userId matches auth.uid(), so a non-participant learns
--- nothing beyond the draft's status.
+-- Authorization: SECURITY DEFINER (bypasses RLS), so the function does the
+-- gating itself — a caller with no seat matching auth.uid() gets only the
+-- draft's status back, no roster and no cards. That keeps it no more
+-- permissive than the `drafts_select` RLS policy it replaces.
 
 -- Compact "<scryfallId>:<isFoil>" keys for a jsonb array of CardReferences.
 -- Returns SQL NULL when the input is absent/JSON-null (an unbuilt deck), which
@@ -30,7 +31,7 @@ SET search_path = ''
 AS $$
   SELECT CASE WHEN jsonb_typeof(p_cards) IS DISTINCT FROM 'array' THEN NULL ELSE (
     SELECT COALESCE(jsonb_agg(
-      (c->>'scryfallId') || ':' || COALESCE(c->>'isFoil', 'false')
+      COALESCE(c->>'scryfallId', '') || ':' || COALESCE(c->>'isFoil', 'false')
     ), '[]'::jsonb)
     FROM jsonb_array_elements(p_cards) AS t(c)
   ) END;
@@ -43,7 +44,15 @@ STABLE
 SECURITY DEFINER
 SET search_path = ''
 AS $$
-  SELECT jsonb_build_object(
+  -- No seat for the caller => no draft data at all. The pick page redirects on
+  -- a null seat anyway, and returning the roster here would hand any
+  -- authenticated user with a draft UUID the pod's user ids and display names,
+  -- which the drafts_select RLS policy does not allow.
+  SELECT CASE WHEN me.seat IS NULL THEN jsonb_build_object(
+    'status', d.status,
+    'seat', NULL,
+    'podMembers', '[]'::jsonb
+  ) ELSE jsonb_build_object(
     'status', d.status,
     'setCode', d.state->'setCode',
     'setName', d.state->'setName',
@@ -52,7 +61,7 @@ AS $$
     'cardsPerPack', d.state->'cardsPerPack',
     'timerPreset', d.state->'timerPreset',
     'pacingMode', d.state->'pacingMode',
-    'seat', CASE WHEN me.seat IS NULL THEN NULL ELSE jsonb_build_object(
+    'seat', jsonb_build_object(
       'position', me.seat->'position',
       'currentPack', CASE
         WHEN jsonb_typeof(me.seat->'currentPack') IS DISTINCT FROM 'object' THEN NULL
@@ -78,7 +87,7 @@ AS $$
         ELSE 0
       END,
       'packReceivedAt', me.seat->'packReceivedAt'
-    ) END,
+    ),
     'podMembers', (
       SELECT COALESCE(jsonb_agg(
         jsonb_build_object(
@@ -102,7 +111,7 @@ AS $$
              THEN d.state->'seats' ELSE '[]'::jsonb END
       ) AS t(s)
     )
-  )
+  ) END
   FROM public.drafts d
   LEFT JOIN LATERAL (
     SELECT s AS seat

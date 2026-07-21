@@ -1,4 +1,5 @@
 import { redirect, notFound } from "next/navigation";
+import * as Sentry from "@sentry/nextjs";
 import { createServerSupabaseClient, getUser } from "@/lib/supabase-server";
 import { hydrateCardTypeLines } from "@/lib/scryfall";
 import { isBotUserId } from "@/lib/bot-drafter";
@@ -25,9 +26,17 @@ export default async function PickPage({
 
   // Narrow read: only this viewer's seat + per-seat counts, never the full
   // drafts.state JSON (see src/lib/draft-view.ts for why).
-  const { data } = await supabase.rpc("get_draft_pick_view", {
+  const { data, error } = await supabase.rpc("get_draft_pick_view", {
     p_draft_id: draftId,
   });
+
+  // A failed RPC (transient, or the migration not yet applied) must not look
+  // like a missing draft — a 404 mid-draft would be indistinguishable from the
+  // draft being deleted. Surface it to the error boundary instead.
+  if (error) {
+    Sentry.captureException(error, { extra: { draftId } });
+    throw new Error(`Failed to load draft: ${error.message}`);
+  }
 
   const view = data as unknown as DraftPickView | null;
 
@@ -66,7 +75,10 @@ export default async function PickPage({
 
   const podMembers = buildPodMembers(view.podMembers, profileMap, user.id);
 
-  // deck/sideboard arrive as keys into the pool — expand them back to cards
+  // deck/sideboard arrive as keys into the pool — expand them back to cards.
+  // Each zone resolves independently, so a card key present in both would
+  // yield the same object in each; the deck builder matches by scryfallId,
+  // never by identity, so that stays invisible.
   const pool = seat.pool ?? [];
 
   return (

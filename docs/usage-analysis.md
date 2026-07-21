@@ -174,10 +174,12 @@ egress.
 
 ## 5. Re-measurement after podman-12
 
-**Method.** The RPC was run against a synthetic but realistic 6-seat mid-draft
-state (each seat: 10-card current pack, 11-card queued pack, 20-card pool,
-14-card deck, 6-card sideboard, 20 picks, full `CardReference` fields including
-both Scryfall image URLs) on a throwaway Postgres 17 instance:
+**Method.** `scripts/measure-pick-view-payload.sql` (run instructions in its
+header) applies the migration to a throwaway Postgres 17 container and measures
+the RPC against a synthetic but realistic 6-seat mid-draft state — each seat a
+10-card current pack, 11-card queued pack, 20-card pool, 14-card deck, 6-card
+sideboard and 20 picks, with full `CardReference` fields including both
+Scryfall image URLs:
 
 | | Bytes |
 |---|---|
@@ -187,6 +189,9 @@ both Scryfall image URLs) on a throwaway Postgres 17 instance:
 
 Combined with 7,000 → ~2,970 refreshes, that models a **~20x per-draft egress
 cut** (~1 GB → ~50 MB uncompressed).
+
+The same script asserts the access rule: a caller with no seat in the draft gets
+back `{"seat": null, "status": ..., "podMembers": []}` — no roster, no cards.
 
 **Still to confirm on real traffic:** the numbers above are payload-size
 measurements plus the refresh-count model, not dashboard readings. Supabase
