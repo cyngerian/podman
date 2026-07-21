@@ -32,6 +32,7 @@ import {
 } from "@/lib/scryfall";
 import { generateCubePacks } from "@/lib/pack-generator";
 import { generatePacksForSet, generateMixedPacks } from "@/lib/generate-packs";
+import { applyDraftMutation } from "@/lib/draft-mutation";
 import { isBotUserId } from "@/lib/bot-drafter";
 import { runBotPicks, runWinstonBotTurns } from "@/lib/bot-runner";
 
@@ -46,83 +47,6 @@ async function getAuthenticatedUser() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
   return user;
-}
-
-/**
- * Apply a mutation to draft state with optimistic concurrency control.
- * Uses admin client to bypass RLS (since only host can update drafts via RLS).
- */
-async function applyDraftMutation(
-  draftId: string,
-  mutate: (draft: Draft, allPacks: CardReference[][] | null) => Draft,
-  opts?: { updateStatus?: boolean; updateStartedAt?: boolean; updateCompletedAt?: boolean; clearCompletedAt?: boolean }
-): Promise<{ success: boolean; draft?: Draft; error?: string }> {
-  const admin = createAdminClient();
-
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const { data, error } = await admin
-      .from("drafts")
-      .select("state, config, version, status")
-      .eq("id", draftId)
-      .single();
-
-    if (error || !data) {
-      return { success: false, error: error?.message ?? "Draft not found" };
-    }
-
-    const currentVersion = data.version;
-    const state = data.state as unknown as Draft;
-    const config = data.config as Record<string, unknown>;
-    const allPacks = (config.allPacks as CardReference[][] | undefined) ?? null;
-
-    if (!state) {
-      return { success: false, error: "Draft has no state" };
-    }
-
-    let updatedDraft: Draft;
-    try {
-      updatedDraft = mutate(state, allPacks);
-    } catch (e) {
-      return { success: false, error: e instanceof Error ? e.message : "Mutation failed" };
-    }
-
-    const updatePayload: Record<string, unknown> = {
-      state: updatedDraft as unknown as Json,
-      version: currentVersion + 1,
-    };
-
-    if (opts?.updateStatus) {
-      updatePayload.status = updatedDraft.status;
-    }
-    if (opts?.updateStartedAt && updatedDraft.startedAt) {
-      updatePayload.started_at = new Date(updatedDraft.startedAt).toISOString();
-    }
-    if (opts?.updateCompletedAt && updatedDraft.completedAt) {
-      updatePayload.completed_at = new Date(updatedDraft.completedAt).toISOString();
-    }
-    if (opts?.clearCompletedAt && !updatedDraft.completedAt) {
-      updatePayload.completed_at = null;
-    }
-
-    const { error: updateError, count } = await admin
-      .from("drafts")
-      .update(updatePayload)
-      .eq("id", draftId)
-      .eq("version", currentVersion);
-
-    // If count is 0, version mismatch — retry
-    if (count === 0 && !updateError) {
-      continue;
-    }
-
-    if (updateError) {
-      return { success: false, error: updateError.message };
-    }
-
-    return { success: true, draft: updatedDraft };
-  }
-
-  return { success: false, error: "Version conflict after 3 retries" };
 }
 
 // ============================================================================
