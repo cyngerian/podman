@@ -327,12 +327,14 @@ export default function DeckBuilderScreen({
         {/* Deck name + sort */}
         <div className="flex items-center gap-3">
           {!isMidDraft && (
+            // min-w-0 so the 16px mobile text can't push the input's intrinsic
+            // width past the flex row on narrow phones
             <input
               type="text"
               value={deckName}
               onChange={(e) => setDeckName(e.target.value)}
               placeholder="Deck name (for exports)"
-              className="flex-1 bg-surface border border-border rounded-lg px-3 py-1.5 text-base sm:text-sm text-foreground placeholder:text-foreground/50 focus:outline-none focus:ring-1 focus:ring-accent"
+              className="flex-1 min-w-0 bg-surface border border-border rounded-lg px-3 py-1.5 text-base sm:text-sm text-foreground placeholder:text-foreground/50 focus:outline-none focus:ring-1 focus:ring-accent"
             />
           )}
           <select

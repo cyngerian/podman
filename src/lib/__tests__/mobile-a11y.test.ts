@@ -141,18 +141,35 @@ describe("contrast floors", () => {
 
   it("never renders interactive text below /60", () => {
     const offenders: string[] = [];
-    // A `hover:text-foreground/*` sibling marks the class list as interactive.
-    const interactive = /text-foreground\/(\d+)([^"'`]*?)hover:text-foreground/g;
+    // A `hover:text-foreground` in the same class string marks it interactive.
+    // Scan whole strings rather than a fixed order, so shuffling the class
+    // list can't hide an offender.
+    const classString = /["'`]([^"'`]*text-foreground\/\d+[^"'`]*)["'`]/g;
 
     for (const { file, source } of FILES) {
-      for (const match of source.matchAll(interactive)) {
-        if (Number(match[1]) < 60) {
-          offenders.push(`${file}: text-foreground/${match[1]}`);
+      for (const [, classes] of source.matchAll(classString)) {
+        if (!classes.includes("hover:text-foreground")) continue;
+        for (const [, opacity] of classes.matchAll(
+          /(?<!hover:)\btext-foreground\/(\d+)/g
+        )) {
+          if (Number(opacity) < 60) {
+            offenders.push(`${file}: text-foreground/${opacity}`);
+          }
         }
       }
     }
 
     expect(offenders, "interactive text must be at least /60").toEqual([]);
+  });
+
+  it("uses Tailwind v4 placeholder syntax, which v3's placeholder-* is not", () => {
+    // `placeholder-{color}` was removed in Tailwind v4 — it renders nothing,
+    // so a placeholder written that way silently keeps the browser default.
+    const offenders = FILES.filter(({ source }) =>
+      /\bplaceholder-foreground\//.test(source)
+    ).map(({ file }) => file);
+
+    expect(offenders, "use `placeholder:text-foreground/*`").toEqual([]);
   });
 
   it("has no text-foreground/30 left anywhere", () => {

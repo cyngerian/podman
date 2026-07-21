@@ -104,7 +104,7 @@ function UserRow({ user }: { user: User }) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  useAutoDismiss(success !== null, () => setSuccess(null));
+  useAutoDismiss(success, () => setSuccess(null));
 
   function handleReset() {
     setError(null);

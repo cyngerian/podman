@@ -80,11 +80,11 @@ export default function PickedCardsDrawer({
       <div className="relative mt-2 flex-1 flex flex-col bg-surface rounded-t-2xl overflow-hidden drawer-enter drawer-enter-active">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-          <h2 className="text-lg font-bold text-foreground">
+          <h2 className="text-lg font-bold text-foreground min-w-0 truncate">
             My Picks ({picks.length})
           </h2>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <select
               value={sortMode}
               onChange={(e) => onSortChange(e.target.value as PickedCardSortMode)}
