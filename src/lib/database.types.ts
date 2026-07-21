@@ -532,8 +532,13 @@ export type Database = {
     }
     Functions: {
       accept_group_invite: { Args: { p_token: string }; Returns: string }
+      draft_card_keys: { Args: { p_cards: Json }; Returns: Json }
       get_booster_product_json: {
         Args: { p_code: string }
+        Returns: Record<string, unknown>
+      }
+      get_draft_pick_view: {
+        Args: { p_draft_id: string }
         Returns: Record<string, unknown>
       }
       get_invite_info: {

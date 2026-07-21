@@ -74,7 +74,7 @@ The `(app)` layout adds a sticky header (`z-30`, `h-12`) with user avatar, displ
 
 ### Draft Engine (`src/lib/draft-engine.ts`)
 
-Pure functions transforming immutable `Draft` state objects. Key functions: `createDraft`, `startDraft`, `makePickAndPass`, `advanceToNextPack`, `transitionToDeckBuilding`, `unsubmitDeck`. State stored as JSON in `drafts.state`, mutated via `applyDraftMutation()` (`src/lib/draft-mutation.ts`) with optimistic concurrency — the update is guarded by `.eq("version", currentVersion)` and retried up to `MAX_MUTATION_ATTEMPTS` (3) times on a zero-row write. **308 unit tests** (Vitest): 88 draft engine, 12 scryfall normalization, 17 export, 17 card-utils, 25 bot-drafter, 30 pack-generator, 23 sheet-pack-generator, 19 draft-mutation, 14 kv, 18 server-action guards (`src/app/(app)/dashboard/groups/__tests__/`), 9 avatar route, plus fetch-json, deck-saver, async-guard, and proposal-validation. Shared PostgREST/`redirect` test doubles live in `src/lib/__tests__/supabase-mock.ts`.
+Pure functions transforming immutable `Draft` state objects. Key functions: `createDraft`, `startDraft`, `makePickAndPass`, `advanceToNextPack`, `transitionToDeckBuilding`, `unsubmitDeck`. State stored as JSON in `drafts.state`, mutated via `applyDraftMutation()` (`src/lib/draft-mutation.ts`) with optimistic concurrency — the update is guarded by `.eq("version", currentVersion)` and retried up to `MAX_MUTATION_ATTEMPTS` (3) times on a zero-row write. **341 unit tests** (Vitest): 88 draft engine, 17 draft-view, 12 scryfall normalization, 17 export, 17 card-utils, 25 bot-drafter, 30 pack-generator, 23 sheet-pack-generator, 19 draft-mutation, 14 kv, 18 server-action guards (`src/app/(app)/dashboard/groups/__tests__/`), 9 avatar route, plus fetch-json, deck-saver, async-guard, and proposal-validation. Shared PostgREST/`redirect` test doubles live in `src/lib/__tests__/supabase-mock.ts`.
 
 ### Key Types (`src/lib/types.ts`)
 
@@ -83,6 +83,8 @@ Pure functions transforming immutable `Draft` state objects. Key functions: `cre
 ### Realtime
 
 `useRealtimeChannel` hook wraps Supabase channel lifecycle. `PickClient.tsx` subscribes to draft table changes — `router.refresh()` pulls fresh server data on any pick.
+
+**Pick-screen read path**: `pick/page.tsx` reads through the `get_draft_pick_view` RPC, not `drafts.state` — the RPC returns only the caller's seat (current pack, pool, deck/sideboard as keys into the pool) plus per-seat counts for the pod list — 7–20 KB against a 48–326 KB state, measured across a real draft. `src/lib/draft-view.ts` types the payload and re-expands the deck keys. The waiting-screen poll is a realtime gap-filler at `WAITING_POLL_INTERVAL_MS` (8s) — don't shorten it without re-reading `docs/usage-analysis.md`.
 
 ## Key Patterns
 
