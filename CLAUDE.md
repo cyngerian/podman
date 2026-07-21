@@ -74,7 +74,7 @@ The `(app)` layout adds a sticky header (`z-30`, `h-12`) with user avatar, displ
 
 ### Draft Engine (`src/lib/draft-engine.ts`)
 
-Pure functions transforming immutable `Draft` state objects. Key functions: `createDraft`, `startDraft`, `makePickAndPass`, `advanceToNextPack`, `transitionToDeckBuilding`, `unsubmitDeck`. State stored as JSON in `drafts.state`, mutated via `applyDraftMutation()` (`src/lib/draft-mutation.ts`) with optimistic concurrency — the update is guarded by `.eq("version", currentVersion)` and retried up to `MAX_MUTATION_ATTEMPTS` (3) times on a zero-row write. **277 unit tests** (Vitest): 88 draft engine, 12 scryfall normalization, 17 export, 17 card-utils, 25 bot-drafter, 30 pack-generator, 23 sheet-pack-generator, 18 draft-mutation, 18 server-action guards (`src/app/(app)/dashboard/groups/__tests__/`), plus fetch-json and proposal-validation. Shared PostgREST/`redirect` test doubles live in `src/lib/__tests__/supabase-mock.ts`.
+Pure functions transforming immutable `Draft` state objects. Key functions: `createDraft`, `startDraft`, `makePickAndPass`, `advanceToNextPack`, `transitionToDeckBuilding`, `unsubmitDeck`. State stored as JSON in `drafts.state`, mutated via `applyDraftMutation()` (`src/lib/draft-mutation.ts`) with optimistic concurrency — the update is guarded by `.eq("version", currentVersion)` and retried up to `MAX_MUTATION_ATTEMPTS` (3) times on a zero-row write. **308 unit tests** (Vitest): 88 draft engine, 12 scryfall normalization, 17 export, 17 card-utils, 25 bot-drafter, 30 pack-generator, 23 sheet-pack-generator, 19 draft-mutation, 14 kv, 18 server-action guards (`src/app/(app)/dashboard/groups/__tests__/`), 9 avatar route, plus fetch-json, deck-saver, async-guard, and proposal-validation. Shared PostgREST/`redirect` test doubles live in `src/lib/__tests__/supabase-mock.ts`.
 
 ### Key Types (`src/lib/types.ts`)
 
@@ -216,7 +216,11 @@ UPSTASH_REDIS_REST_TOKEN                # Upstash Redis token (booster data cach
 SUPABASE_PROJECT_REF                    # Production project ref (scripts)
 SUPABASE_STAGING_REF                    # Staging project ref (sync-staging)
 SUPABASE_ACCESS_TOKEN                   # Supabase personal access token (scripts)
+PROD_SUPABASE_URL                       # Production Supabase URL (test-packs script)
+PROD_SUPABASE_SECRET_KEY                # Production secret key (test-packs script)
 ```
+
+`.env.example` mirrors this list — add new vars to both.
 
 ## Pending Work
 

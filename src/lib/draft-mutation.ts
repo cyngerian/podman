@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase-admin";
 import type { Draft, CardReference } from "@/lib/types";
-import type { Json } from "@/lib/database.types";
+import type { Json, TablesUpdate } from "@/lib/database.types";
 
 export const MAX_MUTATION_ATTEMPTS = 3;
 
@@ -59,7 +59,9 @@ export async function applyDraftMutation(
       return { success: false, error: e instanceof Error ? e.message : "Mutation failed" };
     }
 
-    const updatePayload: Record<string, unknown> = {
+    // Typed as the generated row shape — supabase-js 2.110 rejects excess
+    // properties on `.update()`, so a loose Record no longer type-checks.
+    const updatePayload: TablesUpdate<"drafts"> = {
       state: updatedDraft as unknown as Json,
       version: currentVersion + 1,
     };

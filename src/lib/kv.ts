@@ -27,11 +27,26 @@ export async function kvGet<T>(key: string): Promise<T | null> {
   }
 }
 
-export async function kvSet(key: string, value: unknown): Promise<void> {
+/**
+ * Write a value to KV.
+ *
+ * `ttlSeconds` bounds how long a stale or bad value can survive. Pass a
+ * positive number of seconds; omit it (or pass a non-positive value) only
+ * when the key is genuinely meant to persist until explicitly deleted.
+ */
+export async function kvSet(
+  key: string,
+  value: unknown,
+  ttlSeconds?: number
+): Promise<void> {
   try {
     const client = getRedis();
     if (!client) return;
-    await client.set(key, value);
+    if (ttlSeconds !== undefined && ttlSeconds > 0) {
+      await client.set(key, value, { ex: Math.floor(ttlSeconds) });
+    } else {
+      await client.set(key, value);
+    }
   } catch {
     // KV is never a hard dependency — swallow errors
   }

@@ -10,6 +10,12 @@
 import { createAdminClient } from "./supabase-admin";
 import { kvGet, kvSet } from "./kv";
 
+/**
+ * TTL for L2 booster cache entries. The data is static, but a bounded TTL
+ * means a bad or partial write self-heals instead of persisting forever.
+ */
+export const BOOSTER_KV_TTL_SECONDS = 60 * 60 * 24; // 24h
+
 // --- Types ---
 
 export interface SheetCard {
@@ -148,7 +154,11 @@ async function loadSingleProduct(code: string): Promise<BoosterProductData | nul
 
   // Store in L1 + L2 (fire-and-forget for L2)
   boosterDataCache.set(code, hydrated);
-  kvSet(kvKey, serializeBoosterProductData(hydrated)).catch(() => {});
+  kvSet(
+    kvKey,
+    serializeBoosterProductData(hydrated),
+    BOOSTER_KV_TTL_SECONDS
+  ).catch(() => {});
 
   return hydrated;
 }
