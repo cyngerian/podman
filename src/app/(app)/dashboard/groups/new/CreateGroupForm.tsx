@@ -37,7 +37,7 @@ export default function CreateGroupForm() {
             required
             maxLength={50}
             placeholder="Friday Night Drafts"
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm placeholder:text-foreground/30 focus:border-accent focus:outline-none"
+            className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-base sm:text-sm placeholder:text-foreground/50 focus:border-accent focus:outline-none"
           />
         </div>
 
@@ -52,7 +52,7 @@ export default function CreateGroupForm() {
             type="text"
             maxLength={8}
             placeholder="🎲"
-            className="w-20 rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-center placeholder:text-foreground/30 focus:border-accent focus:outline-none"
+            className="w-20 rounded-lg border border-border bg-surface px-3 py-2.5 text-base sm:text-sm text-center placeholder:text-foreground/50 focus:border-accent focus:outline-none"
           />
         </div>
 
@@ -67,7 +67,7 @@ export default function CreateGroupForm() {
             rows={3}
             maxLength={200}
             placeholder="A group for casual MTG drafts..."
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm placeholder:text-foreground/30 focus:border-accent focus:outline-none resize-none"
+            className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-base sm:text-sm placeholder:text-foreground/50 focus:border-accent focus:outline-none resize-none"
           />
         </div>
 

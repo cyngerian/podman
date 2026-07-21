@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import * as Sentry from "@sentry/nextjs";
 import UserAvatar from "@/components/ui/UserAvatar";
+import { useAutoDismiss } from "@/hooks/useAutoDismiss";
 import { updateProfile } from "./actions";
 
 const WEB_SAFE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/avif"];
@@ -81,6 +82,10 @@ export default function ProfileForm({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  // "Profile updated!" is transient — leaving it up makes it ambiguous whether
+  // it refers to the save the user just made or an earlier one.
+  useAutoDismiss(success, () => setSuccess(false));
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -168,7 +173,7 @@ export default function ProfileForm({
               value={emojiInput}
               onChange={(e) => handleEmojiChange(e.target.value)}
               placeholder="Type an emoji..."
-              className="flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-foreground/30"
+              className="flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-base sm:text-sm text-foreground placeholder:text-foreground/50"
               maxLength={8}
             />
             <button
@@ -191,7 +196,7 @@ export default function ProfileForm({
             <button
               type="button"
               onClick={() => { setAvatarUrl(null); setEmojiInput(""); }}
-              className="text-xs text-foreground/40 hover:text-foreground/60"
+              className="text-xs text-foreground/60 hover:text-foreground/80"
             >
               Remove avatar
             </button>
@@ -209,7 +214,7 @@ export default function ProfileForm({
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
           required
-          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-foreground/30"
+          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-base sm:text-sm text-foreground placeholder:text-foreground/50"
         />
       </div>
 
@@ -224,7 +229,7 @@ export default function ProfileForm({
           rows={3}
           maxLength={200}
           placeholder="A little about yourself..."
-          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-foreground/30 resize-none"
+          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-base sm:text-sm text-foreground placeholder:text-foreground/50 resize-none"
         />
       </div>
 
@@ -259,7 +264,9 @@ export default function ProfileForm({
         <p className="text-sm text-danger">{error}</p>
       )}
       {success && (
-        <p className="text-sm text-success">Profile updated!</p>
+        <p role="status" aria-live="polite" className="text-sm text-success">
+          Profile updated!
+        </p>
       )}
       <button
         type="submit"

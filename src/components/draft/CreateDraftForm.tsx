@@ -312,7 +312,7 @@ export default function CreateDraftForm({ onSubmit, mode = "propose" }: CreateDr
               className={`px-4 py-2 text-sm font-medium -mb-px border-b-2 transition-colors ${
                 cubeTab === "paste"
                   ? "border-accent text-accent"
-                  : "border-transparent text-foreground/50 hover:text-foreground/70"
+                  : "border-transparent text-foreground/60 hover:text-foreground/80"
               }`}
             >
               Paste List
@@ -323,7 +323,7 @@ export default function CreateDraftForm({ onSubmit, mode = "propose" }: CreateDr
               className={`px-4 py-2 text-sm font-medium -mb-px border-b-2 transition-colors ${
                 cubeTab === "cubecobra"
                   ? "border-accent text-accent"
-                  : "border-transparent text-foreground/50 hover:text-foreground/70"
+                  : "border-transparent text-foreground/60 hover:text-foreground/80"
               }`}
             >
               CubeCobra URL
@@ -337,7 +337,7 @@ export default function CreateDraftForm({ onSubmit, mode = "propose" }: CreateDr
               onBlur={handleCubePasteBlur}
               placeholder="One card name per line..."
               rows={8}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm font-mono placeholder:text-foreground/30 focus:border-accent focus:outline-none resize-y"
+              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-base sm:text-sm font-mono placeholder:text-foreground/50 focus:border-accent focus:outline-none resize-y"
             />
           ) : (
             <div className="flex gap-3">
@@ -346,7 +346,7 @@ export default function CreateDraftForm({ onSubmit, mode = "propose" }: CreateDr
                 value={cubeCobraUrl}
                 onChange={(e) => setCubeCobraUrl(e.target.value)}
                 placeholder="CubeCobra cube URL or ID"
-                className="flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm placeholder:text-foreground/30 focus:border-accent focus:outline-none"
+                className="flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-base sm:text-sm placeholder:text-foreground/50 focus:border-accent focus:outline-none"
               />
               <button
                 type="button"
@@ -541,7 +541,7 @@ export default function CreateDraftForm({ onSubmit, mode = "propose" }: CreateDr
                 const v = Number(e.target.value);
                 setAsyncDeadlineMinutes(v > 0 ? v : null);
               }}
-              className="w-28 rounded-lg border border-border bg-surface px-3 py-2 text-sm tabular-nums placeholder:text-foreground/30 focus:border-accent focus:outline-none"
+              className="w-28 rounded-lg border border-border bg-surface px-3 py-2 text-base sm:text-sm tabular-nums placeholder:text-foreground/50 focus:border-accent focus:outline-none"
             />
             <span className="text-sm text-foreground/50">minutes</span>
           </div>

@@ -42,7 +42,7 @@ export default function SignupForm({ redirect }: { redirect?: string }) {
             required
             minLength={2}
             maxLength={30}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder-foreground/40 outline-none transition-colors focus:border-accent"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base sm:text-sm text-foreground placeholder-foreground/50 outline-none transition-colors focus:border-accent"
             placeholder="Your name"
           />
         </div>
@@ -60,7 +60,7 @@ export default function SignupForm({ redirect }: { redirect?: string }) {
             type="email"
             required
             autoComplete="email"
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder-foreground/40 outline-none transition-colors focus:border-accent"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base sm:text-sm text-foreground placeholder-foreground/50 outline-none transition-colors focus:border-accent"
             placeholder="you@example.com"
           />
         </div>
@@ -79,7 +79,7 @@ export default function SignupForm({ redirect }: { redirect?: string }) {
             required
             autoComplete="new-password"
             minLength={6}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder-foreground/40 outline-none transition-colors focus:border-accent"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base sm:text-sm text-foreground placeholder-foreground/50 outline-none transition-colors focus:border-accent"
             placeholder="At least 6 characters"
           />
         </div>

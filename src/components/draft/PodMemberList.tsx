@@ -97,7 +97,7 @@ function DirectionArrow({ down }: { down: boolean }) {
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 16 16"
       fill="currentColor"
-      className="w-3.5 h-3.5 text-foreground/30"
+      className="w-3.5 h-3.5 text-foreground/50"
     >
       {down ? (
         <path fillRule="evenodd" d="M8 1.5a.5.5 0 0 1 .5.5v10.793l3.146-3.147a.5.5 0 0 1 .708.708l-4 4a.5.5 0 0 1-.708 0l-4-4a.5.5 0 0 1 .708-.708L7.5 12.793V2a.5.5 0 0 1 .5-.5Z" clipRule="evenodd" />

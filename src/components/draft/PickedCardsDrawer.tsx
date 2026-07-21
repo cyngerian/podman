@@ -88,7 +88,7 @@ export default function PickedCardsDrawer({
             <select
               value={sortMode}
               onChange={(e) => onSortChange(e.target.value as PickedCardSortMode)}
-              className="bg-background text-foreground text-sm rounded-lg px-2 py-1.5 border border-border focus:outline-none focus:ring-1 focus:ring-accent"
+              className="bg-background text-foreground text-base sm:text-sm rounded-lg px-2 py-1.5 border border-border focus:outline-none focus:ring-1 focus:ring-accent"
             >
               {SORT_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>

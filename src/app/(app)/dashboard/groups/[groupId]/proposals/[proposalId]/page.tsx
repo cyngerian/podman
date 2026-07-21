@@ -203,7 +203,7 @@ function PackSetsConfigItem({ label, packSets }: { label: string; packSets: { co
           <span key={s.code} className="inline-flex items-center gap-1">
             <i className={`ss ss-${s.code.toLowerCase()} text-foreground`} />
             <span className="uppercase">{s.code}</span>
-            {i < packSets.length - 1 && <span className="text-foreground/30 ml-1">/</span>}
+            {i < packSets.length - 1 && <span className="text-foreground/50 ml-1">/</span>}
           </span>
         ))}
       </span>

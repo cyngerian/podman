@@ -332,14 +332,14 @@ export default function DeckBuilderScreen({
               value={deckName}
               onChange={(e) => setDeckName(e.target.value)}
               placeholder="Deck name (for exports)"
-              className="flex-1 bg-surface border border-border rounded-lg px-3 py-1.5 text-sm text-foreground placeholder:text-foreground/30 focus:outline-none focus:ring-1 focus:ring-accent"
+              className="flex-1 bg-surface border border-border rounded-lg px-3 py-1.5 text-base sm:text-sm text-foreground placeholder:text-foreground/50 focus:outline-none focus:ring-1 focus:ring-accent"
             />
           )}
           <select
             id="sort-select"
             value={sortMode}
             onChange={(e) => setSortMode(e.target.value as SortMode)}
-            className="bg-surface border border-border rounded-lg px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+            className="bg-surface border border-border rounded-lg px-2 py-1.5 text-base sm:text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
           >
             <option value="cmc">Mana Cost</option>
             <option value="color">Color</option>
@@ -353,7 +353,7 @@ export default function DeckBuilderScreen({
             Deck ({deck.length} cards)
           </h2>
           {sortedDeck.length === 0 ? (
-            <p className="text-sm text-foreground/30 py-4 text-center">
+            <p className="text-sm text-foreground/50 py-4 text-center">
               Tap cards in the sideboard to add them to your deck.
             </p>
           ) : (
@@ -409,7 +409,7 @@ export default function DeckBuilderScreen({
                   <button
                     type="button"
                     onClick={() => setConfirmReset(false)}
-                    className="text-xs text-foreground/40 font-medium hover:text-foreground/60 transition-colors"
+                    className="text-xs text-foreground/60 font-medium hover:text-foreground/80 transition-colors"
                   >
                     Cancel
                   </button>
@@ -428,7 +428,7 @@ export default function DeckBuilderScreen({
           {sideboardOpen && (
             <>
               {sortedSideboard.length === 0 ? (
-                <p className="text-sm text-foreground/30 py-4 text-center">
+                <p className="text-sm text-foreground/50 py-4 text-center">
                   All cards are in the deck.
                 </p>
               ) : (

@@ -177,7 +177,7 @@ export default function WinstonDraftScreen({
                 <button
                   type="button"
                   onClick={() => setDrawerOpen(false)}
-                  className="text-foreground/50 hover:text-foreground text-xs font-medium"
+                  className="text-foreground/60 hover:text-foreground text-xs font-medium"
                 >
                   Close
                 </button>
