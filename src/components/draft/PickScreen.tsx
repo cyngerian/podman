@@ -27,6 +27,8 @@ interface PickScreenProps {
   timerPaused?: boolean;
   picks: CardReference[];
   onPick: (cardId: string) => void;
+  /** Blocks further picks while one is in flight (prevents double-pick). */
+  pickDisabled?: boolean;
   filterSet: Set<PackFilterValue>;
   onFilterToggle: (value: PackFilterValue | "all") => void;
   packQueueLength?: number;
@@ -104,7 +106,7 @@ function getCardFaceName(card: CardReference, showBack: boolean): string {
 
 const LONG_PRESS_MS = 500;
 
-function LongPressPickButton({ onPick }: { onPick: () => void }) {
+function LongPressPickButton({ onPick, disabled = false }: { onPick: () => void; disabled?: boolean }) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fillRef = useRef<HTMLDivElement>(null);
   const [pressing, setPressing] = useState(false);
@@ -119,6 +121,7 @@ function LongPressPickButton({ onPick }: { onPick: () => void }) {
   }, []);
 
   const start = useCallback(() => {
+    if (disabled) return;
     setPressing(true);
     if (fillRef.current) {
       fillRef.current.style.transition = `width ${LONG_PRESS_MS}ms linear`;
@@ -128,7 +131,7 @@ function LongPressPickButton({ onPick }: { onPick: () => void }) {
       onPick();
       cancel();
     }, LONG_PRESS_MS);
-  }, [onPick, cancel]);
+  }, [onPick, cancel, disabled]);
 
   useEffect(() => {
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
@@ -137,6 +140,8 @@ function LongPressPickButton({ onPick }: { onPick: () => void }) {
   return (
     <button
       type="button"
+      disabled={disabled}
+      aria-disabled={disabled}
       onTouchStart={start}
       onTouchEnd={cancel}
       onTouchCancel={cancel}
@@ -162,6 +167,7 @@ function LongPressPickButton({ onPick }: { onPick: () => void }) {
         bg-accent/30 text-white font-bold text-base tracking-wide
         select-none
         ${pressing ? "scale-[0.97]" : ""}
+        ${disabled ? "opacity-40" : ""}
         transition-transform duration-100
       `}
     >
@@ -189,6 +195,7 @@ export default function PickScreen({
   timerPaused,
   picks,
   onPick,
+  pickDisabled = false,
   filterSet,
   onFilterToggle,
   packQueueLength,
@@ -247,24 +254,27 @@ export default function PickScreen({
 
   const handleQuickPick = useCallback(
     (card: CardReference) => {
+      if (pickDisabled) return;
       onPick(card.scryfallId);
     },
-    [onPick],
+    [onPick, pickDisabled],
   );
 
   const handlePick = useCallback(() => {
+    if (pickDisabled) return;
     if (selectedCard) {
       onPick(selectedCard.scryfallId);
       setSelectedCard(null);
     }
-  }, [selectedCard, onPick]);
+  }, [selectedCard, onPick, pickDisabled]);
 
   const handleCarouselPick = useCallback(() => {
+    if (pickDisabled) return;
     const card = filteredCards[activeIndexRef.current];
     if (card) {
       onPick(card.scryfallId);
     }
-  }, [filteredCards, onPick, activeIndexRef]);
+  }, [filteredCards, onPick, activeIndexRef, pickDisabled]);
 
   const directionArrow = passDirection === "left" ? "\u2190" : "\u2192";
 
@@ -705,7 +715,7 @@ export default function PickScreen({
                 </div>
               ) : (
                 /* Pick button — long-press to confirm */
-                <LongPressPickButton onPick={handleCarouselPick} />
+                <LongPressPickButton onPick={handleCarouselPick} disabled={pickDisabled} />
               )}
             </div>
           </>
@@ -816,7 +826,8 @@ export default function PickScreen({
                 <button
                   type="button"
                   onClick={handlePick}
-                  className="w-full py-3 rounded-xl bg-accent text-white font-bold text-sm tracking-wide hover:bg-accent-hover active:scale-[0.97] transition-all duration-100"
+                  disabled={pickDisabled}
+                  className="w-full py-3 rounded-xl bg-accent text-white font-bold text-sm tracking-wide hover:bg-accent-hover active:scale-[0.97] transition-all duration-100 disabled:opacity-40"
                 >
                   PICK
                 </button>
