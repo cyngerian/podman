@@ -14,6 +14,8 @@ import { getPickTimer, getPassDirection } from "@/lib/types";
 import PickScreen from "@/components/draft/PickScreen";
 import WaitingScreen from "@/components/draft/WaitingScreen";
 import { useRealtimeChannel } from "@/hooks/useRealtimeChannel";
+import { createInFlightGuard } from "@/lib/async-guard";
+import { createDeckSaver } from "@/lib/deck-saver";
 import { makePickAction, autoPickAction, saveDeckAction } from "../actions";
 
 interface PickClientProps {
@@ -60,6 +62,24 @@ export default function PickClient({
   const [packCards, setPackCards] = useState(initialPackCards);
   const [picks, setPicks] = useState(initialPicks);
   const [filterSet, setFilterSet] = useState<Set<PackFilterValue>>(new Set());
+  const [pickInFlight, setPickInFlight] = useState(false);
+  const [deckSaveFailed, setDeckSaveFailed] = useState(false);
+
+  // Single-flight guard: a second tap while a pick is in flight is dropped, so
+  // the optimistic rollback can never restore state captured by a stale closure.
+  const pickGuardRef = useRef<ReturnType<typeof createInFlightGuard> | null>(null);
+  if (pickGuardRef.current == null) {
+    pickGuardRef.current = createInFlightGuard(setPickInFlight);
+  }
+
+  const deckSaverRef = useRef<ReturnType<typeof createDeckSaver> | null>(null);
+  if (deckSaverRef.current == null) {
+    deckSaverRef.current = createDeckSaver({
+      save: ({ deck, sideboard, lands }) =>
+        saveDeckAction(draftId, deck, sideboard, lands),
+      onFailedChange: setDeckSaveFailed,
+    });
+  }
 
   // Timer based on packReceivedAt
   const timerDuration =
@@ -169,6 +189,9 @@ export default function PickClient({
 
   const handlePick = useCallback(
     (cardId: string) => {
+      const guard = pickGuardRef.current!;
+      if (guard.isBusy()) return;
+
       // Optimistic: pack passes to next player after picking
       const pickedCard = packCards.find((c) => c.scryfallId === cardId);
       const previousPackCards = packCards;
@@ -179,16 +202,18 @@ export default function PickClient({
       }
 
       startTransition(async () => {
-        try {
-          await makePickAction(draftId, cardId);
-          router.refresh();
-        } catch {
-          // Revert optimistic update on failure
-          if (pickedCard) {
-            setPackCards(previousPackCards);
-            setPicks(previousPicks);
+        await guard.run(async () => {
+          try {
+            await makePickAction(draftId, cardId);
+            router.refresh();
+          } catch {
+            // Revert optimistic update on failure
+            if (pickedCard) {
+              setPackCards(previousPackCards);
+              setPicks(previousPicks);
+            }
           }
-        }
+        });
       });
     },
     [draftId, packCards, picks, router]
@@ -215,51 +240,84 @@ export default function PickClient({
 
   const handleDeckChange = useCallback(
     (deck: CardReference[], sideboard: CardReference[], lands: BasicLandCounts) => {
-      saveDeckAction(draftId, deck, sideboard, lands).catch(() => {
-        // Ignore save errors during draft
-      });
+      void deckSaverRef.current!.save({ deck, sideboard, lands });
     },
-    [draftId]
+    []
   );
 
+  const handleRetryDeckSave = useCallback(() => {
+    void deckSaverRef.current!.retryLast();
+  }, []);
+
   const passDirection = getPassDirection(initialPackNumber);
+
+  const deckSaveNotice = deckSaveFailed ? (
+    <div
+      role="alert"
+      className="fixed top-0 inset-x-0 z-[60] flex items-center justify-center gap-3 px-4 py-2 bg-red-600 text-white text-sm font-medium"
+    >
+      <span>Couldn&apos;t save your deck changes.</span>
+      <button
+        type="button"
+        onClick={handleRetryDeckSave}
+        className="px-2 py-1 rounded-md bg-white/20 hover:bg-white/30 transition-colors font-bold"
+      >
+        Retry
+      </button>
+      <button
+        type="button"
+        onClick={() => setDeckSaveFailed(false)}
+        aria-label="Dismiss deck save error"
+        className="px-2 py-1 rounded-md hover:bg-white/20 transition-colors"
+      >
+        &times;
+      </button>
+    </div>
+  ) : null;
 
   // Waiting for pack
   if (packCards.length === 0) {
     return (
-      <WaitingScreen
-        podMembers={podMembers}
-        passDirection={passDirection}
-        picks={picks}
-        onDeckChange={handleDeckChange}
-        initialDeck={initialDeck}
-        initialSideboard={initialSideboard}
-      />
+      <>
+        {deckSaveNotice}
+        <WaitingScreen
+          podMembers={podMembers}
+          passDirection={passDirection}
+          picks={picks}
+          onDeckChange={handleDeckChange}
+          initialDeck={initialDeck}
+          initialSideboard={initialSideboard}
+        />
+      </>
     );
   }
 
   return (
-    <PickScreen
-      setCode={setCode}
-      setName={setName}
-      startedAt={startedAt}
-      packCards={packCards}
-      packNumber={initialPackNumber}
-      pickInPack={initialPickInPack}
-      totalCardsInPack={totalCardsInPack}
-      passDirection={passDirection}
-      timerSeconds={timerSeconds}
-      timerMaxSeconds={timerDuration === Infinity ? 0 : timerDuration}
-      timerPaused={isPending}
-      picks={picks}
-      onPick={handlePick}
-      filterSet={filterSet}
-      onFilterToggle={handleFilterToggle}
-      packQueueLength={packQueueLength}
-      podMembers={podMembers}
-      onDeckChange={handleDeckChange}
-      initialDeck={initialDeck}
-      initialSideboard={initialSideboard}
-    />
+    <>
+      {deckSaveNotice}
+      <PickScreen
+        setCode={setCode}
+        setName={setName}
+        startedAt={startedAt}
+        packCards={packCards}
+        packNumber={initialPackNumber}
+        pickInPack={initialPickInPack}
+        totalCardsInPack={totalCardsInPack}
+        passDirection={passDirection}
+        timerSeconds={timerSeconds}
+        timerMaxSeconds={timerDuration === Infinity ? 0 : timerDuration}
+        timerPaused={isPending}
+        picks={picks}
+        onPick={handlePick}
+        pickDisabled={pickInFlight}
+        filterSet={filterSet}
+        onFilterToggle={handleFilterToggle}
+        packQueueLength={packQueueLength}
+        podMembers={podMembers}
+        onDeckChange={handleDeckChange}
+        initialDeck={initialDeck}
+        initialSideboard={initialSideboard}
+      />
+    </>
   );
 }
