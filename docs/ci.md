@@ -23,7 +23,7 @@ Single job, four steps after `actions/checkout@v4`:
 2. `npm ci`
 3. `npm run lint`
 4. `npm run build` — type-check + Next.js production build, with placeholder env vars (see [Secrets and Environment](#secrets-and-environment))
-5. `npm test` — Vitest unit suite (305 tests)
+5. `npm test` — Vitest unit suite (308 tests)
 
 Runs on `pull_request` against `main`.
 
@@ -78,7 +78,6 @@ The full env var inventory (production runtime + scripts) is in `CLAUDE.md` → 
 
 | Advisory | Severity | Why it stays |
 | --- | --- | --- |
-| `esbuild` GHSA-g7r4-m6w7-qqqr | moderate | Dev-only — pulled in by Vitest/Vite. The bug is the esbuild dev server's file read on Windows; nothing ships it to production. Pinned by Vitest 4; will clear on a Vitest bump. |
 | `postcss` GHSA-qx2v-qp2m-jg93 | moderate | Transitive under `next`, which pins `postcss@8.4.31` exactly. Unfixable without a Next.js release. |
 | `sharp` GHSA-f88m-g3jw-g9cj | high | Transitive **optional** dep of `next` (`sharp@^0.34.5`), used only for self-hosted image optimization. On Vercel, image optimization runs on the platform, so this code path is not in the request path. Unfixable without a Next.js release. |
 
@@ -86,7 +85,10 @@ The full env var inventory (production runtime + scripts) is in `CLAUDE.md` → 
 `postcss`/`sharp` chain by downgrading to `next@9.3.3`. Do not run it.
 
 Anything reachable by `npm audit fix` (no `--force`) should be fixed rather than
-listed above.
+listed above — the table is for advisories with no non-breaking remedy, not for
+ones that are merely inconvenient. Both rows above are the same root cause:
+`next` pins `postcss` exactly and pins `sharp` to `^0.34.5`, so they clear only
+when Next.js ships a release above 16.2.11.
 
 ## Local Reproduction
 

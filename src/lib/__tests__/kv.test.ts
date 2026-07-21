@@ -87,10 +87,18 @@ describe("kvGet", () => {
     expect(get).toHaveBeenCalledWith("k");
   });
 
-  it("returns null when Redis is unconfigured or errors", async () => {
+  it("returns null when Redis errors", async () => {
     get.mockRejectedValueOnce(new Error("boom"));
     const { kvGet } = await importKv();
     await expect(kvGet("k")).resolves.toBeNull();
+  });
+
+  it("returns null without calling Redis when unconfigured", async () => {
+    delete process.env.UPSTASH_REDIS_REST_URL;
+    delete process.env.UPSTASH_REDIS_REST_TOKEN;
+    const { kvGet } = await importKv();
+    await expect(kvGet("k")).resolves.toBeNull();
+    expect(get).not.toHaveBeenCalled();
   });
 });
 
@@ -105,6 +113,29 @@ describe("kvDel", () => {
     del.mockRejectedValueOnce(new Error("boom"));
     const { kvDel } = await importKv();
     await expect(kvDel("k")).resolves.toBeUndefined();
+  });
+
+  it("no-ops when Upstash env vars are missing", async () => {
+    delete process.env.UPSTASH_REDIS_REST_URL;
+    delete process.env.UPSTASH_REDIS_REST_TOKEN;
+    const { kvDel } = await importKv();
+    await expect(kvDel("k")).resolves.toBeUndefined();
+    expect(del).not.toHaveBeenCalled();
+  });
+});
+
+describe("client memoization", () => {
+  it("reuses one Redis client across calls, and re-reads env only on reload", async () => {
+    const { kvGet, kvSet } = await importKv();
+    await kvGet("a");
+    await kvSet("b", 1);
+
+    // Clearing the env after the first call must not disable the memoized
+    // client — getRedis() only reads process.env when it has no client yet.
+    delete process.env.UPSTASH_REDIS_REST_URL;
+    await kvGet("c");
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(set).toHaveBeenCalledTimes(1);
   });
 });
 

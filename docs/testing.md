@@ -4,7 +4,7 @@
 
 ## Overview
 
-The test surface is **Vitest unit tests over pure logic** — the draft engine and its supporting libraries — plus a thin layer of server-action and route tests driven by hand-rolled Supabase doubles. As of this writing the suite is **305 tests across 15 files**, mostly in `src/lib/__tests__/`. Total runtime is well under a second.
+The test surface is **Vitest unit tests over pure logic** — the draft engine and its supporting libraries — plus a thin layer of server-action and route tests driven by hand-rolled Supabase doubles. As of this writing the suite is **308 tests across 15 files**, mostly in `src/lib/__tests__/`. Total runtime is well under a second.
 
 There are no integration tests (no real Supabase, no Realtime, no auth), no end-to-end tests, and no UI/component tests. RLS policies and the React layer are uncovered by the automated suite — see [Coverage Gaps](#coverage-gaps).
 
@@ -26,7 +26,7 @@ Most tests live in `src/lib/__tests__/`; the two exceptions are noted below. Cou
 | `.../dashboard/groups/__tests__/actions.test.ts` | 18 | Server-action auth/membership guards |
 | `proposal-validation.test.ts` | 14 | Draft proposal input validation |
 | `scryfall.test.ts` | 12 | Collector-number normalization (DFC `a/b`, `★`, "The List" `SET-NUM`) |
-| `kv.test.ts` | 11 | Upstash wrapper: TTL passthrough (`ex`), no-TTL and unconfigured paths, error swallowing, booster 24h default |
+| `kv.test.ts` | 14 | Upstash wrapper: TTL passthrough (`ex`), no-TTL and unconfigured paths, error swallowing, booster 24h default |
 | `deck-saver.test.ts` | 10 | Debounced deck auto-save |
 | `src/app/api/avatar/__tests__/route.test.ts` | 9 | Avatar upload MIME allowlist and auth |
 | `fetch-json.test.ts` | 6 | JSON fetch wrapper and `FetchJsonError` |
