@@ -15,10 +15,10 @@ how many drafts/month fit, and which quota runs out first.
 
 - **Supabase database egress (5 GB/mo) is no longer the binding constraint.**
   It *was*: a 6-player draft used to trigger ~7,000 full-state refetches
-  (realtime + the 2-second polling fallback), each pulling the ~125–180 KB
-  `drafts.state` JSON — **0.2–1.0 GB per draft → roughly 5–25 drafts/month**.
-  After podman-12 it's ~2,970 refetches × ~15–25 KB → **~15–60 MB per draft →
-  roughly 80–400 drafts/month** (~20x better; see §5).
+  (realtime + the 2-second polling fallback), each pulling the whole
+  `drafts.state` JSON — **0.26–1.3 GB per draft → roughly 4–19 drafts/month**.
+  After podman-12 it's ~2,970 refetches × ~13.6 KB → **~8–40 MB per draft →
+  roughly 125–625 drafts/month** (~32x better, measured on a real draft — §5).
 - **Binding constraint is now Vercel image transformations (5K/mo)** — but only
   for drafts of a *set not drafted in the last 31 days* (~500–800
   transformations per cold set), i.e. ~6–10 *new-set* drafts/month. Repeat
@@ -106,12 +106,13 @@ client.
 The Supabase read used to be `select("id, status, state, config")` — the whole
 ~125–180 KB state JSON, including five other players' packs and pools. It is
 now the `get_draft_pick_view` RPC, which returns only the caller's seat plus
-per-seat counts: **~16 KB** on a measured 6-seat mid-draft fixture whose full
-state was 187 KB (~12x smaller; ~25 KB late in a draft as the pool grows).
+per-seat counts. Measured on a real draft (§5): **7.4 KB at the first pick,
+19.8 KB at the last, ~13.6 KB mean**, against a state that ran 48 KB → 326 KB
+over the same draft.
 
 | Meter | Per draft (before) | Per draft (after) | Notes |
 |---|---|---|---|
-| Supabase DB egress | **0.2–1.0 GB** | **~15–60 MB** | before: 7,000 × 150 KB; after: 2,970 × ~20 KB. Lower end of each assumes ~5x gzip on the wire |
+| Supabase DB egress | **0.26–1.3 GB** | **~8–40 MB** | before: 7,000 × ~187 KB mean; after: 2,970 × ~13.6 KB. Lower end of each assumes ~5x gzip on the wire |
 | Vercel function invocations | ~7,300 | ~3,300 | refreshes + 270 pick actions + misc |
 | Vercel fast data transfer | ~0.3 GB | ~0.15 GB | RSC payloads (~210 MB before, ~90 MB after) + card images to 6 browsers (~65 MB) |
 | Supabase Realtime messages | ~2,000 | ~2,000 | 270 changes × 6 subscribers + presence — unaffected |
@@ -137,7 +138,7 @@ WebP-only, and caches transformations 31 days.
 | Quota | Cap | Per draft | Drafts/month (before) | Drafts/month (after) |
 |---|---|---|---|---|
 | **Image transformations** | 5K | 500–800 (cold set only) | ~6–10 *new-set* drafts | **~6–10 *new-set* drafts** ← now first to exhaust; repeats ≈ free |
-| Supabase DB egress | 5 GB | 15–60 MB (was 0.2–1 GB) | ~5–25 | ~80–400 |
+| Supabase DB egress | 5 GB | 8–40 MB (was 0.26–1.3 GB) | ~4–19 | ~125–625 |
 | Function invocations | 1M | ~3.3K (was ~7.3K) | ~135 | ~300 |
 | Fast data transfer | 100 GB | ~0.15 GB (was ~0.3 GB) | ~300 | ~650 |
 | Realtime messages | 2M | ~2K | ~1,000 | ~1,000 |
@@ -158,7 +159,8 @@ egress.
    **done (podman-12)**. `pick/page.tsx` calls `get_draft_pick_view` instead of
    `select("id, status, state, config")`. The RPC returns the caller's seat
    (current pack, pool, deck/sideboard as keys into the pool) plus per-seat
-   counts for the pod list — measured ~16 KB against a 187 KB full state.
+   counts for the pod list — measured 6.6x smaller at the first pick of a real
+   draft, 16.5x at the last (§5).
 3. **Verify wire compression**: confirm PostgREST responses are gzip-encoded
    for the server client. If not, enabling it is a free ~5x egress cut.
    Still unverified — it's the difference between the two ends of the egress
@@ -174,31 +176,38 @@ egress.
 
 ## 5. Re-measurement after podman-12
 
-**Method.** `scripts/measure-pick-view-payload.sql` (run instructions in its
-header) applies the migration to a throwaway Postgres 17 container and measures
-the RPC against a synthetic but realistic 6-seat mid-draft state — each seat a
-10-card current pack, 11-card queued pack, 20-card pool, 14-card deck, 6-card
-sideboard and 20 picks, with full `CardReference` fields including both
-Scryfall image URLs:
+**Method.** A full 8-player simulated draft (1 human + 7 bots, 40 picks each)
+was run on the PR preview against staging, and both payloads were measured
+directly on the live row at each end of the draft — `length(state::text)` (what
+the old `select` returned) vs `length(get_draft_pick_view(id)::text)`, with
+`request.jwt.claims` set to the human seat's user id:
 
-| | Bytes |
-|---|---|
-| Full `drafts.state` (what the old `select` returned) | 187,078 |
-| `get_draft_pick_view` payload | 15,902 |
-| **Ratio** | **11.8x** |
+| Point in draft | Full `drafts.state` | RPC payload | Ratio |
+|---|---|---|---|
+| Pack 1, pick 1 | 48,372 B | 7,367 B | 6.6x |
+| End of pack 3 | 326,064 B | 19,783 B | **16.5x** |
+| Draft mean (linear) | ~187 KB | ~13.6 KB | **~13.7x** |
 
-Combined with 7,000 → ~2,970 refreshes, that models a **~20x per-draft egress
-cut** (~1 GB → ~50 MB uncompressed).
+The ratio climbs through the draft because `state` grows by *every* seat's pool
+while the viewer's payload grows by only their own — so the saving is largest
+exactly when refresh traffic has been accumulating longest.
 
-The same script asserts the access rule: a caller with no seat in the draft gets
-back `{"seat": null, "status": ..., "podMembers": []}` — no roster, no cards.
+Applying the ~13.6 KB mean to the 6-player refresh model: **7,000 × ~187 KB ≈
+1.3 GB before → 2,970 × ~13.6 KB ≈ 40 MB after**, a **~32x per-draft egress
+cut** (or ~0.26 GB → ~8 MB if PostgREST gzips the wire).
 
-**Still to confirm on real traffic:** the numbers above are payload-size
-measurements plus the refresh-count model, not dashboard readings. Supabase
-does not expose usage via CLI or MCP, so the before/after dashboard comparison
-(Dashboard → Project → Reports → Usage, around a full test draft) has to be
-read by hand once a real draft has run on the new code. Update the §3 table if
-it diverges.
+`scripts/measure-pick-view-payload.sql` reproduces the same comparison offline
+against a synthetic 6-seat fixture (187,078 B → 15,902 B, 11.8x — consistent
+with the live mean) on a throwaway Postgres container, and asserts the access
+rule: a caller with no seat gets back `{"seat": null, "status": ...,
+"podMembers": []}` — no roster, no cards.
+
+**Not measured:** the Supabase dashboard's own egress meter. It reports
+cumulative bytes per billing cycle at daily granularity and refreshes on a lag,
+so a single ~40 MB draft is not reliably distinguishable from noise there. The
+direct payload measurement above is the same quantity, sourced per request
+rather than inferred from a chart. The remaining modelled term is the refresh
+*count* (~2,970), which comes from the §2 assumptions, not from measurement.
 
 ## Sources
 
