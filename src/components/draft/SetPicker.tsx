@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { fetchJson } from "@/lib/fetch-json";
 
 interface MTGSet {
   code: string;
@@ -18,6 +19,7 @@ interface SetPickerProps {
 export default function SetPicker({ value, onChange, id = "set-picker" }: SetPickerProps) {
   const [sets, setSets] = useState<MTGSet[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [query, setQuery] = useState(value?.name ?? "");
   const [open, setOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(0);
@@ -29,12 +31,14 @@ export default function SetPicker({ value, onChange, id = "set-picker" }: SetPic
     let cancelled = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching on mount, standard pattern
     setLoading(true);
-    fetch("/api/sets")
-      .then((r) => r.json())
-      .then((data: MTGSet[]) => {
+    setLoadError(false);
+    fetchJson<MTGSet[]>("/api/sets")
+      .then((data) => {
         if (!cancelled) setSets(data);
       })
-      .catch(() => {})
+      .catch(() => {
+        if (!cancelled) setLoadError(true);
+      })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
@@ -132,7 +136,13 @@ export default function SetPicker({ value, onChange, id = "set-picker" }: SetPic
         }}
         onFocus={() => setOpen(true)}
         onKeyDown={handleKeyDown}
-        placeholder={loading ? "Loading sets..." : "Search sets..."}
+        placeholder={
+          loading
+            ? "Loading sets..."
+            : loadError
+              ? "Failed to load sets"
+              : "Search sets..."
+        }
         autoComplete="off"
         className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm placeholder:text-foreground/30 focus:border-accent focus:outline-none"
       />
@@ -140,6 +150,11 @@ export default function SetPicker({ value, onChange, id = "set-picker" }: SetPic
         <span className="absolute right-3 top-[1.85rem] text-xs text-foreground/40 font-mono">
           {value.code}
         </span>
+      )}
+      {loadError && (
+        <p className="mt-1 text-xs text-red-400">
+          Couldn&apos;t load sets. Please try again.
+        </p>
       )}
       {open && display.length > 0 && (
         <ul
