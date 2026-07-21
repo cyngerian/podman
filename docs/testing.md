@@ -42,7 +42,7 @@ The path alias `@/*` → `./src/*` is wired up in `vitest.config.ts`.
 | `npm run test:watch` | Watch mode (`vitest`) for local iteration |
 | `npm run test-packs` | **Not Vitest.** Runs `scripts/test-packs.ts` against production booster data + Scryfall; uses `PROD_SUPABASE_URL` / `PROD_SUPABASE_SECRET_KEY` from `.env.local` |
 
-CI runs `npm test` as the third step in `.github/workflows/ci.yml` (after lint and build). The unit suite needs no env vars and no live services — it's all in-process pure functions.
+CI runs `npm test` as the last step in `.github/workflows/ci.yml` (after lint and build). The unit suite needs no env vars and no live services — it's all in-process, with Supabase and Upstash stubbed out.
 
 `test-packs` flags worth knowing: `--set <code>` (single set), `--db-only` (skip Scryfall), `--packs <n>` (default 24), `--verbose` (show passing products in summary).
 

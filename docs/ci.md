@@ -17,7 +17,7 @@ Two workflows live in `.github/workflows/`:
 
 ### `ci.yml` — PR validation
 
-Single job, four steps after `actions/checkout@v4`:
+Single job, five steps after `actions/checkout@v4`:
 
 1. `actions/setup-node@v4` — Node.js 22, npm cache enabled
 2. `npm ci`
