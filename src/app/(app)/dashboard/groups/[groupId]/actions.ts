@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
+import { validateProposalInput } from "@/lib/proposal-validation";
 import type { Json } from "@/lib/database.types";
 
 export async function createProposal(formData: FormData) {
@@ -32,6 +33,9 @@ export async function createProposal(formData: FormData) {
 
   if (!membership) return { error: "Not a member of this group" };
 
+  const validationError = validateProposalInput({ title, playerCount });
+  if (validationError) return { error: validationError };
+
   let config: Json = null;
   if (configJson) {
     try {
@@ -46,7 +50,7 @@ export async function createProposal(formData: FormData) {
     .insert({
       group_id: groupId,
       proposed_by: user.id,
-      title: title || `${format} Draft`,
+      title,
       format,
       set_code: setCode,
       set_name: setName,
