@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
+import * as Sentry from "@sentry/nextjs";
 import type {
   CardReference,
   PackFilterValue,
@@ -72,12 +73,15 @@ export default function PickClient({
     pickGuardRef.current = createInFlightGuard(setPickInFlight);
   }
 
+  // Built once per mount, so it captures the mount's draftId. Safe because the
+  // route remounts PickClient when the draft changes (see the `key` in page.tsx).
   const deckSaverRef = useRef<ReturnType<typeof createDeckSaver> | null>(null);
   if (deckSaverRef.current == null) {
     deckSaverRef.current = createDeckSaver({
       save: ({ deck, sideboard, lands }) =>
         saveDeckAction(draftId, deck, sideboard, lands),
       onFailedChange: setDeckSaveFailed,
+      onError: (error) => Sentry.captureException(error, { extra: { draftId } }),
     });
   }
 
@@ -251,10 +255,11 @@ export default function PickClient({
 
   const passDirection = getPassDirection(initialPackNumber);
 
+  // Anchored to the bottom so it never covers the pick timer in the header.
   const deckSaveNotice = deckSaveFailed ? (
     <div
       role="alert"
-      className="fixed top-0 inset-x-0 z-[60] flex items-center justify-center gap-3 px-4 py-2 bg-red-600 text-white text-sm font-medium"
+      className="fixed bottom-4 inset-x-0 z-[60] mx-auto flex w-fit max-w-[92vw] items-center justify-center gap-3 rounded-xl px-4 py-2 bg-red-600 text-white text-sm font-medium shadow-lg"
     >
       <span>Couldn&apos;t save your deck changes.</span>
       <button

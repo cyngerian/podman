@@ -11,6 +11,8 @@ export interface DeckSaverOptions {
   save: (payload: DeckSavePayload) => Promise<void>;
   /** Called with `true` when a save ultimately fails, `false` when one succeeds. */
   onFailedChange: (failed: boolean) => void;
+  /** Called with the final error when a save fails after its retry (monitoring). */
+  onError?: (error: unknown) => void;
   /** Delay before the single retry attempt. */
   retryDelayMs?: number;
   sleep?: (ms: number) => Promise<void>;
@@ -40,6 +42,7 @@ const defaultSleep = (ms: number) =>
 export function createDeckSaver({
   save,
   onFailedChange,
+  onError,
   retryDelayMs = 1000,
   sleep = defaultSleep,
 }: DeckSaverOptions): DeckSaver {
@@ -63,8 +66,11 @@ export function createDeckSaver({
     try {
       await attempt(payload, mySeq);
       if (mySeq === seq) onFailedChange(false);
-    } catch {
-      if (mySeq === seq) onFailedChange(true);
+    } catch (error) {
+      if (mySeq === seq) {
+        onFailedChange(true);
+        onError?.(error);
+      }
     }
   }
 

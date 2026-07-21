@@ -61,6 +61,43 @@ describe("createDeckSaver", () => {
     expect(onFailedChange).toHaveBeenCalledWith(true);
   });
 
+  it("reports the final error to onError for monitoring", async () => {
+    const failure = new Error("save failed");
+    const save = vi.fn(async () => {
+      throw failure;
+    });
+    const onError = vi.fn();
+    const saver = createDeckSaver({
+      save,
+      onFailedChange: () => {},
+      onError,
+      sleep: noSleep,
+    });
+
+    await saver.save(payload("a"));
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(failure);
+  });
+
+  it("does not call onError when the retry succeeds", async () => {
+    const save = vi
+      .fn<(p: DeckSavePayload) => Promise<void>>()
+      .mockRejectedValueOnce(new Error("network"))
+      .mockResolvedValueOnce(undefined);
+    const onError = vi.fn();
+    const saver = createDeckSaver({
+      save,
+      onFailedChange: () => {},
+      onError,
+      sleep: noSleep,
+    });
+
+    await saver.save(payload("a"));
+
+    expect(onError).not.toHaveBeenCalled();
+  });
+
   it("does not reject the caller when the save fails", async () => {
     const save = vi.fn(async () => {
       throw new Error("save failed");
