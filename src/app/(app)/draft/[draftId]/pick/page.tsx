@@ -1,9 +1,13 @@
 import { redirect, notFound } from "next/navigation";
 import { createServerSupabaseClient, getUser } from "@/lib/supabase-server";
-import type { Draft, PodMemberStatus } from "@/lib/types";
-import { hydrateSeat } from "@/lib/draft-engine";
 import { hydrateCardTypeLines } from "@/lib/scryfall";
 import { isBotUserId } from "@/lib/bot-drafter";
+import {
+  buildPodMembers,
+  expandCardKeys,
+  type DraftPickView,
+  type PodProfile,
+} from "@/lib/draft-view";
 import PickClient from "./PickClient";
 
 export default async function PickPage({
@@ -19,27 +23,24 @@ export default async function PickPage({
 
   const supabase = await createServerSupabaseClient();
 
-  const { data: dbDraft } = await supabase
-    .from("drafts")
-    .select("id, status, state, config")
-    .eq("id", draftId)
-    .single();
+  // Narrow read: only this viewer's seat + per-seat counts, never the full
+  // drafts.state JSON (see src/lib/draft-view.ts for why).
+  const { data } = await supabase.rpc("get_draft_pick_view", {
+    p_draft_id: draftId,
+  });
 
-  if (!dbDraft) notFound();
-  if (dbDraft.status !== "active") redirect(`/draft/${draftId}`);
+  const view = data as unknown as DraftPickView | null;
 
-  const draft = dbDraft.state as unknown as Draft;
-  if (!draft) redirect(`/draft/${draftId}`);
+  if (!view) notFound();
+  if (view.status !== "active") redirect(`/draft/${draftId}`);
 
-  // Only send the current user's seat data (never leak other players' packs)
-  const rawSeat = draft.seats.find((s) => s.userId === user.id);
-  if (!rawSeat) redirect(`/draft/${draftId}`);
-
-  const seat = hydrateSeat(rawSeat);
+  // Only the caller's seat comes back from the RPC (never other players' packs)
+  const seat = view.seat;
+  if (!seat) redirect(`/draft/${draftId}`);
 
   // Fetch profile avatars for real (non-bot) users
-  const humanUserIds = draft.seats
-    .map((s) => s.userId)
+  const humanUserIds = view.podMembers
+    .map((m) => m.userId)
     .filter((id) => !isBotUserId(id));
 
   // Hydrate card type lines + fetch profiles in parallel
@@ -56,48 +57,37 @@ export default async function PickPage({
       : Promise.resolve([]),
   ]);
 
-  const profileMap = new Map(
+  const profileMap = new Map<string, PodProfile>(
     profileRows.map((p) => [p.id, {
       avatarUrl: p.avatar_url as string | null,
       favoriteColor: p.favorite_color as string | null,
     }])
   );
 
-  // Build pod status for all players (including current user)
-  const podMembers: PodMemberStatus[] = draft.seats.map((s) => {
-    const h = hydrateSeat(s);
-    const profile = profileMap.get(s.userId);
-    return {
-      position: h.position,
-      displayName: h.displayName,
-      pickCount: h.picks.length,
-      isCurrentlyPicking: h.currentPack !== null,
-      queuedPacks: h.packQueue.length,
-      avatarUrl: profile?.avatarUrl ?? null,
-      favoriteColor: profile?.favoriteColor ?? null,
-      isCurrentUser: s.userId === user.id,
-    };
-  });
+  const podMembers = buildPodMembers(view.podMembers, profileMap, user.id);
+
+  // deck/sideboard arrive as keys into the pool — expand them back to cards
+  const pool = seat.pool ?? [];
 
   return (
     <PickClient
       key={seat.packReceivedAt ?? "waiting"}
       draftId={draftId}
-      setCode={draft.setCode}
-      setName={draft.setName}
-      startedAt={draft.startedAt}
+      setCode={view.setCode}
+      setName={view.setName}
+      startedAt={view.startedAt}
       packCards={packCards}
-      packNumber={seat.currentPack?.round ?? draft.currentPack}
+      packNumber={seat.currentPack?.round ?? view.currentPack}
       pickInPack={seat.currentPack?.pickNumber ?? 0}
-      totalCardsInPack={draft.cardsPerPack}
-      picks={seat.pool}
-      timerPreset={draft.timerPreset}
-      pacingMode={draft.pacingMode}
+      totalCardsInPack={view.cardsPerPack}
+      picks={pool}
+      timerPreset={view.timerPreset}
+      pacingMode={view.pacingMode}
       packReceivedAt={seat.packReceivedAt}
-      packQueueLength={seat.packQueue.length}
+      packQueueLength={seat.packQueueLength}
       podMembers={podMembers}
-      initialDeck={seat.deck}
-      initialSideboard={seat.sideboard}
+      initialDeck={expandCardKeys(pool, seat.deckKeys)}
+      initialSideboard={expandCardKeys(pool, seat.sideboardKeys)}
     />
   );
 }

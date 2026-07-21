@@ -5,24 +5,28 @@
 Answers: how much of each free-tier quota does one full 6-player draft consume,
 how many drafts/month fit, and which quota runs out first.
 
+> **Update 2026-07-21 (task podman-12):** the two egress mitigations below have
+> shipped. The pick screen now reads through the `get_draft_pick_view` RPC
+> instead of selecting the whole `drafts.state`, and the waiting-screen poll
+> went 2s → 8s. Numbers below are split into **before** and **after**; §5
+> records the measurement.
+
 ## TL;DR
 
-- **Binding constraint: Supabase database egress (5 GB/mo).** A 6-player draft
-  triggers ~7,000 full-state refetches (realtime + the 2-second polling
-  fallback), each pulling the ~125–180 KB `drafts.state` JSON. Estimated
-  **0.2–1.0 GB egress per draft → roughly 5–25 drafts/month** depending on
-  wire compression.
-- **Second constraint: Vercel image transformations (5K/mo)** — but only for
-  drafts of a *set not drafted in the last 31 days* (~500–800 transformations
-  per cold set). Repeat drafts of the same set are nearly free thanks to the
-  31-day image cache. Exceeding the cap does not cost money: new images fail
-  with a 402 and render as alt text (visibly broken cards) until the month
-  resets.
+- **Supabase database egress (5 GB/mo) is no longer the binding constraint.**
+  It *was*: a 6-player draft used to trigger ~7,000 full-state refetches
+  (realtime + the 2-second polling fallback), each pulling the ~125–180 KB
+  `drafts.state` JSON — **0.2–1.0 GB per draft → roughly 5–25 drafts/month**.
+  After podman-12 it's ~2,970 refetches × ~15–25 KB → **~15–60 MB per draft →
+  roughly 80–400 drafts/month** (~20x better; see §5).
+- **Binding constraint is now Vercel image transformations (5K/mo)** — but only
+  for drafts of a *set not drafted in the last 31 days* (~500–800
+  transformations per cold set), i.e. ~6–10 *new-set* drafts/month. Repeat
+  drafts of the same set are nearly free thanks to the 31-day image cache.
+  Exceeding the cap does not cost money: new images fail with a 402 and render
+  as alt text (visibly broken cards) until the month resets.
 - Everything else (function invocations, bandwidth, Realtime messages, Upstash,
   Blob, MAU, DB storage) has 100x+ headroom.
-- The known fix for the binding constraint is already on the radar: April audit
-  §5.2 (don't refetch the full state on every change) plus lengthening the 2s
-  polling fallback. Together they cut per-draft egress by ~50–100x.
 
 ## 1. Free-tier allotments (verified 2026-07-21)
 
@@ -87,26 +91,32 @@ picks**, ~50 min duration, phones (DPR 2–3), each player cumulatively spends
 ### Refresh traffic (the dominant term)
 
 Two triggers call `router.refresh()`, which re-runs `pick/page.tsx` on the
-server — and that page selects `drafts.state` in full (~125–180 KB raw JSON):
+server:
 
 1. **Realtime**: every draft-row change notifies all 6 subscribed clients →
    270 picks × 6 = **1,620 refreshes**
 2. **Polling fallback** (`PickClient.tsx`): while a player has no pack, the
-   client refreshes **every 2 seconds** → ~30 min waiting × 30 polls/min ×
-   6 players ≈ **5,400 refreshes**
+   client refreshes on `WAITING_POLL_INTERVAL_MS` → ~30 min waiting × 6 players
+   = **5,400 refreshes at the old 2s**, **~1,350 at today's 8s**
 
-Total ≈ **7,000 refreshes per draft**. Each is: 1 Vercel function invocation +
-1 Supabase query returning the full state + a ~20–50 KB RSC payload to the
+Total ≈ **7,000 refreshes per draft before podman-12, ≈2,970 after**. Each is:
+1 Vercel function invocation + 1 Supabase read + a ~20–50 KB RSC payload to the
 client.
 
-| Meter | Per draft | Notes |
-|---|---|---|
-| Supabase DB egress | **0.2–1.0 GB** | 7,000 × 150 KB raw ≈ 1 GB; if PostgREST gzips the wire (~5x) ≈ 0.2 GB |
-| Vercel function invocations | ~7,300 | 7,000 refreshes + 270 pick actions + misc |
-| Vercel fast data transfer | ~0.3 GB | RSC payloads (~210 MB) + card images to 6 browsers (~65 MB) |
-| Supabase Realtime messages | ~2,000 | 270 changes × 6 subscribers + presence |
-| Realtime peak connections | 6 | vs 200 |
-| Upstash commands | < 100 | booster-data cache reads/warmups |
+The Supabase read used to be `select("id, status, state, config")` — the whole
+~125–180 KB state JSON, including five other players' packs and pools. It is
+now the `get_draft_pick_view` RPC, which returns only the caller's seat plus
+per-seat counts: **~16 KB** on a measured 6-seat mid-draft fixture whose full
+state was 187 KB (~12x smaller; ~25 KB late in a draft as the pool grows).
+
+| Meter | Per draft (before) | Per draft (after) | Notes |
+|---|---|---|---|
+| Supabase DB egress | **0.2–1.0 GB** | **~15–60 MB** | before: 7,000 × 150 KB; after: 2,970 × ~20 KB. Lower end of each assumes ~5x gzip on the wire |
+| Vercel function invocations | ~7,300 | ~3,300 | refreshes + 270 pick actions + misc |
+| Vercel fast data transfer | ~0.3 GB | ~0.15 GB | RSC payloads (~210 MB before, ~90 MB after) + card images to 6 browsers (~65 MB) |
+| Supabase Realtime messages | ~2,000 | ~2,000 | 270 changes × 6 subscribers + presence — unaffected |
+| Realtime peak connections | 6 | 6 | vs 200 |
+| Upstash commands | < 100 | < 100 | booster-data cache reads/warmups |
 
 ### Card images
 
@@ -124,15 +134,15 @@ WebP-only, and caches transformations 31 days.
 
 ## 3. Headroom — drafts per month
 
-| Quota | Cap | Per draft | Drafts/month |
-|---|---|---|---|
-| **Supabase DB egress** | 5 GB | 0.2–1 GB | **~5–25** ← first to exhaust |
-| Image transformations | 5K | 500–800 (cold set only) | ~6–10 *new-set* drafts; repeats ≈ free |
-| Function invocations | 1M | ~7.3K | ~135 |
-| Fast data transfer | 100 GB | ~0.3 GB | ~300 |
-| Realtime messages | 2M | ~2K | ~1,000 |
-| Upstash commands | 500K | <100 | ~5,000+ |
-| DB storage | 500 MB | ~0.2 MB stored | not a constraint (40 MB used) |
+| Quota | Cap | Per draft | Drafts/month (before) | Drafts/month (after) |
+|---|---|---|---|---|
+| **Image transformations** | 5K | 500–800 (cold set only) | ~6–10 *new-set* drafts | **~6–10 *new-set* drafts** ← now first to exhaust; repeats ≈ free |
+| Supabase DB egress | 5 GB | 15–60 MB (was 0.2–1 GB) | ~5–25 | ~80–400 |
+| Function invocations | 1M | ~3.3K (was ~7.3K) | ~135 | ~300 |
+| Fast data transfer | 100 GB | ~0.15 GB (was ~0.3 GB) | ~300 | ~650 |
+| Realtime messages | 2M | ~2K | ~1,000 | ~1,000 |
+| Upstash commands | 500K | <100 | ~5,000+ | ~5,000+ |
+| DB storage | 500 MB | ~0.2 MB stored | not a constraint (40 MB used) | same |
 
 Crack-a-Pack is comparatively cheap (one pack generation + ~15–30 images, no
 polling loop) — dozens of packs ≈ one draft's worth of image usage, negligible
@@ -140,23 +150,50 @@ egress.
 
 ## 4. Mitigations (ordered by impact)
 
-1. **Lengthen the polling fallback** (`PickClient.tsx`, 2s → 8–10s). Realtime
-   is the primary signal; the poll is only a gap-filler. ~4–5x fewer refreshes
-   for one line of code.
-2. **Stop refetching the full state per refresh** (April audit §5.2, parked).
-   Replace the pick page's `select("id, status, state, config")` re-render
-   with a narrow RPC returning just the viewer's current pack + counts
-   (~5–10 KB vs ~150 KB). Combined with (1), per-draft egress drops ~50–100x
-   and Supabase stops being the binding constraint entirely.
+1. ~~**Lengthen the polling fallback**~~ — **done (podman-12)**. The waiting
+   screen polls on `WAITING_POLL_INTERVAL_MS` (8s, `src/lib/draft-view.ts`),
+   not 2s. Realtime is the primary signal; the poll only covers dropped
+   subscriptions. 4x fewer refreshes.
+2. ~~**Stop refetching the full state per refresh**~~ (April audit §5.2) —
+   **done (podman-12)**. `pick/page.tsx` calls `get_draft_pick_view` instead of
+   `select("id, status, state, config")`. The RPC returns the caller's seat
+   (current pack, pool, deck/sideboard as keys into the pool) plus per-seat
+   counts for the pod list — measured ~16 KB against a 187 KB full state.
 3. **Verify wire compression**: confirm PostgREST responses are gzip-encoded
    for the server client. If not, enabling it is a free ~5x egress cut.
-4. **Images are already mitigated** (31-day TTL, WebP-only, 6 widths — PR #26).
+   Still unverified — it's the difference between the two ends of the egress
+   range in §3.
+4. **Images are the remaining constraint** and are already mitigated (31-day TTL, WebP-only, 6 widths — PR #26).
    Optional extras: lower `quality` on carousel images; when possible, draft
    sets already drafted that month. Watch for the 402/alt-text failure mode —
    it's the visible symptom of hitting the transformation cap.
-5. **If usage outgrows free tier**: Supabase Pro ($25/mo, 250 GB egress) fixes
-   the binding constraint; Vercel Pro fixes image transformations. Neither is
-   needed at current scale (~a few drafts/month).
+5. **If usage outgrows free tier**: Vercel Pro fixes image transformations (the
+   current binding constraint); Supabase Pro ($25/mo, 250 GB egress) is no
+   longer needed for egress. Neither is needed at current scale (~a few
+   drafts/month).
+
+## 5. Re-measurement after podman-12
+
+**Method.** The RPC was run against a synthetic but realistic 6-seat mid-draft
+state (each seat: 10-card current pack, 11-card queued pack, 20-card pool,
+14-card deck, 6-card sideboard, 20 picks, full `CardReference` fields including
+both Scryfall image URLs) on a throwaway Postgres 17 instance:
+
+| | Bytes |
+|---|---|
+| Full `drafts.state` (what the old `select` returned) | 187,078 |
+| `get_draft_pick_view` payload | 15,902 |
+| **Ratio** | **11.8x** |
+
+Combined with 7,000 → ~2,970 refreshes, that models a **~20x per-draft egress
+cut** (~1 GB → ~50 MB uncompressed).
+
+**Still to confirm on real traffic:** the numbers above are payload-size
+measurements plus the refresh-count model, not dashboard readings. Supabase
+does not expose usage via CLI or MCP, so the before/after dashboard comparison
+(Dashboard → Project → Reports → Usage, around a full test draft) has to be
+read by hand once a real draft has run on the new code. Update the §3 table if
+it diverges.
 
 ## Sources
 

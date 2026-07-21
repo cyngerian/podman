@@ -17,6 +17,7 @@ import WaitingScreen from "@/components/draft/WaitingScreen";
 import { useRealtimeChannel } from "@/hooks/useRealtimeChannel";
 import { createInFlightGuard } from "@/lib/async-guard";
 import { createDeckSaver } from "@/lib/deck-saver";
+import { WAITING_POLL_INTERVAL_MS } from "@/lib/draft-view";
 import { makePickAction, autoPickAction, saveDeckAction } from "../actions";
 
 interface PickClientProps {
@@ -150,13 +151,14 @@ export default function PickClient({
     return () => clearInterval(interval);
   }, [pacingMode, timerPreset, timerSeconds, packCards.length, draftId, router]);
 
-  // Poll for new pack when waiting (fallback for realtime gaps)
+  // Poll for new pack when waiting — a gap-filler for dropped realtime
+  // subscriptions, not the primary signal (see WAITING_POLL_INTERVAL_MS).
   useEffect(() => {
     if (packCards.length > 0) return;
 
     const interval = setInterval(() => {
       router.refresh();
-    }, 2000);
+    }, WAITING_POLL_INTERVAL_MS);
 
     return () => clearInterval(interval);
   }, [packCards.length, router]);
