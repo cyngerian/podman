@@ -77,9 +77,12 @@ export async function applyDraftMutation(
       updatePayload.completed_at = null;
     }
 
+    // `count: "exact"` is required — without it PostgREST never returns a row
+    // count, so a lost race would come back as count === null and be reported
+    // as a success while the mutation was silently dropped.
     const { error: updateError, count } = await admin
       .from("drafts")
-      .update(updatePayload)
+      .update(updatePayload, { count: "exact" })
       .eq("id", draftId)
       .eq("version", currentVersion);
 

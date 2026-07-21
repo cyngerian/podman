@@ -48,8 +48,11 @@ type WriteResult = { count: number | null; error: { message: string } | null };
 
 type RecordedUpdate = {
   payload: Record<string, unknown>;
+  opts?: { count?: string };
   filters: Array<[string, unknown]>;
 };
+
+type Mutator = (draft: Draft, allPacks: CardReference[][] | null) => Draft;
 
 /**
  * Minimal stand-in for the postgrest builder chains applyDraftMutation uses:
@@ -87,7 +90,7 @@ function mockAdmin(script: { reads: ReadResult[]; writes?: WriteResult[] }) {
             },
           };
         },
-        update(payload: Record<string, unknown>) {
+        update(payload: Record<string, unknown>, opts?: { count?: string }) {
           const filters: Array<[string, unknown]> = [];
           const builder = {
             eq(col: string, value: unknown) {
@@ -98,7 +101,7 @@ function mockAdmin(script: { reads: ReadResult[]; writes?: WriteResult[] }) {
               onFulfilled: (value: WriteResult) => R,
               onRejected?: (reason: unknown) => R
             ) {
-              updates.push({ payload, filters });
+              updates.push({ payload, opts, filters });
               return Promise.resolve(next(script.writes, writeIndex++)).then(
                 onFulfilled,
                 onRejected
@@ -178,6 +181,19 @@ describe("applyDraftMutation — happy path", () => {
     ]);
   });
 
+  it("requests an exact row count so a lost race is detectable", async () => {
+    // Without count: "exact" PostgREST returns count === null even when the
+    // version guard matched no rows, and the conflict retry below can never fire.
+    const admin = install({
+      reads: [ok(makeDraft(), 1)],
+      writes: [{ count: 1, error: null }],
+    });
+
+    await applyDraftMutation("draft-1", (d) => d);
+
+    expect(admin.updates[0].opts).toEqual({ count: "exact" });
+  });
+
   it("passes config.allPacks through to the mutator", async () => {
     const allPacks: CardReference[][] = [
       [
@@ -198,7 +214,7 @@ describe("applyDraftMutation — happy path", () => {
       writes: [{ count: 1, error: null }],
     });
 
-    const mutate = vi.fn((draft: Draft) => draft);
+    const mutate = vi.fn<Mutator>((draft) => draft);
     await applyDraftMutation("draft-1", mutate);
 
     expect(mutate.mock.calls[0][1]).toEqual(allPacks);
@@ -207,7 +223,7 @@ describe("applyDraftMutation — happy path", () => {
   it("passes null for allPacks when config has none", async () => {
     install({ reads: [ok(makeDraft(), 1)], writes: [{ count: 1, error: null }] });
 
-    const mutate = vi.fn((draft: Draft) => draft);
+    const mutate = vi.fn<Mutator>((draft) => draft);
     await applyDraftMutation("draft-1", mutate);
 
     expect(mutate.mock.calls[0][1]).toBeNull();
@@ -281,7 +297,7 @@ describe("applyDraftMutation — version conflict retry", () => {
       ],
     });
 
-    const mutate = vi.fn((draft: Draft) => ({ ...draft, currentPack: draft.currentPack + 1 }));
+    const mutate = vi.fn<Mutator>((draft) => ({ ...draft, currentPack: draft.currentPack + 1 }));
     const result = await applyDraftMutation("draft-1", mutate);
 
     expect(result.success).toBe(true);
@@ -298,6 +314,8 @@ describe("applyDraftMutation — version conflict retry", () => {
     expect(admin.updates[1].payload.version).toBe(7);
   });
 
+  // With count: "exact" a null count shouldn't happen; this pins the fallback
+  // so an unexpected null surfaces as a success rather than three blind retries.
   it("treats a null count as a successful write rather than a conflict", async () => {
     const admin = install({
       reads: [ok(makeDraft(), 1)],
@@ -318,7 +336,7 @@ describe("applyDraftMutation — retry exhaustion", () => {
       writes: [{ count: 0, error: null }],
     });
 
-    const mutate = vi.fn((draft: Draft) => draft);
+    const mutate = vi.fn<Mutator>((draft) => draft);
     const result = await applyDraftMutation("draft-1", mutate);
 
     expect(result.success).toBe(false);
