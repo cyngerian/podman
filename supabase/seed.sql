@@ -1,32 +1,19 @@
 -- ============================================================================
--- podman Seed: Bootstrap site admin and first invite
+-- podman Seed
 -- ============================================================================
 --
--- USAGE:
--- 1. Start local Supabase: npx supabase start
--- 2. Create your admin user via the Auth UI or CLI
--- 3. Run this seed with your admin user's UUID:
+-- Intentionally empty.
 --
---    ADMIN_USER_ID='your-uuid-here' npx supabase db reset
+-- This file used to bootstrap a row in `public.invites` (the old signup gate).
+-- That table was dropped by 20260214000100_group_invite_links.sql, so the seed
+-- failed with `relation "public.invites" does not exist` and took
+-- `npx supabase start` down with it.
 --
--- Or manually set the UUID below before running.
+-- Signup is no longer gated by an invite code — groups are joined through
+-- time-limited invite links (`group_invites` + `accept_group_invite`), which
+-- are created from the app by a group admin. There is nothing left to seed.
+--
+-- The integration suites create their own fixtures at runtime against a
+-- freshly started stack (see docs/testing.md), so keep this file free of test
+-- data: anything added here has to be safe for every developer's local DB.
 -- ============================================================================
-
--- Set your admin user ID here (replace with actual UUID after first sign-up)
--- This is a placeholder — the real flow is:
---   1. Sign up via the app
---   2. Run: UPDATE profiles SET is_site_admin = true WHERE id = '<your-uuid>';
---   3. Create an invite code for friends
-
--- Create a bootstrap invite code (usable by the first person to sign up)
--- The site admin can create more invites after claiming this one
-insert into public.invites (code, created_by)
-select
-  'PODMAN-BOOTSTRAP-2026',
-  id
-from public.profiles
-where is_site_admin = true
-limit 1;
-
--- If no admin exists yet (first run), this is a no-op.
--- After promoting yourself to admin, re-run: npx supabase db reset

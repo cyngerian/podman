@@ -14,7 +14,8 @@
     "backup-prod": "tsx --env-file-if-exists=.env.local scripts/backup-prod.ts",
     "sync-staging": "tsx --env-file-if-exists=.env.local scripts/sync-staging.ts",
     "restore-prod": "tsx --env-file-if-exists=.env.local scripts/restore-prod.ts",
-    "update-sets": "tsx --env-file-if-exists=.env.local scripts/load-booster-data.ts --sync"
+    "update-sets": "tsx --env-file-if-exists=.env.local scripts/load-booster-data.ts --sync",
+    "test:rls": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.67.0",
