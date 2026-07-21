@@ -4,6 +4,7 @@ import { useState, useTransition, useCallback, useEffect } from "react";
 import SetPicker from "@/components/draft/SetPicker";
 import PickScreen from "@/components/draft/PickScreen";
 import { crackAPackAction, warmBoosterDataAction } from "./actions";
+import { fetchJson } from "@/lib/fetch-json";
 import type { CardReference } from "@/lib/types";
 
 interface BoosterProduct {
@@ -31,6 +32,7 @@ export default function CrackAPackClient() {
   const [boosterProducts, setBoosterProducts] = useState<BoosterProduct[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<BoosterProduct | null>(null);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [productsError, setProductsError] = useState(false);
   const [packCards, setPackCards] = useState<CardReference[] | null>(null);
   const [packKey, setPackKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +43,7 @@ export default function CrackAPackClient() {
     setSelectedSet(set);
     setBoosterProducts([]);
     setSelectedProduct(null);
+    setProductsError(false);
     setLoadingProducts(!!set);
   }, []);
 
@@ -49,9 +52,8 @@ export default function CrackAPackClient() {
 
     let cancelled = false;
 
-    fetch(`/api/boosters?set=${selectedSet.code}`)
-      .then((res) => res.json())
-      .then((data: BoosterProduct[]) => {
+    fetchJson<BoosterProduct[]>(`/api/boosters?set=${selectedSet.code}`)
+      .then((data) => {
         if (cancelled) return;
         setBoosterProducts(data);
         if (data.length > 0) {
@@ -62,6 +64,7 @@ export default function CrackAPackClient() {
       .catch(() => {
         if (cancelled) return;
         setBoosterProducts([]);
+        setProductsError(true);
         setLoadingProducts(false);
       });
 
@@ -164,6 +167,12 @@ export default function CrackAPackClient() {
               </button>
             ))}
           </div>
+        )}
+
+        {selectedSet && productsError && (
+          <p className="text-sm text-red-400 text-center">
+            Couldn&apos;t load booster types for this set. Please try again.
+          </p>
         )}
 
         {error && (
