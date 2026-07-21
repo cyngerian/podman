@@ -216,7 +216,11 @@ UPSTASH_REDIS_REST_TOKEN                # Upstash Redis token (booster data cach
 SUPABASE_PROJECT_REF                    # Production project ref (scripts)
 SUPABASE_STAGING_REF                    # Staging project ref (sync-staging)
 SUPABASE_ACCESS_TOKEN                   # Supabase personal access token (scripts)
+PROD_SUPABASE_URL                       # Production Supabase URL (test-packs script)
+PROD_SUPABASE_SECRET_KEY                # Production secret key (test-packs script)
 ```
+
+`.env.example` mirrors this list — add new vars to both.
 
 ## Pending Work
 
