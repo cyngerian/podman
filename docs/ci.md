@@ -6,7 +6,7 @@
 
 CI/CD is split between **GitHub Actions** (correctness gates) and **Vercel** (deployment).
 
-- **GitHub Actions** runs lint + type-check/build + unit tests on every PR, and a daily MTG set sync against both prod and staging Supabase.
+- **GitHub Actions** runs lint + type-check/build + unit tests on every PR, a parallel integration job (RLS + E2E) on every PR, and a daily MTG set sync against both prod and staging Supabase.
 - **Vercel** auto-deploys: a preview environment on every PR push (using staging Supabase env vars), and production on merge to `main`. Preview URLs persist after merge.
 
 Local dev does not run lint or build (`npm run lint` / `npm run build` are CI-only per `CLAUDE.md`); developers use `npm test` for the engine and the PR preview URL for everything else.
@@ -17,15 +17,39 @@ Two workflows live in `.github/workflows/`:
 
 ### `ci.yml` — PR validation
 
-Single job, five steps after `actions/checkout@v4`:
+Runs on `pull_request` against `main`. **Two jobs, in parallel.**
+
+#### Job `ci` — the fast gate
+
+Five steps after `actions/checkout@v4`:
 
 1. `actions/setup-node@v4` — Node.js 22, npm cache enabled
 2. `npm ci`
 3. `npm run lint`
 4. `npm run build` — type-check + Next.js production build, with placeholder env vars (see [Secrets and Environment](#secrets-and-environment))
-5. `npm test` — Vitest unit suite (308 tests)
+5. `npm test` — Vitest unit suite (308 tests, no services, sub-second)
 
-Runs on `pull_request` against `main`.
+#### Job `integration` — RLS + E2E
+
+Boots Docker containers and a browser, so it is kept out of `ci` to leave that
+job fast. `timeout-minutes: 25`.
+
+1. `actions/setup-node@v4` + `npm ci`
+2. `supabase/setup-cli@v1`, pinned to CLI **2.109.1**
+3. `supabase start` — applies every migration in `supabase/migrations/` to a
+   fresh Postgres. This is also the only place the migration set is verified to
+   build a working database from scratch
+4. `npm run test:rls` — 52 RLS integration tests against that stack
+5. `npx playwright install --with-deps chromium`
+6. `npm run test:e2e` — Playwright builds and starts the app itself
+   (`playwright.config.ts` → `webServer`) pointed at the local Supabase
+
+On failure it uploads `playwright-report/` and `test-results/` (trace + video,
+7-day retention) and dumps `supabase status`. Retries are off by design — see
+[Testing](./testing.md#e2e-suite).
+
+Neither suite takes GitHub secrets: the local stack's keys are the published
+defaults, read at runtime from `supabase status`.
 
 ### `update-sets.yml` — Daily booster data sync
 
@@ -39,7 +63,7 @@ Triggered by:
 
 | Workflow | Event | Filter |
 |----------|-------|--------|
-| `ci.yml` | `pull_request` | branches: `[main]` |
+| `ci.yml` (jobs `ci` + `integration`) | `pull_request` | branches: `[main]` |
 | `update-sets.yml` | `schedule` | `0 10 * * *` (daily 10:00 UTC) |
 | `update-sets.yml` | `workflow_dispatch` | none |
 
@@ -56,6 +80,12 @@ Build is run with hardcoded placeholders so it can type-check without leaking re
 - `NEXT_PUBLIC_SENTRY_DSN=""`
 
 No GitHub secrets are consumed — the build doesn't need to talk to any service. Sentry source-map uploads (`SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`) are not run from CI; they happen in Vercel builds, not here.
+
+The `integration` job takes no secrets either. Everything it needs comes from
+the local stack: `tests/integration/helpers/env.ts` reads `supabase status -o
+env`, and `playwright.config.ts` passes those values to the app under test as
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, and
+`SUPABASE_SECRET_KEY` (with `NEXT_PUBLIC_SENTRY_DSN` blanked).
 
 ### `update-sets.yml`
 
@@ -102,6 +132,15 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_placeholder \
 NEXT_PUBLIC_SENTRY_DSN= \
 npm run build
 npm test
+```
+
+And the `integration` job:
+
+```bash
+npx supabase start
+npm run test:rls
+npx playwright install chromium
+npm run test:e2e
 ```
 
 To reproduce the daily set sync against staging locally (without touching prod):

@@ -15,7 +15,8 @@
     "sync-staging": "tsx --env-file-if-exists=.env.local scripts/sync-staging.ts",
     "restore-prod": "tsx --env-file-if-exists=.env.local scripts/restore-prod.ts",
     "update-sets": "tsx --env-file-if-exists=.env.local scripts/load-booster-data.ts --sync",
-    "test:rls": "vitest run --config vitest.integration.config.ts"
+    "test:rls": "vitest run --config vitest.integration.config.ts",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.67.0",
@@ -30,6 +31,7 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^25.2.3",
     "@types/react": "^19.2.14",

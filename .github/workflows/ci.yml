@@ -29,3 +29,51 @@ jobs:
 
       - name: Test
         run: npm test
+
+  # Kept out of the `ci` job on purpose: this one boots Docker containers and a
+  # browser and takes minutes, while `ci` stays a fast lint/build/unit gate.
+  # They run in parallel, so total wall-clock is the slower of the two.
+  integration:
+    name: Integration (RLS + E2E)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+
+      - name: Start local Supabase
+        run: supabase start
+
+      - name: RLS integration tests
+        run: npm run test:rls
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E draft flow
+        run: npm run test:e2e
+
+      # Trace + video are captured on failure only (playwright.config.ts).
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+      - name: Supabase logs
+        if: failure()
+        run: supabase status || true

@@ -46,6 +46,16 @@ export function anonClient(): Client {
   );
 }
 
+/** The slice of `drafts.state` the E2E assertions read back. */
+export interface DraftStateShape {
+  seats: {
+    userId: string;
+    pool: unknown[];
+    deck: unknown[] | null;
+    hasSubmittedDeck?: boolean;
+  }[];
+}
+
 export interface TestUser {
   id: string;
   email: string;
@@ -62,6 +72,9 @@ const PASSWORD = "rls-integration-test-password";
  * groups.created_by) have to go first.
  */
 export class Fixtures {
+  /** Password every fixture user is created with. */
+  readonly password = PASSWORD;
+
   private readonly admin = adminClient();
   private readonly userIds: string[] = [];
   private readonly groupIds: string[] = [];
@@ -184,8 +197,25 @@ export class Fixtures {
     return data.id;
   }
 
+  /** Reads a draft's engine state with RLS bypassed (assertions, not fixtures). */
+  async readDraftState<T = DraftStateShape>(draftId: string): Promise<T> {
+    const { data, error } = await this.admin
+      .from("drafts")
+      .select("state")
+      .eq("id", draftId)
+      .single();
+    if (error || !data) throw new Error(`Failed to read draft: ${error?.message}`);
+    return data.state as T;
+  }
+
   /** Drops everything this fixture set created, newest dependency first. */
   async cleanup(): Promise<void> {
+    // Drafts the *app* created on a fixture user's behalf (the E2E run) are not
+    // in `draftIds`, and `drafts.host_id` has no ON DELETE CASCADE — so they
+    // have to go before the users, or `deleteUser` leaves orphaned rows behind.
+    if (this.userIds.length > 0) {
+      await this.admin.from("drafts").delete().in("host_id", this.userIds);
+    }
     for (const id of this.draftIds) {
       await this.admin.from("drafts").delete().eq("id", id);
     }
