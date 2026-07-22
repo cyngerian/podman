@@ -123,6 +123,15 @@ export class Fixtures {
     return data.id;
   }
 
+  /**
+   * Registers a group the *test* created through a user client (not `createGroup`)
+   * so `cleanup()` removes it. `groups` has no DELETE policy, so a test cannot
+   * unwind its own group without the service-role client.
+   */
+  trackGroup(groupId: string): void {
+    this.groupIds.push(groupId);
+  }
+
   async addMember(
     groupId: string,
     user: TestUser,

@@ -76,7 +76,7 @@ The `(app)` layout adds a sticky header (`z-30`, `h-12`) with user avatar, displ
 
 ### Draft Engine (`src/lib/draft-engine.ts`)
 
-Pure functions transforming immutable `Draft` state objects. Key functions: `createDraft`, `startDraft`, `makePickAndPass`, `advanceToNextPack`, `transitionToDeckBuilding`, `unsubmitDeck`. State stored as JSON in `drafts.state`, mutated via `applyDraftMutation()` (`src/lib/draft-mutation.ts`) with optimistic concurrency — the update is guarded by `.eq("version", currentVersion)` and retried up to `MAX_MUTATION_ATTEMPTS` (3) times on a zero-row write. **341 unit tests** (Vitest): 88 draft engine, 17 draft-view, 12 scryfall normalization, 17 export, 17 card-utils, 25 bot-drafter, 30 pack-generator, 23 sheet-pack-generator, 19 draft-mutation, 14 kv, 18 server-action guards (`src/app/(app)/dashboard/groups/__tests__/`), 9 avatar route, plus fetch-json, deck-saver, async-guard, and proposal-validation. Shared PostgREST/`redirect` test doubles live in `src/lib/__tests__/supabase-mock.ts`. Integration coverage lives outside `src/`: `tests/integration/rls.test.ts` (57 RLS tests against a real local Supabase) and `tests/e2e/draft-flow.spec.ts` (Playwright happy path) — see `docs/testing.md`.
+Pure functions transforming immutable `Draft` state objects. Key functions: `createDraft`, `startDraft`, `makePickAndPass`, `advanceToNextPack`, `transitionToDeckBuilding`, `unsubmitDeck`. State stored as JSON in `drafts.state`, mutated via `applyDraftMutation()` (`src/lib/draft-mutation.ts`) with optimistic concurrency — the update is guarded by `.eq("version", currentVersion)` and retried up to `MAX_MUTATION_ATTEMPTS` (3) times on a zero-row write. **342 unit tests** (Vitest): 88 draft engine, 17 draft-view, 12 scryfall normalization, 17 export, 17 card-utils, 25 bot-drafter, 30 pack-generator, 23 sheet-pack-generator, 19 draft-mutation, 14 kv, 19 server-action guards (`src/app/(app)/dashboard/groups/__tests__/`), 9 avatar route, plus fetch-json, deck-saver, async-guard, and proposal-validation. Shared PostgREST/`redirect` test doubles live in `src/lib/__tests__/supabase-mock.ts`. Integration coverage lives outside `src/`: `tests/integration/rls.test.ts` (60 RLS tests against a real local Supabase) and `tests/e2e/draft-flow.spec.ts` (Playwright happy path) — see `docs/testing.md`.
 
 ### Key Types (`src/lib/types.ts`)
 
@@ -115,6 +115,8 @@ Return `{ error: string }` on failure or `void`/redirect on success. Auth check 
 ### Database & RLS
 
 Supabase Postgres with RLS. Key tables: `profiles`, `groups`, `group_members`, `group_invites`, `draft_proposals`, `draft_players`, `drafts`. RLS policies on `group_members`/`draft_players` use SECURITY DEFINER helpers (`user_group_ids()`, `user_draft_ids()`, `is_group_admin()`) to avoid infinite recursion.
+
+**Don't read back a `group_members` self-insert.** The creator bootstrap in `createGroup` inserts without `.select()` on purpose. Adding a read-back makes PostgREST use `RETURNING`, which re-checks `group_members_select` — and `user_group_ids()` is STABLE, so within the same statement it can't see the row being inserted. The insert then fails with `42501`. Verified against staging.
 
 ### Migrations
 

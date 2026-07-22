@@ -34,7 +34,7 @@ Most tests live in `src/lib/__tests__/`; the two exceptions are noted below. Cou
 | `draft-mutation.test.ts` | 19 | `applyDraftMutation` optimistic concurrency: version guard, retry-on-zero-rows, error paths |
 | `card-utils.test.ts` | 17 | Color utilities, DFC color union, mana-cost helpers |
 | `export.test.ts` | 17 | `.cod`, `.txt`, and clipboard exports — including `deckName` handling |
-| `.../dashboard/groups/__tests__/actions.test.ts` | 18 | Server-action auth/membership guards |
+| `.../dashboard/groups/__tests__/actions.test.ts` | 19 | Server-action auth/membership guards |
 | `proposal-validation.test.ts` | 14 | Draft proposal input validation |
 | `scryfall.test.ts` | 12 | Collector-number normalization (DFC `a/b`, `★`, "The List" `SET-NUM`) |
 | `kv.test.ts` | 14 | Upstash wrapper: TTL passthrough (`ex`), no-TTL and unconfigured paths, error swallowing, booster 24h default |
@@ -48,7 +48,7 @@ excludes `tests/` — that directory belongs to the integration and E2E runners.
 
 ## RLS Integration Suite
 
-`tests/integration/rls.test.ts` — **57 tests**, run with
+`tests/integration/rls.test.ts` — **60 tests**, run with
 `npm run test:rls` (`vitest.integration.config.ts`).
 
 It talks to a **real** local Supabase. That is the point: a PostgREST double
@@ -96,17 +96,17 @@ the admin API and sign each one in, so tests run as the `authenticated` role
 with a genuine `auth.uid()`. `cleanup()` unwinds in FK-safe order — drafts,
 then groups, then users.
 
-### Known RLS gaps
+### group_members self-join
 
-One test is named `KNOWN GAP` and asserts behavior we are *not* happy with:
-`group_members_insert` allows `user_id = auth.uid()`, so any authenticated user
-who knows a group's UUID can add themselves to it. The clause exists because
-`createGroup` inserts the creator's own membership row through the user client.
-Joining is otherwise done through `accept_group_invite`, which is SECURITY
-DEFINER and bypasses RLS, so tightening the policy to admins-only would only
-require reworking `createGroup`. Until someone does that, the test documents the
-hole; if it starts failing, the policy was tightened — delete the test and this
-paragraph rather than loosening the policy back.
+The suite once carried a `KNOWN GAP` test: `group_members_insert` allowed
+`user_id = auth.uid()` unconditionally, so any authenticated user who knew a
+group's UUID could add themselves to it. Closed 2026-07-21 by
+`20260721000200_restrict_group_members_insert.sql`. The self-insert clause is
+now scoped to the one caller that needed it — `createGroup` seeding the
+creator's own `admin` row — via `groups.created_by = auth.uid() AND role =
+'admin'`. Everything else goes through `is_group_admin()`, or through
+`accept_group_invite` (SECURITY DEFINER, bypasses RLS). The `group_members`
+describe block asserts both directions.
 
 ## E2E Suite
 
@@ -221,7 +221,7 @@ tests schema or policy behavior must hit a real Supabase.
 From the April 2026 audit (`CODEBASE_AUDIT_2026-04-25.md` §7), in priority order:
 
 1. ~~**`applyDraftMutation` concurrency control**~~ — closed 2026-07-21 by `draft-mutation.test.ts` (19 tests).
-2. ~~**RLS policy regression tests**~~ — closed 2026-07-21 by `tests/integration/rls.test.ts` (57 tests).
+2. ~~**RLS policy regression tests**~~ — closed 2026-07-21 by `tests/integration/rls.test.ts` (60 tests).
 3. ~~**Server actions auth/membership**~~ — closed 2026-07-21 by `dashboard/groups/__tests__/actions.test.ts` (18 tests).
 4. ~~**End-to-end coverage**~~ — closed 2026-07-21 by `tests/e2e/draft-flow.spec.ts`.
 

@@ -120,6 +120,24 @@ describe("createGroup — auth guard", () => {
     });
     expect(server.of("insert", "group_members")).toHaveLength(0);
   });
+
+  it("surfaces a membership-insert failure instead of redirecting into an orphan group", async () => {
+    // `group_members_insert` (20260721000200) only permits the creator's own
+    // admin row. If that check ever stops matching, the group would exist with
+    // no members — reachable by nobody, including its creator.
+    const { server } = setup(
+      respond({
+        "groups:insert": { data: { id: "group-9" }, error: null },
+        "group_members:insert": { data: null, error: { message: "denied" } },
+      })
+    );
+
+    await expect(createGroup(form({ name: "Pod Squad" }))).resolves.toEqual({
+      error: "denied",
+    });
+    expect(server.of("insert", "groups")).toHaveLength(1);
+    expect(redirect).not.toHaveBeenCalled();
+  });
 });
 
 // ---------------------------------------------------------------------------
