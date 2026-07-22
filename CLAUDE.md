@@ -116,6 +116,8 @@ Return `{ error: string }` on failure or `void`/redirect on success. Auth check 
 
 Supabase Postgres with RLS. Key tables: `profiles`, `groups`, `group_members`, `group_invites`, `draft_proposals`, `draft_players`, `drafts`. RLS policies on `group_members`/`draft_players` use SECURITY DEFINER helpers (`user_group_ids()`, `user_draft_ids()`, `is_group_admin()`) to avoid infinite recursion.
 
+**Don't read back a `group_members` self-insert.** The creator bootstrap in `createGroup` inserts without `.select()` on purpose. Adding a read-back makes PostgREST use `RETURNING`, which re-checks `group_members_select` — and `user_group_ids()` is STABLE, so within the same statement it can't see the row being inserted. The insert then fails with `42501`. Verified against staging.
+
 ### Migrations
 
 **All schema changes MUST go through migration files** in `supabase/migrations/`. Never apply schema changes directly via MCP tools (Supabase `execute_sql`, `apply_migration`) or the dashboard — those are not reproducible and cannot be tracked.
