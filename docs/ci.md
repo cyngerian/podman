@@ -27,7 +27,7 @@ Five steps after `actions/checkout@v4`:
 2. `npm ci`
 3. `npm run lint`
 4. `npm run build` — type-check + Next.js production build, with placeholder env vars (see [Secrets and Environment](#secrets-and-environment))
-5. `npm test` — Vitest unit suite (308 tests, no services, sub-second)
+5. `npm test` — Vitest unit suite (341 tests, no services, sub-second)
 
 #### Job `integration` — RLS + E2E
 
@@ -39,7 +39,7 @@ job fast. `timeout-minutes: 25`.
 3. `supabase start` — applies every migration in `supabase/migrations/` to a
    fresh Postgres. This is also the only place the migration set is verified to
    build a working database from scratch
-4. `npm run test:rls` — 52 RLS integration tests against that stack
+4. `npm run test:rls` — 57 RLS integration tests against that stack
 5. `npx playwright install --with-deps chromium`
 6. `npm run test:e2e` — Playwright builds and starts the app itself
    (`playwright.config.ts` → `webServer`) pointed at the local Supabase

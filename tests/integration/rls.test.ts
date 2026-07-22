@@ -22,6 +22,10 @@
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { Fixtures, anonClient, type TestUser, type Client } from "./helpers/supabase";
+import { canExecute, query } from "./helpers/sql";
+
+/** Postgres `insufficient_privilege` — a real denial, as opposed to PGRST202. */
+const PERMISSION_DENIED = "42501";
 
 const fixtures = new Fixtures();
 
@@ -162,7 +166,7 @@ describe("groups", () => {
       .from("groups")
       .insert({ name: "Spoofed", created_by: admin.id });
 
-    expect(error).not.toBeNull();
+    expect(error?.code).toBe(PERMISSION_DENIED);
   });
 
   it("does not let a plain member rename the group", async () => {
@@ -229,7 +233,7 @@ describe("group_members", () => {
       .from("group_members")
       .insert({ group_id: groupId, user_id: outsider.id, role: "member" });
 
-    expect(error).not.toBeNull();
+    expect(error?.code).toBe(PERMISSION_DENIED);
   });
 
   it("lets a group admin add a member", async () => {
@@ -327,7 +331,7 @@ describe("draft_proposals", () => {
       player_count: 8,
     });
 
-    expect(error).not.toBeNull();
+    expect(error?.code).toBe(PERMISSION_DENIED);
   });
 
   it("lets a member propose a draft in their own group", async () => {
@@ -345,6 +349,51 @@ describe("draft_proposals", () => {
 
     expect(error).toBeNull();
     expect(data?.id).toBeTruthy();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// proposal_votes
+// ---------------------------------------------------------------------------
+
+describe("proposal_votes", () => {
+  it("lets a group member vote as themselves and read the tally", async () => {
+    const { error } = await member.client
+      .from("proposal_votes")
+      .insert({ proposal_id: proposalId, user_id: member.id, vote: "in" });
+    expect(error).toBeNull();
+
+    const { data, error: readError } = await admin.client
+      .from("proposal_votes")
+      .select("user_id, vote")
+      .eq("proposal_id", proposalId);
+
+    expect(readError).toBeNull();
+    expect(data).toEqual([{ user_id: member.id, vote: "in" }]);
+  });
+
+  it("does not let a user vote on someone else's behalf", async () => {
+    const { error } = await member.client
+      .from("proposal_votes")
+      .insert({ proposal_id: proposalId, user_id: admin.id, vote: "out" });
+
+    expect(error?.code).toBe(PERMISSION_DENIED);
+  });
+
+  it("hides votes from a non-member and from anon", async () => {
+    const asOutsider = await outsider.client
+      .from("proposal_votes")
+      .select("user_id")
+      .eq("proposal_id", proposalId);
+    const asAnon = await anon
+      .from("proposal_votes")
+      .select("user_id")
+      .eq("proposal_id", proposalId);
+
+    expect(asOutsider.error).toBeNull();
+    expect(asOutsider.data).toEqual([]);
+    expect(asAnon.error).toBeNull();
+    expect(asAnon.data).toEqual([]);
   });
 });
 
@@ -438,7 +487,7 @@ describe("draft_players", () => {
       .from("draft_players")
       .insert({ draft_id: groupDraftId, user_id: outsider.id, seat_position: 5 });
 
-    expect(error).not.toBeNull();
+    expect(error?.code).toBe(PERMISSION_DENIED);
   });
 
   it("lets the host seat another user", async () => {
@@ -496,7 +545,7 @@ describe("group_invites", () => {
       .from("group_invites")
       .insert({ group_id: groupId, created_by: member.id });
 
-    expect(error).not.toBeNull();
+    expect(error?.code).toBe(PERMISSION_DENIED);
   });
 
   it("does not let a group admin mint an invite attributed to someone else", async () => {
@@ -504,7 +553,7 @@ describe("group_invites", () => {
       .from("group_invites")
       .insert({ group_id: groupId, created_by: member.id });
 
-    expect(error).not.toBeNull();
+    expect(error?.code).toBe(PERMISSION_DENIED);
   });
 });
 
@@ -604,26 +653,64 @@ describe("SECURITY DEFINER helper privileges", () => {
     ],
   ])("denies anon EXECUTE on %s", async (fn, args) => {
     const { error } = await anon.rpc(fn, args as Record<string, unknown>);
-    expect(error).not.toBeNull();
+    // 42501, not PGRST202: the function is still exposed and still there —
+    // anon simply may not run it. A renamed or dropped function would give
+    // PGRST202 and must not be mistaken for a passing denial.
+    expect(error?.code).toBe(PERMISSION_DENIED);
   });
-
-  it.each([["handle_new_user"], ["update_updated_at"]])(
-    "denies both roles EXECUTE on the trigger function %s",
-    async (fn) => {
-      const asAnon = await anon.rpc(fn);
-      const asUser = await member.client.rpc(fn);
-
-      expect(asAnon.error).not.toBeNull();
-      expect(asUser.error).not.toBeNull();
-    }
-  );
 
   it("denies every API role EXECUTE on draft_card_keys", async () => {
     const asAnon = await anon.rpc("draft_card_keys", { p_cards: [] });
     const asUser = await member.client.rpc("draft_card_keys", { p_cards: [] });
 
-    expect(asAnon.error).not.toBeNull();
-    expect(asUser.error).not.toBeNull();
+    expect(asAnon.error?.code).toBe(PERMISSION_DENIED);
+    expect(asUser.error?.code).toBe(PERMISSION_DENIED);
+  });
+
+  // Trigger functions are never exposed over PostgREST — calling one returns
+  // "not found in the schema cache" even as service_role, which *does* hold
+  // EXECUTE. So the REVOKEs in 20260717000000 have to be read off the catalog,
+  // or the assertion passes for the wrong reason.
+  it.each([["public.handle_new_user()"], ["public.update_updated_at()"]])(
+    "denies anon and authenticated EXECUTE on the trigger function %s",
+    async (signature) => {
+      expect(await canExecute("anon", signature)).toBe(false);
+      expect(await canExecute("authenticated", signature)).toBe(false);
+    }
+  );
+
+  it("keeps EXECUTE on the RLS helpers for authenticated only", async () => {
+    for (const signature of [
+      "public.user_group_ids(uuid)",
+      "public.user_draft_ids(uuid)",
+      "public.is_group_admin(uuid, uuid)",
+    ]) {
+      // authenticated MUST keep it: policies evaluate helpers as the querying
+      // role, so revoking here breaks every policy that references one.
+      expect(await canExecute("authenticated", signature)).toBe(true);
+      expect(await canExecute("anon", signature)).toBe(false);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Schema-wide invariant
+// ---------------------------------------------------------------------------
+
+describe("schema invariants", () => {
+  it("has RLS enabled on every public table", async () => {
+    // 20260721000100 grants anon/authenticated the full DML set on every public
+    // table (matching prod). RLS is the only thing standing between that grant
+    // and open access, so a new table without it would be world-writable.
+    const rows = await query<{ relname: string }>(
+      `select c.relname
+         from pg_class c
+         join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity
+        order by 1`
+    );
+
+    expect(rows.map((r) => r.relname)).toEqual([]);
   });
 });
 
@@ -648,7 +735,7 @@ describe("invite RPCs", () => {
       p_token: inviteToken,
     });
 
-    expect(error).not.toBeNull();
+    expect(error?.code).toBe(PERMISSION_DENIED);
   });
 
   it("lets an authenticated outsider join via a valid invite token", async () => {
@@ -678,7 +765,7 @@ describe("invite RPCs", () => {
       p_token: "00000000-0000-0000-0000-000000000000",
     });
 
-    expect(error).not.toBeNull();
+    expect(error?.message).toContain("Invalid invite link");
   });
 });
 
@@ -720,6 +807,6 @@ describe("get_draft_pick_view", () => {
       p_draft_id: simulatedDraftId,
     });
 
-    expect(error).not.toBeNull();
+    expect(error?.code).toBe(PERMISSION_DENIED);
   });
 });

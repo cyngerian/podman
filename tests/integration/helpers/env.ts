@@ -16,6 +16,7 @@ export const REQUIRED_VARS = [
   "SUPABASE_TEST_URL",
   "SUPABASE_TEST_PUBLISHABLE_KEY",
   "SUPABASE_TEST_SECRET_KEY",
+  "SUPABASE_TEST_DB_URL",
 ] as const;
 
 let resolved = false;
@@ -29,20 +30,37 @@ function parseStatusEnv(output: string): Record<string, string> {
   return vars;
 }
 
+function runStatus(command: string, args: string[]): string {
+  return execFileSync(command, args, {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+}
+
 function readStatus(): Record<string, string> {
-  try {
-    const output = execFileSync("npx", ["supabase", "status", "-o", "env"], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    return parseStatusEnv(output);
-  } catch (error) {
-    throw new Error(
-      "Could not read local Supabase status. Start it with `npx supabase start` " +
-        "before running the RLS suite.\n" +
-        (error instanceof Error ? error.message : String(error))
-    );
+  // Prefer a `supabase` already on PATH — in CI that is the version
+  // `supabase/setup-cli` pinned and used to start the stack. Falling through to
+  // `npx` would download whatever is latest, adding a network dependency (and
+  // possible version skew) to the suite that exists to be the flake signal.
+  const attempts: [string, string[]][] = [
+    ["supabase", ["status", "-o", "env"]],
+    ["npx", ["supabase", "status", "-o", "env"]],
+  ];
+
+  let lastError: unknown;
+  for (const [command, args] of attempts) {
+    try {
+      return parseStatusEnv(runStatus(command, args));
+    } catch (error) {
+      lastError = error;
+    }
   }
+
+  throw new Error(
+    "Could not read local Supabase status. Start it with `npx supabase start` " +
+      "before running the integration suites.\n" +
+      (lastError instanceof Error ? lastError.message : String(lastError))
+  );
 }
 
 export function ensureSupabaseEnv(): void {
@@ -62,6 +80,9 @@ export function ensureSupabaseEnv(): void {
     status.ANON_KEY || status.PUBLISHABLE_KEY;
   process.env.SUPABASE_TEST_SECRET_KEY ||=
     status.SERVICE_ROLE_KEY || status.SECRET_KEY;
+  // Direct Postgres, for the handful of assertions PostgREST cannot express —
+  // function EXECUTE grants and whether RLS is enabled on every table.
+  process.env.SUPABASE_TEST_DB_URL ||= status.DB_URL;
 
   const missing = REQUIRED_VARS.filter((name) => !process.env[name]);
   if (missing.length > 0) {

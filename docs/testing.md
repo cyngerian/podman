@@ -48,7 +48,7 @@ excludes `tests/` — that directory belongs to the integration and E2E runners.
 
 ## RLS Integration Suite
 
-`tests/integration/rls.test.ts` — **52 tests**, run with
+`tests/integration/rls.test.ts` — **57 tests**, run with
 `npm run test:rls` (`vitest.integration.config.ts`).
 
 It talks to a **real** local Supabase. That is the point: a PostgREST double
@@ -69,8 +69,8 @@ regressions it exists to catch:
    Both directions are asserted.
 
 Coverage: `groups`, `group_members`, `drafts`, `draft_players`,
-`draft_proposals`, `group_invites`, `profiles` — each from a member, a
-non-member, and `anon` — plus the helper privilege surface, the invite RPCs
+`draft_proposals`, `proposal_votes`, `group_invites`, `profiles` — each from a
+member, a non-member, and `anon` — plus the helper privilege surface, the invite RPCs
 (`get_invite_info` for anon, `accept_group_invite` for authenticated), and
 `get_draft_pick_view`'s self-authorization.
 
@@ -78,6 +78,18 @@ Reading the assertions: an RLS denial on SELECT surfaces as **zero rows**, not
 an error. A denial on INSERT surfaces as an error (42501); a denial on
 UPDATE/DELETE surfaces as **zero affected rows**, because the row is invisible
 to the writer in the first place.
+
+Denial assertions check for code **42501** specifically, not merely "an error".
+PostgREST answers a call to a missing *or* renamed function with `PGRST202`, so
+`expect(error).not.toBeNull()` would keep passing after someone deleted the
+thing under test.
+
+A few assertions go around PostgREST entirely and read the catalog over a direct
+Postgres connection (`tests/integration/helpers/sql.ts`): trigger functions are
+never exposed as RPCs — even to `service_role`, which holds EXECUTE — so their
+grants can only be checked with `has_function_privilege`. The same helper backs
+a sweep asserting **RLS is enabled on every public table**, which is what makes
+the blanket table grants below safe.
 
 Fixtures (`tests/integration/helpers/supabase.ts`) create real auth users via
 the admin API and sign each one in, so tests run as the `authenticated` role
@@ -162,6 +174,24 @@ the `anon` / `service_role` Postgres roles, and role mapping is exactly what the
 RLS suite measures. Production uses the new format; the role behavior under test
 is identical.
 
+### One way the CI database still differs from prod
+
+The grants migration deliberately sets default privileges for **tables and
+sequences only**. Prod additionally has default privileges granting EXECUTE on
+public-schema *functions* to `anon`, `authenticated`, and `service_role` —
+reproducing that here would re-grant EXECUTE on the SECURITY DEFINER helpers
+that `20260717000000_harden_function_privileges.sql` revoked, which is the
+opposite of what we want. Two consequences to keep in mind:
+
+- A **new** SECURITY DEFINER function will be anon-executable in prod but not on
+  the CI stack. A "denies anon EXECUTE" test can therefore pass in CI and be
+  false in production. Any new function must carry its own explicit
+  `GRANT`/`REVOKE` lines in the migration that creates it — don't rely on
+  inherited defaults in either direction.
+- `service_role` likewise gets no EXECUTE by default here, so a new RPC called
+  from `supabase-admin.ts` will fail in CI while working in prod unless the
+  migration grants it.
+
 > Two things had to be fixed before `npx supabase start` produced a usable
 > database at all, both committed with the suite: `supabase/seed.sql` still
 > inserted into the long-dropped `invites` table (which aborted startup), and
@@ -188,7 +218,7 @@ tests schema or policy behavior must hit a real Supabase.
 From the April 2026 audit (`CODEBASE_AUDIT_2026-04-25.md` §7), in priority order:
 
 1. ~~**`applyDraftMutation` concurrency control**~~ — closed 2026-07-21 by `draft-mutation.test.ts` (19 tests).
-2. ~~**RLS policy regression tests**~~ — closed 2026-07-21 by `tests/integration/rls.test.ts` (52 tests).
+2. ~~**RLS policy regression tests**~~ — closed 2026-07-21 by `tests/integration/rls.test.ts` (57 tests).
 3. ~~**Server actions auth/membership**~~ — closed 2026-07-21 by `dashboard/groups/__tests__/actions.test.ts` (18 tests).
 4. ~~**End-to-end coverage**~~ — closed 2026-07-21 by `tests/e2e/draft-flow.spec.ts`.
 
