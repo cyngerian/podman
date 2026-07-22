@@ -278,26 +278,84 @@ describe("group_members", () => {
     await fixtures.addMember(groupId, member, "member");
   });
 
-  it(
-    "KNOWN GAP: lets any authenticated user add themselves to any group they " +
-      "know the id of (group_members_insert allows `user_id = auth.uid()`)",
-    async () => {
-      // Documented, not endorsed — see docs/testing.md § Known RLS gaps.
-      // If this starts failing, the policy was tightened: delete this test and
-      // the docs entry rather than loosening the policy back.
-      const { error } = await outsider.client
-        .from("group_members")
-        .insert({ group_id: groupId, user_id: outsider.id, role: "member" });
+  it("does not let a non-member add themselves to a group they know the id of", async () => {
+    const { error } = await outsider.client
+      .from("group_members")
+      .insert({ group_id: groupId, user_id: outsider.id, role: "member" });
 
-      expect(error).toBeNull();
+    expect(error?.code).toBe(PERMISSION_DENIED);
 
-      await outsider.client
-        .from("group_members")
-        .delete()
-        .eq("group_id", groupId)
-        .eq("user_id", outsider.id);
-    }
-  );
+    // And nothing landed — the denial is the policy, not a silent no-op.
+    const { data } = await admin.client
+      .from("group_members")
+      .select("user_id")
+      .eq("group_id", groupId)
+      .eq("user_id", outsider.id);
+
+    expect(data).toEqual([]);
+  });
+
+  it("does not let a non-member self-join as an admin either", async () => {
+    const { error } = await outsider.client
+      .from("group_members")
+      .insert({ group_id: groupId, user_id: outsider.id, role: "admin" });
+
+    expect(error?.code).toBe(PERMISSION_DENIED);
+  });
+
+  it("does not let a plain member add themselves to a group they did not create", async () => {
+    // `member` can see the group, so this is the strongest form of the self-join
+    // attempt: full read access to the target, still no write.
+    const otherGroupId = await fixtures.createGroup(admin);
+
+    const { error } = await member.client
+      .from("group_members")
+      .insert({ group_id: otherGroupId, user_id: member.id, role: "member" });
+
+    expect(error?.code).toBe(PERMISSION_DENIED);
+  });
+
+  it("lets a group's creator seed their own admin row (the createGroup path)", async () => {
+    // Mirrors `createGroup`: the user client inserts the group, then its own
+    // admin membership. No admin exists yet, so this is the one self-insert the
+    // policy still allows.
+    const { data: group, error: groupError } = await outsider.client
+      .from("groups")
+      .insert({ name: "Creator bootstrap", created_by: outsider.id })
+      .select("id")
+      .single();
+
+    expect(groupError).toBeNull();
+    fixtures.trackGroup(group!.id);
+
+    // Before any membership exists, the creator cannot seed *someone else* —
+    // the bootstrap clause is scoped to their own row.
+    const { error: otherUserError } = await outsider.client
+      .from("group_members")
+      .insert({ group_id: group!.id, user_id: member.id, role: "member" });
+
+    expect(otherUserError?.code).toBe(PERMISSION_DENIED);
+
+    // ...nor a non-admin row for themselves — `createGroup` seeds `admin`.
+    const { error: memberRoleError } = await outsider.client
+      .from("group_members")
+      .insert({ group_id: group!.id, user_id: outsider.id, role: "member" });
+
+    expect(memberRoleError?.code).toBe(PERMISSION_DENIED);
+
+    const { error } = await outsider.client
+      .from("group_members")
+      .insert({ group_id: group!.id, user_id: outsider.id, role: "admin" });
+
+    expect(error).toBeNull();
+
+    // Once they are an admin of their own group, adding others works normally.
+    const { error: addMemberError } = await outsider.client
+      .from("group_members")
+      .insert({ group_id: group!.id, user_id: member.id, role: "member" });
+
+    expect(addMemberError).toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------
