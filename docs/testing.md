@@ -165,8 +165,11 @@ Playwright's browser is a one-time install: `npx playwright install chromium`.
 
 Neither suite needs configuration. `tests/integration/helpers/env.ts` shells out
 to `supabase status -o env` and derives the URL and keys from there, so a stack
-on non-default ports still works. Set `SUPABASE_TEST_URL`,
-`SUPABASE_TEST_PUBLISHABLE_KEY`, and `SUPABASE_TEST_SECRET_KEY` to override.
+on non-default ports still works. To point the suites somewhere else, set all
+four of `SUPABASE_TEST_URL`, `SUPABASE_TEST_PUBLISHABLE_KEY`,
+`SUPABASE_TEST_SECRET_KEY`, and `SUPABASE_TEST_DB_URL` — the CLI is only
+consulted when one of them is missing, so a partial override still needs
+`supabase status` to work.
 
 It deliberately prefers the **legacy JWT** anon/service-role keys over the local
 stack's `sb_publishable_*` / `sb_secret_*` pair: locally those do not map onto

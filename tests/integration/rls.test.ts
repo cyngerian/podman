@@ -27,6 +27,9 @@ import { canExecute, query } from "./helpers/sql";
 /** Postgres `insufficient_privilege` — a real denial, as opposed to PGRST202. */
 const PERMISSION_DENIED = "42501";
 
+/** Tables in `public` as of the last migration. A floor, not an equality. */
+const TABLE_COUNT = 13;
+
 const fixtures = new Fixtures();
 
 /** Group admin: creates the group, its invites, and hosts the group draft. */
@@ -702,15 +705,18 @@ describe("schema invariants", () => {
     // 20260721000100 grants anon/authenticated the full DML set on every public
     // table (matching prod). RLS is the only thing standing between that grant
     // and open access, so a new table without it would be world-writable.
-    const rows = await query<{ relname: string }>(
-      `select c.relname
+    const rows = await query<{ relname: string; relrowsecurity: boolean }>(
+      `select c.relname, c.relrowsecurity
          from pg_class c
          join pg_namespace n on n.oid = c.relnamespace
-        where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity
+        where n.nspname = 'public' and c.relkind = 'r'
         order by 1`
     );
 
-    expect(rows.map((r) => r.relname)).toEqual([]);
+    // Floor first: "no table lacks RLS" is also true of an empty schema, which
+    // is what a stack whose migrations never applied looks like.
+    expect(rows.length).toBeGreaterThanOrEqual(TABLE_COUNT);
+    expect(rows.filter((r) => !r.relrowsecurity).map((r) => r.relname)).toEqual([]);
   });
 });
 

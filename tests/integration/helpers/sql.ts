@@ -16,7 +16,16 @@ export async function query<T extends Record<string, unknown>>(
 ): Promise<T[]> {
   ensureSupabaseEnv();
   const client = new Client({ connectionString: process.env.SUPABASE_TEST_DB_URL });
-  await client.connect();
+  try {
+    await client.connect();
+  } catch (error) {
+    // Never re-raise the driver's message: it can echo the connection string,
+    // credentials and all, straight into a CI log.
+    throw new Error(
+      "Could not connect to the local Supabase Postgres. Start it with " +
+        `\`npx supabase start\`. (${(error as { code?: string }).code ?? "connect failed"})`
+    );
+  }
   try {
     const result = await client.query(text, values);
     return result.rows as T[];
