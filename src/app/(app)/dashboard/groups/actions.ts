@@ -34,12 +34,21 @@ export async function createGroup(formData: FormData): Promise<{ error: string }
     return { error: groupError?.message ?? "Failed to create group" };
   }
 
-  // Add creator as admin member
-  await supabase.from("group_members").insert({
+  // Add creator as admin member. `group_members_insert` only allows this
+  // self-insert when `groups.created_by = auth.uid()` and the role is `admin`
+  // (20260721000200) — so a failure here means the group exists but nobody can
+  // reach it. Surface it instead of redirecting into an orphan.
+  const { error: memberError } = await supabase.from("group_members").insert({
     group_id: group.id,
     user_id: user.id,
     role: "admin",
   });
+
+  // No rollback: `groups` has no DELETE policy, so the user client cannot undo
+  // its own insert. Returning the error is the honest outcome.
+  if (memberError) {
+    return { error: memberError.message };
+  }
 
   redirect(`/dashboard/groups/${group.id}`);
 }

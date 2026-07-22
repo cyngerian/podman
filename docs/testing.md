@@ -34,7 +34,7 @@ Most tests live in `src/lib/__tests__/`; the two exceptions are noted below. Cou
 | `draft-mutation.test.ts` | 19 | `applyDraftMutation` optimistic concurrency: version guard, retry-on-zero-rows, error paths |
 | `card-utils.test.ts` | 17 | Color utilities, DFC color union, mana-cost helpers |
 | `export.test.ts` | 17 | `.cod`, `.txt`, and clipboard exports — including `deckName` handling |
-| `.../dashboard/groups/__tests__/actions.test.ts` | 18 | Server-action auth/membership guards |
+| `.../dashboard/groups/__tests__/actions.test.ts` | 19 | Server-action auth/membership guards |
 | `proposal-validation.test.ts` | 14 | Draft proposal input validation |
 | `scryfall.test.ts` | 12 | Collector-number normalization (DFC `a/b`, `★`, "The List" `SET-NUM`) |
 | `kv.test.ts` | 14 | Upstash wrapper: TTL passthrough (`ex`), no-TTL and unconfigured paths, error swallowing, booster 24h default |

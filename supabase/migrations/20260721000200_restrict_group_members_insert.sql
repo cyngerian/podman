@@ -20,7 +20,9 @@ CREATE POLICY "group_members_insert" ON public.group_members
   FOR INSERT TO authenticated WITH CHECK (
     -- An existing group admin adding anyone (including themselves).
     public.is_group_admin(group_id, (select auth.uid()))
-    -- Bootstrap: the group's creator seeding their own admin membership row.
+    -- The group's creator seeding their own admin membership row. This is not
+    -- one-shot: a creator who left their own group can rejoin it as admin.
+    -- That is intended — "you can always get back into a group you created".
     OR (
       user_id = (select auth.uid())
       AND role = 'admin'
