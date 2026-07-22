@@ -727,7 +727,10 @@ export default function PickScreen({
       <div className="hidden sm:flex flex-1 flex-col min-h-0">
         {/* Card grid — scrollable area */}
         <div className="flex-1 overflow-y-auto min-h-0">
-          <div className="max-w-5xl mx-auto grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-2 p-3">
+          <div
+            data-testid="pick-grid"
+            className="max-w-5xl mx-auto grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-2 p-3"
+          >
             {filteredCards.map((card) => (
               <CardThumbnail
                 key={card.scryfallId}
